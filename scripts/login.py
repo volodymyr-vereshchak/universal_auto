@@ -15,8 +15,10 @@ import time
 from app.models import PaymentsOrder
 import csv
 import datetime
+from os.path import exists
 
 def save_report_to_db(file_name):
+    print(os.getcwd())
     with open(file_name) as file:
         reader = csv.reader(file)
         next(reader)  # Advance past the header
@@ -100,23 +102,28 @@ def build_driver():
 
 def login(driver):
     driver.get("https://m.uber.com/")
-    element = driver.find_element_by_name('phoneNumber')
+    element = driver.find_element_by_id('PHONE_NUMBER_or_EMAIL_ADDRESS')
     number = input("Enter your Phone Number: ")
     print(number)
     element.send_keys(number)
-    driver.find_element_by_id("next-button").click()
+    driver.find_element_by_id("forward-button").click()
 
     element = WebDriverWait(driver, 60).until(
-        EC.presence_of_element_located((By.ID, "password"))
+        EC.presence_of_element_located((By.ID, "PASSWORD"))
     )
     password = input("Enter your password: ")
     print(password)
     element.send_keys(password)
-    driver.find_element_by_id("next-button").click()
+    
 
-
-def generate_report(driver):
+def generate_payments_order(driver):
     driver.get("https://supplier.uber.com/orgs/49dffc54-e8d9-47bd-a1e5-52ce16241cb6/reports")
+    xpath = f'//div[@data-testid="payment-reporting-table-row"]/div/div/div[text()="{payments_order_file_name()}"]'
+    el = driver.find_element_by_xpath(xpath)
+    if el:
+        print('Report already exists')
+        return f'{payments_order_file_name()}.csv'
+
     driver.find_element_by_class_name('_css-jYsWkC').click()
     driver.find_element_by_xpath('//ul/li/div[text()[contains(.,"Payments transaction")]]').click()
     start = driver.find_element_by_xpath('//div[@data-testid="start-date-picker"]/div/div/div/input')
@@ -124,24 +131,29 @@ def generate_report(driver):
     driver.find_element_by_xpath('//div[@aria-roledescription="button"]/div[text()="1"]').click()
     end = driver.find_element_by_xpath('//div[@data-testid="end-date-picker"]/div/div/div/input')
     end.send_keys(Keys.NULL)
-    today = date.today()
-    d, y, m  = today.strftime("%d"), today.strftime("%Y"), today.strftime("%m")
     driver.find_element_by_xpath(f'//div[@aria-roledescription="button"]/div[text()="{d}"]').click()
     driver.find_element_by_xpath('//button[@data-testid="generate-report-button"]').click()
 
-    return f'{y}{m}01-{y}{m}{d}-payments_order-___.csv'
+    return f'{file_name}.csv'
 
-def download_report(driver):
+def download_payments_order(driver):
+    if exists(f'{payments_order_file_name()}.csv'):
+        print('Report already downloaded')
+        return 
     b = driver.find_element_by_xpath('//div[1][@data-testid="payment-reporting-table-row"]/div/div/div/div/button')
     driver.execute_script("arguments[0].click();", b)
 
+def payments_order_file_name():
+    today = date.today()
+    d, y, m  = today.strftime("%d"), today.strftime("%Y"), today.strftime("%m")
+    return f'{y}{m}01-{y}{m}{d}-payments_order-___'
 
 def run():
     driver = retry(build_driver)
     #login(driver)
-    report_name = generate_report(driver)
-    download_report(driver)
+    report_name = generate_payments_order(driver)
+    download_payments_order(driver)
     save_report_to_db(report_name)
-    time.sleep(2000)
+    time.sleep(200000)
 
  

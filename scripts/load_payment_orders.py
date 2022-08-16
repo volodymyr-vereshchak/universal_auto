@@ -9,7 +9,7 @@ def run():
 
         for row in reader:
             print(row)
-            film = PaymentsOrder(transaction_uuid = row[0],
+            order = PaymentsOrder(transaction_uuid = row[0],
                                  driver_uuid = row[1],
                                  drievr_name = row[2],
                                  drievr_second_name = row[3],
@@ -31,4 +31,4 @@ def run():
                                  transfered_to_bank = row[19],
                                  ajustment_payment =row[20],
                                  cancel_payment = row[21])
-            film.save()
+            order.save()
