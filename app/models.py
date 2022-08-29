@@ -67,10 +67,13 @@ class BoltPaymentsOrder(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     def report_text(self):
-      return f'Bolt {self.driver_full_name}: Касса: {float(self.total_amount) + float(self.fee) + float(self.cancels_amount)}, Нал: {float(self.total_amount_cach)}, Зарплата: {"%.2f" % self.total_drivers_amount()}'
+      return f'Bolt {self.driver_full_name}: На карту: {self.total_cach_less_drivers_amount()}, Наличные: {float(self.total_amount_cach)}, Зарплата: {"%.2f" % self.total_drivers_amount()}'
     def total_drivers_amount(self):
-        res = (float(self.total_amount) + float(self.fee) + float(self.cancels_amount)) * 0.65   + float(self.total_amount_cach)
+        res = self.total_cach_less_drivers_amount() * 0.65   + float(self.total_amount_cach)
         return res
+
+    def total_cach_less_drivers_amount(self):
+        return float(self.total_amount) + float(self.fee) + float(self.cancels_amount) + float(self.driver_bonus)
     
 
 class UberPaymentsOrder(models.Model):
@@ -89,7 +92,7 @@ class UberPaymentsOrder(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     def report_text(self):
-        return f'Uber {self.first_name} {self.last_name}: Касса: {float(self.total_amount)}, Нал: {float(self.total_amount_cach)}, Зарплата: {"%.2f" % self.total_drivers_amount()}'
+        return f'Uber {self.first_name} {self.last_name}: На карту: {float(self.total_amount)}, Наличные: {float(self.total_amount_cach)}, Зарплата: {"%.2f" % self.total_drivers_amount()}'
     def total_drivers_amount(self):
        return float(self.total_amount)* 0.65 + float(self.total_amount_cach)
 

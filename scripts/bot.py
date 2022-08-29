@@ -36,6 +36,10 @@ def report(update, context):
     """Echo the user message."""
     update.message.reply_text(get_report())
 
+def code(update, context):
+    """Echo the user message."""
+    update.message.reply_text(get_report())
+
 def error(update, context):
     """Log Errors caused by Updates."""
     logger.warning('Update "%s" caused error "%s"', update, context.error)
@@ -54,6 +58,7 @@ def main():
     dp.add_handler(CommandHandler("start", report))
     dp.add_handler(CommandHandler("help", help))
     dp.add_handler(CommandHandler("report", report))
+    dp.add_handler(CommandHandler("code", code))
 
     # on noncommand i.e message - echo the message on Telegram
     dp.add_handler(MessageHandler(Filters.text, echo))
@@ -62,17 +67,19 @@ def main():
     dp.add_error_handler(error)
 
     # Start the Bot
-    updater.start_webhook(
-        listen="0.0.0.0",
-        port=int(PORT),
-        url_path=TOKEN,
-        webhook_url='https://b228-176-100-6-210.ngrok.io/' + TOKEN
-    )
+    # updater.start_webhook(
+    #     listen="0.0.0.0",
+    #     port=int(PORT),
+    #     url_path=TOKEN,
+    #     webhook_url='https://snowy-wood-371.fly.dev/' + TOKEN
+    # )
 
     # Run the bot until you press Ctrl-C or the process receives SIGINT,
     # SIGTERM or SIGABRT. This should be used most of the time, since
     # start_polling() is non-blocking and will stop the bot gracefully.
+    updater.start_polling()
     updater.idle()
+    logger.warning('APPAAA')
 
 def run():
     main()

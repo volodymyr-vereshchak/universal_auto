@@ -4,3 +4,5 @@ djangorestframework==3.13.1
 selenium
 pendulum
 python-telegram-bot
+honcho
+redis
