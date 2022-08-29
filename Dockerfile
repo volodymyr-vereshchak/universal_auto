@@ -3,6 +3,7 @@ ARG PYTHON_VERSION=3.9.10
 FROM python:${PYTHON_VERSION}
 
 RUN apt-get update && apt-get install -y \
+    redis-tools \
     python3-pip \
     python3-venv \
     python3-dev \

@@ -14,6 +14,7 @@ import itertools
 from app.models import UklonPaymentsOrder
 from app.models import UberPaymentsOrder
 from app.models import BoltPaymentsOrder
+import redis
 
 class SeleniumTools():
     def __init__(self, session):
@@ -39,7 +40,6 @@ class SeleniumTools():
     def build_driver(self, headless=False):
         options = Options()
         options = webdriver.ChromeOptions();
-        print(os.getcwd())
         options.add_experimental_option("prefs", {
             "download.default_directory": os.getcwd(),
             "download.prompt_for_download": False,
@@ -61,39 +61,10 @@ class SeleniumTools():
             options.add_argument("--disable-extensions")
             options.add_argument('--disable-dev-shm-usage')    
             options.add_argument('--disable-software-rasterizer')
-            options.add_argument("user-agent=Mozilla/5.0 (Windows Phone 10.0; Android 4.2.1; Microsoft; Lumia 640 XL LTE) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/42.0.2311.135 Mobile Safari/537.36 Edge/12.10166")
+            options.add_argument("user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/104.0.0.0 Safari/537.36")
             options.add_argument("--disable-notifications")
-            #options.add_argument("--window-size=1920,1080");
-
-        # if os.path.isfile(self.session_file_name):
-        #     session_file = open(self.session_file_name)
-        #     session_info = session_file.readlines()
-        #     session_file.close()
-
-        #     executor_url = session_info[0].strip()
-        #     session_id = session_info[1].strip()
-
-        #     capabilities = options.to_capabilities()
-        #     driver = webdriver.Remote(command_executor=executor_url, desired_capabilities=capabilities)
-        #     # prevent annoying empty chrome windows
-        #     driver.close()
-        #     driver.quit()
-
-        #     # attach to existing session
-        #     driver.session_id = session_id
-        #     return driver
 
         driver = webdriver.Chrome(options=options, port=9514)
-
-        # session_file = open(self.session_file_name, 'w')
-        # session_file.writelines([
-        #     driver.command_executor._url,
-        #     "\n",
-        #     driver.session_id,
-        #     "\n",
-        # ])
-        # session_file.close()
-
         return driver
 
 class Uber(SeleniumTools):    
@@ -105,7 +76,60 @@ class Uber(SeleniumTools):
 
     def quit(self):
         self.driver.quit()
+    def login_v2(self):
+        self.driver.get("https://drivers.uber.com/")
+        element = self.driver.find_element(By.ID, 'PHONE_NUMBER_or_EMAIL_ADDRESS')
+        element.send_keys(os.environ["UBER_NAME"])
+        self.driver.find_element(By.ID, "forward-button").click() 
+        self.driver.get_screenshot_as_file('UBER_NAME.png')   
 
+        # WebDriverWait(self.driver, 5).until(EC.presence_of_element_located((By.ID, 'password')))
+        # self.driver.find_element(By.ID, 'password').send_keys(os.environ["UBER_PASSWORD"])
+        # self.driver.find_element(By.CLASS_NAME, "next-button-wrapper").click()
+        # self.driver.get_screenshot_as_file('UBER_PASSWORD.png')
+
+        while True:
+            #try:
+            WebDriverWait(self.driver, 5).until(EC.presence_of_element_located((By.ID, 'PHONE_SMS_OTP-0')))
+            self.driver.find_element(By.ID, 'PHONE_SMS_OTP-0')
+            self.driver.get_screenshot_as_file('verificationCode.png')
+            r = redis.Redis.from_url(os.environ["REDIS_URL"])
+            p = r.pubsub()
+            p.subscribe('code')
+            while True:
+                try:
+                    otp = p.get_message()
+                    print(otp)
+                    if otp:
+                        print(otp["data"])
+                        otpa = list(f'{otp["data"]}')
+                        print(otpa)
+                        otpa = list(filter(lambda d: d.isdigit() , otpa))
+                        digits = [s.isdigit() for s in otpa]
+                        if not(digits) or (not all(digits)) or len(digits)!=4:
+                            continue
+                        break 
+                except redis.ConnectionError:
+                    p = r.pubsub()
+                    p.subscribe(channel)
+                time.sleep(1)   
+            self.driver.find_element(By.ID, 'PHONE_SMS_OTP-0').send_keys(otpa[0])
+            self.driver.find_element(By.ID, 'PHONE_SMS_OTP-1').send_keys(otpa[1])
+            self.driver.find_element(By.ID, 'PHONE_SMS_OTP-2').send_keys(otpa[2])
+            self.driver.find_element(By.ID, 'PHONE_SMS_OTP-3').send_keys(otpa[3])
+            self.driver.find_element(By.ID, "forward-button").click() 
+            break
+            #except Exception:
+            #    self.driver.get_screenshot_as_file('verificationCode_error.png')
+            #    break
+        try:
+            WebDriverWait(self.driver, 5).until(EC.presence_of_element_located((By.ID, 'PASSWORD')))
+            el = self.driver.find_element(By.ID, 'PASSWORD').send_keys(os.environ["UBER_PASSWORD"])
+        except Exception:
+            pass
+
+        if self.sleep:
+          time.sleep(self.sleep)
     def login(self):
         self.driver.get("https://auth.uber.com/login/")
         element = self.driver.find_element(By.ID, 'useridInput')
@@ -123,12 +147,25 @@ class Uber(SeleniumTools):
                 WebDriverWait(self.driver, 5).until(EC.presence_of_element_located((By.ID, 'verificationCode')))
                 self.driver.find_element(By.ID, 'verificationCode')
                 self.driver.get_screenshot_as_file('verificationCode.png')
-                otp = input("OTPcode: ")
-                
-                otpa = list(otp)
-                digits = [s.isdigit() for s in otpa]
-                if not(digits) or (not all(digits)) or len(digits)!=4:
-                    continue 
+                r = redis.Redis.from_url(os.environ["REDIS_URL"])
+                p = r.pubsub()
+                p.subscribe('code')
+                while True:
+                    try:
+                        otp = p.get_message()
+                        print(otp)
+                        if otp:
+                            print(otp["data"])
+                            otpa = list(otp)
+                            print(otpa)
+                            digits = [s.isdigit() for s in otpa]
+                            if not(digits) or (not all(digits)) or len(digits)!=4:
+                                continue
+                            break 
+                    except redis.ConnectionError:
+                        p = r.pubsub()
+                        p.subscribe(channel)
+                    time.sleep(1)   
                 self.driver.find_element(By.ID, 'verificationCode').send_keys(otp)
                 self.driver.find_element(By.CLASS_NAME,"next-button-wrapper").click()
             except Exception:
@@ -143,7 +180,7 @@ class Uber(SeleniumTools):
                 continue
 
         if self.sleep:
-          time.sleep(self.sleep)
+          time.sleep(1000)
     
 
     def generate_payments_order(self):
@@ -158,8 +195,14 @@ class Uber(SeleniumTools):
         self.driver.find_element(By.XPATH, menu).click()   
         
         xpath = '//ul/li/div[text()[contains(.,"Payments Driver")]]'
-        WebDriverWait(self.driver, 5).until(EC.presence_of_element_located((By.XPATH, xpath)))
-        self.driver.find_element(By.XPATH, xpath).click()
+        try:
+          WebDriverWait(self.driver, 5).until(EC.presence_of_element_located((By.XPATH, xpath)))
+          self.driver.find_element(By.XPATH, xpath).click()
+        except Exception:
+            xpath = '//ul/li/div[text()[contains(.,"Payments driver")]]'
+            WebDriverWait(self.driver, 5).until(EC.presence_of_element_located((By.XPATH, xpath)))
+            self.driver.find_element(By.XPATH, xpath).click()
+        
         
         start = self.driver.find_element(By.XPATH, '//div[@data-testid="start-date-picker"]/div/div/div/input')
         start.send_keys(Keys.NULL)

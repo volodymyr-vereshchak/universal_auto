@@ -11,6 +11,7 @@ def run():
             if otp:
                 print(otp["data"])
                 otpa = list(otp)
+                print(otpa)
                 digits = [s.isdigit() for s in otpa]
                 if not(digits) or (not all(digits)) or len(digits)!=4:
                     continue
