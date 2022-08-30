@@ -2,5 +2,5 @@ import redis
 import time
 def run():
     r = redis.Redis(host="localhost")
-    p = r.publish('code', '0409')
+    p = r.publish('code', '2563')
 

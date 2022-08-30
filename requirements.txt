@@ -3,7 +3,6 @@ django-extensions==3.1.5
 djangorestframework==3.13.1
 selenium
 pendulum
-python-telegram-bot==20.0a4
+python-telegram-bot==13.13
 honcho
 redis
-imgcat
