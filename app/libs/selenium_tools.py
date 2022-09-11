@@ -466,21 +466,29 @@ def get_report():
         'Сергій Желамський': ['cd725b41-9e47-4fd0-8a1f-3514ddf6238a', '372350','+380668914200'],
         'Олег Філіппов': ['380671887096', '324460'],
         'Юрій Філіппов':  ['380502428878', '357339']
+      },
+      "rates": {
+        'Олександр Холін':   {"uber": 0.65, "bolt": 0.65, "uklon": 0.35},
+        'Анатолій Мухін':    {"uber": 0.65, "bolt": 0.65, "uklon": 0.35},
+        'Сергій Желамський': {"uber": 0.65, "bolt": 0.65, "uklon": 0.35},
+        'Олег Філіппов':     {"uber": 0.60, "bolt": 0.60, "uklon": 0.40},
+        'Юрій Філіппов':     {"uber": 0.60, "bolt": 0.60, "uklon": 0.40},
       }
+
     }
     
     
-    u = Uber(driver=True, sleep=6, headless=True)
+    u = Uber(driver=False, sleep=0, headless=True)
     u.login_v2()
     u.download_payments_order()
     ubr = u.save_report()
  
-    ub = Uklon(driver=True, sleep=6, headless=True)
+    ub = Uklon(driver=False, sleep=0, headless=True)
     ub.login()
     ub.download_payments_order()
     ur =  ub.save_report()  
 
-    b = Bolt(driver=True, sleep=6, headless=True)
+    b = Bolt(driver=False, sleep=0, headless=True)
     b.login()
     b.download_payments_order()
     br = b.save_report()
@@ -496,8 +504,8 @@ def get_report():
     totals = {}
     for name, results in reports.items():
         results = list(results)
-        totals[name] = '\n'.join(c.report_text(name) for c in results)
-        totals[name] += f'\nЗарплата за неделю {name}: %.2f\n' % sum(c.total_drivers_amount() for c in results)
+        totals[name] = '\n'.join(c.report_text(name, drivers_maps['rates'][name][c.vendor()]) for c in results)
+        totals[name] += f'\nЗарплата за неделю {name}: %.2f\n' % sum(c.total_drivers_amount(drivers_maps['rates'][name][c.vendor()]) for c in results)
 
     return '\n'.join(list(totals.values()))
 
