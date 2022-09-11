@@ -300,8 +300,13 @@ class Bolt(SeleniumTools):
             report = open(report_file_name)
         except OSError as e:
             self.logger.error(str(e))
-            report_file_name = self.payments_order_file_name2()
-            report = open(report_file_name)
+            try:
+                report_file_name = self.payments_order_file_name2()
+                report = open(report_file_name)
+            except OSError as e:
+                self.logger.error(str(e))
+                report_file_name = self.payments_order_file_name3()
+                report = open(report_file_name)
 
 
         with report as file:
@@ -340,8 +345,11 @@ class Bolt(SeleniumTools):
 
     def payments_order_file_name(self):
         return f'Bolt Wochenbericht - 2022W{self.week_number()} - Kyiv Fleet 03_232 park Universal-auto.csv'
-
+    
     def payments_order_file_name2(self):
+        return f'Bolt Weekly Report - 2022W{self.week_number()} - Kyiv Fleet 03_232 park Universal-auto.csv'
+
+    def payments_order_file_name3(self):
         return f'Щотижневий звіт Bolt – 2022W{self.week_number()} – Kyiv Fleet 03_232 park Universal-auto.csv'
         
     def week_number(self):

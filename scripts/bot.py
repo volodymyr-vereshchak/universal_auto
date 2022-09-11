@@ -24,6 +24,7 @@ def start(update, context):
     update.message.reply_text('Hi!')
 
 def report(update, context):
+    update.message.reply_text("Enter you Uber OTP code from SMS:")
     update.message.reply_text(get_report())
 
 def error(update, context):
@@ -33,7 +34,7 @@ def error(update, context):
 def code(update, context):
     r = redis.Redis.from_url(os.environ["REDIS_URL"])
     r.publish('code', update.message.text)
-    update.message.reply_text('Wait')
+    update.message.reply_text('Wait for report...')
 
 def main():
     updater = Updater(os.environ['TELEGRAM_TOKEN'], use_context=True)
