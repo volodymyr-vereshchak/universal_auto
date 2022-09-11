@@ -116,10 +116,10 @@ class Uber(SeleniumTools):
             self.driver.find_element(By.XPATH, xpath).click()
         start = self.driver.find_element(By.XPATH, '//div[@data-testid="start-date-picker"]/div/div/div/input')
         start.send_keys(Keys.NULL)
-        self.driver.find_element(By.XPATH, f'//div[@aria-roledescription="button"]/div[text()={self.start_of_week().strftime("%d")}]').click()
+        self.driver.find_element(By.XPATH, f'//div[@aria-roledescription="button"]/div[text()={self.start_of_week().strftime("%-d")}]').click()
         end = self.driver.find_element(By.XPATH, '//div[@data-testid="end-date-picker"]/div/div/div/input')
         end.send_keys(Keys.NULL)
-        self.driver.find_element(By.XPATH, f'//div[@aria-roledescription="button"]/div[text()="{self.end_of_week().strftime("%d")}"]').click()
+        self.driver.find_element(By.XPATH, f'//div[@aria-roledescription="button"]/div[text()="{self.end_of_week().strftime("%-d")}"]').click()
         self.driver.find_element(By.XPATH, '//button[@data-testid="generate-report-button"]').click()
 
         return f'{self.payments_order_file_name()}'
@@ -292,9 +292,19 @@ class Bolt(SeleniumTools):
 
     def save_report(self):
         if self.sleep:
-          time.sleep(self.sleep)
+            time.sleep(self.sleep)
         items = []
-        with open(self.payments_order_file_name()) as file:
+        
+        try:
+            report_file_name = self.payments_order_file_name()
+            report = open(report_file_name)
+        except OSError as e:
+            self.logger.error(str(e))
+            report_file_name = self.payments_order_file_name2()
+            report = open(report_file_name)
+
+
+        with report as file:
             reader = csv.reader(file)
             next(reader)
             next(reader)
@@ -306,7 +316,7 @@ class Bolt(SeleniumTools):
                 order = BoltPaymentsOrder(
                     report_from = self.start_of_week(),
                     report_to = self.end_of_week(),
-                    report_file_name = self.payments_order_file_name(),
+                    report_file_name = report_file_name,
                     driver_full_name = row[0],
                     mobile_number = row[1],
                     range_string =  row[2],
@@ -322,15 +332,17 @@ class Bolt(SeleniumTools):
                     compensation = row[12] or 0,
                     refunds = row[13],
                     tips =  row[14],
-                    weekly_balance = row[15]    )
+                    weekly_balance = row[15])
                 order.save()
                 items.append(order)
         return items
 
 
     def payments_order_file_name(self):
-        #return f'Щотижневий звіт Bolt – 2022W{self.week_number()} – Kyiv Fleet 03_232 park Universal-auto.csv'
         return f'Bolt Wochenbericht - 2022W{self.week_number()} - Kyiv Fleet 03_232 park Universal-auto.csv'
+
+    def payments_order_file_name2(self):
+        return f'Щотижневий звіт Bolt – 2022W{self.week_number()} – Kyiv Fleet 03_232 park Universal-auto.csv'
         
     def week_number(self):
         return f'{int(self.start_of_week().strftime("%W"))}'
@@ -361,8 +373,6 @@ class Uklon(SeleniumTools):
           time.sleep(self.sleep)
 
     def download_payments_order(self):
-        if os.path.exists(self.payments_order_file_name()):
-            return self.payments_order_file_name()
         url = f"https://partner.uklon.com.ua/partner/export/fares?page=1&pageSize=20&startDate={self.start_of_week_timestamp()}&endDate={self.end_of_week_timestamp()}&format=csv"
         print(url)
         print(self.driver.get(url))
@@ -370,9 +380,18 @@ class Uklon(SeleniumTools):
 
     def save_report(self):
         if self.sleep:
-          time.sleep(self.sleep)
+            time.sleep(self.sleep)
         items = []
-        with open(self.payments_order_file_name()) as file:
+        
+        try:
+            report_file_name = self.payments_order_file_name()
+            report = open(report_file_name)
+        except OSError as e:
+            self.logger.error(str(e))
+            report_file_name = self.payments_order_file_name2()
+            report = open(report_file_name) 
+        
+        with report as file:
             reader = csv.reader(file)
             next(reader)
             for row in reader:
@@ -380,7 +399,7 @@ class Uklon(SeleniumTools):
                 order = UklonPaymentsOrder(
                                            report_from = self.start_of_week(),
                                            report_to = self.end_of_week(),
-                                           report_file_name = self.payments_order_file_name(),
+                                           report_file_name = report_file_name,
                                            signal = row[0], 
                                            licence_plate = row[1],
                                            total_rides = row[2],
@@ -407,10 +426,17 @@ class Uklon(SeleniumTools):
     def payments_order_file_name(self):
         start =  self.start_of_week()
         end   =  self.end_of_week().end_of('day').add(hours=4)
-        sd, sy, sm  = start.strftime("%d"), start.strftime("%Y"), start.strftime("%-m")
-        ed, ey, em  = end.strftime("%d"), end.strftime("%Y"), end.strftime("%-m")
-        #Куцко - Income_22.08.2022 3_00_00-29.08.2022 3_00_00.csv
+        sd, sy, sm  = start.strftime("%-d"), start.strftime("%Y"), start.strftime("%-m")
+        ed, ey, em  = end.strftime("%-d"), end.strftime("%Y"), end.strftime("%-m")
         return f'Куцко - Income_{sm}_{sd}_{sy} 3_00_00 AM-{em}_{ed}_{ey} 3_00_00 AM.csv'
+    
+    def payments_order_file_name2(self):
+        start =  self.start_of_week()
+        end   =  self.end_of_week().end_of('day').add(hours=4)
+        sd, sy, sm  = start.strftime("%d"), start.strftime("%Y"), start.strftime("%m")
+        ed, ey, em  = end.strftime("%d"), end.strftime("%Y"), end.strftime("%m")
+        return f'Куцко - Income_{sd}.{sm}.{sy} 3_00_00-{ed}.{em}.{ey} 3_00_00.csv'
+
 
 def get_report():
     drivers_maps = {
@@ -420,16 +446,18 @@ def get_report():
       },
       "bolt": {
         "key": "mobile_number",
-        "values": ['+380661891408', '+380936503350', '+380668914200']
+        "values": ['+380661891408', '+380936503350', '+380668914200', '380502428878', '380671887096']
       },
       "uklon": {
         "key": "signal",
-        "values": ['324460', '362612']
+        "values": ['324460', '362612', '372353', '372350', '357339']
       },
       "drivers": {
-        'Олександр Холін': ['775f8943-b0ca-4079-90d3-c81d6563d0f1', '324460', '+380661891408'],
+        'Олександр Холін': ['775f8943-b0ca-4079-90d3-c81d6563d0f1', '372353', '+380661891408'],
         'Анатолій Мухін':  ['9a182345-fd18-490f-a908-94f520a9d2d1', '362612', '+380936503350'],
-        'Сергій Желамський': ['cd725b41-9e47-4fd0-8a1f-3514ddf6238a', '368808','+380668914200']
+        'Сергій Желамський': ['cd725b41-9e47-4fd0-8a1f-3514ddf6238a', '372350','+380668914200'],
+        'Олег Філіппов': ['380671887096', '324460'],
+        'Юрій Філіппов':  ['380502428878', '357339']
       }
     }
     
@@ -439,7 +467,7 @@ def get_report():
     u.download_payments_order()
     ubr = u.save_report()
  
-    ub = Uklon(driver=True, sleep=3, headless=True)
+    ub = Uklon(driver=True, sleep=6, headless=True)
     ub.login()
     ub.download_payments_order()
     ur =  ub.save_report()  
@@ -448,43 +476,20 @@ def get_report():
     b.login()
     b.download_payments_order()
     br = b.save_report()
-  
-    holin = list(itertools.chain(
-        *[list(filter(lambda p: p.driver_uuid in drivers_maps['drivers']['Олександр Холін'], ubr)),
-        list(filter(lambda p: p.mobile_number in drivers_maps['drivers']['Олександр Холін'], br)),
-        list(filter(lambda p: p.signal in drivers_maps['drivers']['Олександр Холін'], ur))]
-        ))
-    muxin = list(itertools.chain(
-        *[list(filter(lambda p: p.driver_uuid in drivers_maps['drivers']['Анатолій Мухін'], ubr)),
-        list(filter(lambda p: p.mobile_number in drivers_maps['drivers']['Анатолій Мухін'], br)),
-        list(filter(lambda p: p.signal in drivers_maps['drivers']['Анатолій Мухін'], ur))]
-        ))
-    zelam = list(itertools.chain(
-        *[list(filter(lambda p: p.driver_uuid in drivers_maps['drivers']['Сергій Желамський'], ubr)),
-        list(filter(lambda p: p.mobile_number in drivers_maps['drivers']['Сергій Желамський'], br)),
-        list(filter(lambda p: p.signal in drivers_maps['drivers']['Сергій Желамський'], ur))]
-        ))
-    th = '%.2f' % sum(c.total_drivers_amount() for c in holin)
-    tm = '%.2f' % sum(c.total_drivers_amount() for c in muxin)
-    tz = '%.2f' % sum(c.total_drivers_amount() for c in zelam)
+     
+    reports = {}
+    for name, ids in drivers_maps["drivers"].items():
+        reports[name] = itertools.chain(*[
+            list(filter(lambda p: p.driver_uuid in ids, ubr)),
+            list(filter(lambda p: p.mobile_number in ids, br)),
+            list(filter(lambda p: p.signal in ids, ur))
+         ])
+    
+    totals = {}
+    for name, results in reports.items():
+        results = list(results)
+        totals[name] = '\n'.join(c.report_text(name) for c in results)
+        totals[name] += f'\nЗарплата за неделю {name}: %.2f\n' % sum(c.total_drivers_amount() for c in results)
 
-    return """
-{hu}
-{hb}
-{huk}
-Зарплата Олександр Холін: {h}
------------------------------------------
-{mu}
-{mb}
-{muk}
-Зарплата Анатолій Мухін: {m}
------------------------------------------
-{zu}
-{zb}
-{zuk}
-Зарплата Сергій Желамський: {z} """.format(
-    h=th, m=tm, z=tz, 
-    hu=holin[0].report_text(), hb=holin[1].report_text(), huk=holin[2].report_text(),
-    mu=muxin[0].report_text(), mb=muxin[1].report_text(), muk=muxin[2].report_text(),
-    zu=zelam[0].report_text(), zb=zelam[1].report_text(), zuk=zelam[2].report_text())
+    return '\n'.join(list(totals.values()))
 

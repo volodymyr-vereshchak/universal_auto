@@ -10,17 +10,4 @@ def run():
     ub.quit()
 
 
-
-
-
-    # p = r.pubsub()
-    # p.subscribe(channel)
-    # while True:
-    #     try:
-    #         otp = p.get_message()
-    #     except redis.ConnectionError:
-    #         p = r.pubsub()
-    #         p.subscribe(channel)
-    #     time.sleep(0.01)  
-
  

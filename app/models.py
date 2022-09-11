@@ -39,9 +39,9 @@ class UklonPaymentsOrder(models.Model):
     bonuses = models.DecimalField(decimal_places=2, max_digits=10)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    def report_text(self):
-        return f'Uklon {self.signal}: Аренда авто: {"%.2f" % self.total_drivers_amount()}'
-    def total_drivers_amount(self):    
+    def report_text(self, name = None):
+        return f'Uklon {name} {self.signal}: Аренда авто: {"%.2f" % self.total_drivers_amount()}'
+    def total_drivers_amount(self):
         return -(float(self.total_amount) * 0.83) * 0.35
 
 class BoltPaymentsOrder(models.Model):
@@ -66,8 +66,8 @@ class BoltPaymentsOrder(models.Model):
     weekly_balance = models.DecimalField(decimal_places=2, max_digits=10)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    def report_text(self):
-      return f'Bolt {self.driver_full_name}: На карту: {self.total_cach_less_drivers_amount()}, Наличные: {float(self.total_amount_cach)}, Зарплата: {"%.2f" % self.total_drivers_amount()}'
+    def report_text(self, name = None):
+      return f'Bolt {self.driver_full_name}: Безналичные: {self.total_cach_less_drivers_amount()}, Наличные: {float(self.total_amount_cach)}, Зарплата: {"%.2f" % self.total_drivers_amount()}'
     def total_drivers_amount(self):
         res = self.total_cach_less_drivers_amount() * 0.65   + float(self.total_amount_cach)
         return res
@@ -91,8 +91,8 @@ class UberPaymentsOrder(models.Model):
     tips = models.DecimalField(decimal_places=2, max_digits=10)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    def report_text(self):
-        return f'Uber {self.first_name} {self.last_name}: На карту: {float(self.total_amount)}, Наличные: {float(self.total_amount_cach)}, Зарплата: {"%.2f" % self.total_drivers_amount()}'
+    def report_text(self, name = None):
+        return f'Uber {self.first_name} {self.last_name}: Безналичные: {float(self.total_amount)}, Наличные: {float(self.total_amount_cach)}, Зарплата: {"%.2f" % self.total_drivers_amount()}'
     def total_drivers_amount(self):
        return float(self.total_amount)* 0.65 + float(self.total_amount_cach)
 
