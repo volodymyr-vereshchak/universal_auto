@@ -470,7 +470,7 @@ def get_report():
       "rates": {
         'Олександр Холін':   {"uber": 0.50, "bolt": 0.50, "uklon": 0.50},
         'Анатолій Мухін':    {"uber": 0.65, "bolt": 0.65, "uklon": 0.35},
-        'Сергій Желамський': {"uber": 0.65, "bolt": 0.65, "uklon": 0.35},
+        'Сергій Желамський': {"uber": 0.50, "bolt": 0.50, "uklon": 0.50},
         'Олег Філіппов':     {"uber": 0.60, "bolt": 0.60, "uklon": 0.40},
         'Юрій Філіппов':     {"uber": 0.60, "bolt": 0.60, "uklon": 0.40},
       }
@@ -478,17 +478,17 @@ def get_report():
     }
     
     
-    u = Uber(driver=False, sleep=0, headless=True)
+    u = Uber(driver=True, sleep=5, headless=True)
     u.login_v2()
     u.download_payments_order()
     ubr = u.save_report()
  
-    ub = Uklon(driver=False, sleep=0, headless=True)
+    ub = Uklon(driver=True, sleep=5, headless=True)
     ub.login()
     ub.download_payments_order()
     ur =  ub.save_report()  
 
-    b = Bolt(driver=False, sleep=0, headless=True)
+    b = Bolt(driver=True, sleep=5, headless=True)
     b.login()
     b.download_payments_order()
     br = b.save_report()
