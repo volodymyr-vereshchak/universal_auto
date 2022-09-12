@@ -454,7 +454,7 @@ def get_report():
       },
       "bolt": {
         "key": "mobile_number",
-        "values": ['+380661891408', '+380936503350', '+380668914200', '380502428878', '380671887096']
+        "values": ['+380661891408', '+380936503350', '+380668914200', '+380502428878', '+380671887096']
       },
       "uklon": {
         "key": "signal",
@@ -464,8 +464,8 @@ def get_report():
         'Олександр Холін': ['775f8943-b0ca-4079-90d3-c81d6563d0f1', '372353', '+380661891408'],
         'Анатолій Мухін':  ['9a182345-fd18-490f-a908-94f520a9d2d1', '362612', '+380936503350'],
         'Сергій Желамський': ['cd725b41-9e47-4fd0-8a1f-3514ddf6238a', '372350','+380668914200'],
-        'Олег Філіппов': ['380671887096', '324460'],
-        'Юрій Філіппов':  ['380502428878', '357339']
+        'Олег Філіппов': ['+380671887096', '324460'],
+        'Юрій Філіппов':  ['+380502428878', '357339']
       },
       "rates": {
         'Олександр Холін':   {"uber": 0.50, "bolt": 0.50, "uklon": 0.50},
@@ -478,19 +478,19 @@ def get_report():
     }
     
     
-    u = Uber(driver=True, sleep=5, headless=True)
-    u.login_v2()
-    u.download_payments_order()
+    u = Uber(driver=False, sleep=0, headless=True)
+    #u.login_v2()
+    #u.download_payments_order()
     ubr = u.save_report()
  
-    ub = Uklon(driver=True, sleep=5, headless=True)
-    ub.login()
-    ub.download_payments_order()
+    ub = Uklon(driver=False, sleep=0, headless=True)
+    #ub.login()
+   # ub.download_payments_order()
     ur =  ub.save_report()  
 
-    b = Bolt(driver=True, sleep=5, headless=True)
-    b.login()
-    b.download_payments_order()
+    b = Bolt(driver=False, sleep=0, headless=True)
+   # b.login()
+   # b.download_payments_order()
     br = b.save_report()
      
     reports = {}
