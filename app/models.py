@@ -45,7 +45,9 @@ class UklonPaymentsOrder(models.Model):
         return -(float(self.total_amount) * 0.83) * rate
     def vendor(self):
         return 'uklon'
-
+    def total_owner_amount(self, rate = 0.35):
+        return -self.total_drivers_amount(rate)
+       
 class BoltPaymentsOrder(models.Model):
     report_from = models.DateTimeField()
     report_to = models.DateTimeField()
@@ -80,6 +82,9 @@ class BoltPaymentsOrder(models.Model):
     def vendor(self):
         return 'bolt'
 
+    def total_owner_amount(self, rate = 0.65):
+       return self.total_cach_less_drivers_amount() * (1 - rate) - self.total_drivers_amount(rate)
+
 class UberPaymentsOrder(models.Model):
     report_from = models.DateTimeField()
     report_to = models.DateTimeField()
@@ -102,6 +107,9 @@ class UberPaymentsOrder(models.Model):
 
     def vendor(self):
         return 'uber'
+
+    def total_owner_amount(self, rate = 0.65):
+       return float(self.total_amount) * (1 - rate) - self.total_drivers_amount(rate)
 
 def save_uber_report_to_db(file_name):
     with open(file_name) as file:

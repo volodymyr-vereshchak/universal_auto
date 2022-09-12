@@ -35,6 +35,8 @@ def code(update, context):
     r = redis.Redis.from_url(os.environ["REDIS_URL"])
     r.publish('code', update.message.text)
     update.message.reply_text('Wait for report...')
+    context.bot.send_chat_action(chat_id=update.effective_message.chat_id, action=ChatAction.TYPING)
+    
 
 def main():
     updater = Updater(os.environ['TELEGRAM_TOKEN'], use_context=True)

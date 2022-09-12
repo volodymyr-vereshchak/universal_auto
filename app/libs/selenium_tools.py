@@ -162,7 +162,6 @@ class Uber(SeleniumTools):
             reader = csv.reader(file)
             next(reader)  # Advance past the header
             for row in reader:
-                print(row)
                 if row[3] == "":
                     continue
                 if row[3] == None:
@@ -446,7 +445,7 @@ class Uklon(SeleniumTools):
         return f'Куцко - Income_{sd}.{sm}.{sy} 3_00_00-{ed}.{em}.{ey} 3_00_00.csv'
 
 
-def get_report():
+def get_report(driver=True, sleep=5, headless=True):
     drivers_maps = {
       "uber": {
         "key": "driver_uuid",
@@ -461,11 +460,11 @@ def get_report():
         "values": ['324460', '362612', '372353', '372350', '357339']
       },
       "drivers": {
-        'Олександр Холін': ['775f8943-b0ca-4079-90d3-c81d6563d0f1', '372353', '+380661891408'],
-        'Анатолій Мухін':  ['9a182345-fd18-490f-a908-94f520a9d2d1', '362612', '+380936503350'],
+        'Олександр Холін':   ['775f8943-b0ca-4079-90d3-c81d6563d0f1', '372353', '+380661891408'],
+        'Анатолій Мухін':    ['9a182345-fd18-490f-a908-94f520a9d2d1', '362612', '+380936503350'],
         'Сергій Желамський': ['cd725b41-9e47-4fd0-8a1f-3514ddf6238a', '372350','+380668914200'],
-        'Олег Філіппов': ['+380671887096', '324460'],
-        'Юрій Філіппов':  ['+380502428878', '357339']
+        'Олег Філіппов':     ['+380671887096', '324460'],
+        'Юрій Філіппов':     ['+380502428878', '357339']
       },
       "rates": {
         'Олександр Холін':   {"uber": 0.50, "bolt": 0.50, "uklon": 0.50},
@@ -478,19 +477,22 @@ def get_report():
     }
     
     
-    u = Uber(driver=False, sleep=0, headless=True)
-    #u.login_v2()
-    #u.download_payments_order()
+    u = Uber(driver=driver, sleep=sleep, headless=headless)
+    if driver:
+        u.login_v2()
+        u.download_payments_order()
     ubr = u.save_report()
  
-    ub = Uklon(driver=False, sleep=0, headless=True)
-    #ub.login()
-   # ub.download_payments_order()
+    ub = Uklon(driver=driver, sleep=sleep, headless=headless)
+    if driver:
+        ub.login()
+        ub.download_payments_order()
     ur =  ub.save_report()  
 
-    b = Bolt(driver=False, sleep=0, headless=True)
-   # b.login()
-   # b.download_payments_order()
+    b = Bolt(driver=driver, sleep=sleep, headless=headless)
+    if driver:
+        b.login()
+        b.download_payments_order()
     br = b.save_report()
      
     reports = {}
@@ -501,11 +503,13 @@ def get_report():
             list(filter(lambda p: p.signal in ids, ur))
          ])
     
-    totals = {}
+    totals = {"Fleet Owner": 0}
+
     for name, results in reports.items():
         results = list(results)
         totals[name] = '\n'.join(c.report_text(name, drivers_maps['rates'][name][c.vendor()]) for c in results)
         totals[name] += f'\nЗарплата за неделю {name}: %.2f\n' % sum(c.total_drivers_amount(drivers_maps['rates'][name][c.vendor()]) for c in results)
-
+        totals["Fleet Owner"] += sum(c.total_owner_amount(drivers_maps['rates'][name][c.vendor()]) for c in results)
+    totals["Fleet Owner"] = f"Fleet Owner: {f'%.2f' % totals['Fleet Owner']}" + '\n\n'
     return '\n'.join(list(totals.values()))
 
