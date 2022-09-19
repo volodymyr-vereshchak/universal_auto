@@ -71,7 +71,8 @@ class BoltPaymentsOrder(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     def report_text(self, name = None, rate = 0.65):
-      return f'Bolt {self.driver_full_name}: Безналичные: {self.total_cach_less_drivers_amount()}, Наличные: {float(self.total_amount_cach)}, Зарплата: {"%.2f" % self.total_drivers_amount(rate)}'
+        name = name or self.driver_full_name
+        return f'Bolt {name}: Безналичные: {self.total_cach_less_drivers_amount()}, Наличные: {float(self.total_amount_cach)}, Зарплата: {"%.2f" % self.total_drivers_amount(rate)}'
     def total_drivers_amount(self, rate = 0.65):
         res = self.total_cach_less_drivers_amount() * rate  + float(self.total_amount_cach)
         return res
@@ -101,7 +102,8 @@ class UberPaymentsOrder(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     def report_text(self, name = None, rate = 0.65):
-        return f'Uber {self.first_name} {self.last_name}: Безналичные: {float(self.total_amount)}, Наличные: {float(self.total_amount_cach)}, Зарплата: {"%.2f" % self.total_drivers_amount(rate)}'
+        name = name or f'{self.first_name} {self.last_name}'
+        return f'Uber {name}: Безналичные: {float(self.total_amount)}, Наличные: {float(self.total_amount_cach)}, Зарплата: {"%.2f" % self.total_drivers_amount(rate)}'
     def total_drivers_amount(self, rate = 0.65):
        return float(self.total_amount) * rate + float(self.total_amount_cach)
 
