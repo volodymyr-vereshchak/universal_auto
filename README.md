@@ -22,7 +22,7 @@ honcho start
 # How to start contribute?
 
 1. Take an issue from the list  https://github.com/SergeyKutsko/universal_auto/issues and ask questions
-2. Create a new branch from a master branch with the name in the format: issues-12-your_last_name
+2. Fork project and create a new branch from a master branch with the name in the format: issues-12-your_last_name
 3. After work is finished and covered by tests create a Pull Request with good description what exactly you did and how and add Sergey Kutsko as reviewer. 
 4. After review fix found problems
 5. Manual QA stage need to be done by other person to confirm solutions works as expected
