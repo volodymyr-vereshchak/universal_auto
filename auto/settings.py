@@ -25,7 +25,7 @@ SECRET_KEY = 'django-insecure-6k_khpqqm)b)nkws+c!jf)0_cx)#dhurwe7%g$$2k3yo3951+z
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = ['snowy-wood-371.fly.dev', 'localhost', '127.0.0.1']
 
 
 # Application definition
@@ -40,6 +40,7 @@ INSTALLED_APPS = [
 # add these lines:
     'django_extensions',
     'app.apps.AppConfig',
+    'fake_uklon'
 ]
 
 MIDDLEWARE = [
