@@ -40,11 +40,7 @@ services:
       test: [ "CMD", "redis-cli", "--raw", "incr", "ping" ]
 
   postgres:
-<<<<<<< HEAD
     container_name: universal_auto_postgres
-=======
-    container_name: postgres_container
->>>>>>> 33eeefe (fix DB)
     image: postgres:13.8
     environment:
       POSTGRES_DB: "universal_auto_dev"
