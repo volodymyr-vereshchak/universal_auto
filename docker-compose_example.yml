@@ -38,7 +38,7 @@ services:
 
   postgres:
     container_name: postgres_container
-    image: postgres:13.3
+    image: postgres:13.8
     environment:
       POSTGRES_DB: "universal_auto_dev"
       POSTGRES_USER: "universal_auto_dev"
