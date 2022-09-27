@@ -146,34 +146,26 @@ def save_uber_report_to_db(file_name):
 
 
 class User(models.Model):
-    first_name = models.CharField(blank=True, max_length=20)
-    last_name = models.CharField(blank=True, max_length=20)
-    number = models.CharField(blank=True, max_length=20)
+    first_name = models.CharField(blank=True, max_length=30)
+    last_name = models.CharField(blank=True, max_length=30)
+    number = models.CharField(blank=True, max_length=13)
     Driver = models.BooleanField(default=False)
     Manager = models.BooleanField(default=False)
     Owner = models.BooleanField(default=False)
 
     def __str__(self):
         """
-        Magic method is redefined to show all information about User.
+        Show all information about User.
         :return: user id, user first_name, user last_name, user number
         """
         return str(self.to_dict())[1:-1]
 
-    def __repr__(self):
-        """
-        This magic method is redefined to show class and id of User object.
-        :return: class, id
-        """
-        return f'{self.__class__.__name__}(id={self.id})'
-
-
     @staticmethod
-    def get_by_email(number):
+    def get_by_number(number):
         """
-        Returns user by email
-        :param email: email by which we need to find the user
-        :type email: str
+        Returns user by number
+        :param number: number by which we need to find the user
+        :type number: str
         :return: user object or None if a user with such ID does not exist
         """
         try:

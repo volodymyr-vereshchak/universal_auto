@@ -7,5 +7,3 @@ python-telegram-bot==13.13
 honcho
 redis
 psycopg2
-telegram
-requests
