@@ -1,13 +1,12 @@
 import logging
-
-from django.contrib.auth import authenticate, login
-from django.shortcuts import render
-from django.views import View
-from django.contrib.auth.mixins import LoginRequiredMixin
 import mimetypes
 import os
-from django.http.response import HttpResponse
 
+from django.contrib.auth import authenticate, login
+from django.contrib.auth.mixins import LoginRequiredMixin
+from django.http.response import HttpResponse
+from django.shortcuts import render
+from django.views import View
 
 # Enable logging
 logging.basicConfig(
@@ -44,8 +43,8 @@ class Login(View):
 class Export(LoginRequiredMixin, View):
     """Generate report"""
 
-    login_url = '/fake_uklon/login/'
-    redirect_field_name = '/fake_uklon/login/'
+    login_url = "/fake_uklon/login/"
+    redirect_field_name = "/fake_uklon/login/"
     # url = f"https://partner.uklon.com.ua/partner/export/fares?
     # page=1
     # &pageSize=20
@@ -57,13 +56,15 @@ class Export(LoginRequiredMixin, View):
     def get(request):
         format_request = request.GET.get("format")
         if format_request == "csv":
-            filename = 'Куцко - Income_9_12_2022 3_00_00 AM-9_19_2022 3_00_00 AM.csv'
-            filepath = BASE_DIR + '/' + filename  # Define the full file path
-            path = open(filepath, 'r')
-            response = HttpResponse(path,
-                                    content_type='text/csv',
-                                    headers={'Content-Disposition': 'attachment; filename="Income_9_12_2022 3_00_00 AM-9_19_2022 3_00_00 AM.csv"'})
+            filename = "Куцко - Income_9_12_2022 3_00_00 AM-9_19_2022 3_00_00 AM.csv"
+            filepath = BASE_DIR + "/" + filename  # Define the full file path
+            path = open(filepath, "r")
+            response = HttpResponse(
+                path,
+                content_type="text/csv",
+                headers={
+                    "Content-Disposition": 'attachment; filename="Income_9_12_2022 3_00_00 AM-9_19_2022 3_00_00 AM.csv"'
+                },
+            )
             return response
         return render(request, "fake_uklon/report.html")
-
-

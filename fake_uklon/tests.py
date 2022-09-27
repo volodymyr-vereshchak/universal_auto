@@ -1,6 +1,8 @@
 from django.contrib.auth.models import User
-from django.test import Client, TestCase, RequestFactory
+from django.test import Client, RequestFactory, TestCase
+
 from fake_uklon.views import Export
+
 
 class UserAusenticateTest(TestCase):
     def setUp(self):
@@ -40,18 +42,23 @@ class UserAusenticateTest(TestCase):
         self.assertIn('name="password"', content, "Error load loging page")
 
     def test_get_report_html(self):
-        request = self.factory.get('/fake_uklon/partner/export/fares')
+        request = self.factory.get("/fake_uklon/partner/export/fares")
         user = User.objects.get(username="TestUserName")
         request.user = user
         response = Export.as_view()(request)
         self.assertEqual(response.status_code, 200, "Error status code")
-        self.assertEqual(response.headers['Content-Type'], "text/html; charset=utf-8", "Error. Return not html")
+        self.assertEqual(
+            response.headers["Content-Type"],
+            "text/html; charset=utf-8",
+            "Error. Return not html",
+        )
 
     def test_get_report_csv(self):
-        request = self.factory.get('/fake_uklon/partner/export/fares?format=csv')
+        request = self.factory.get("/fake_uklon/partner/export/fares?format=csv")
         user = User.objects.get(username="TestUserName")
         request.user = user
         response = Export.as_view()(request)
         self.assertEqual(response.status_code, 200, "Error status code")
-        self.assertEqual(response.headers['Content-Type'], "text/csv", "Error. Return not csv")
-
+        self.assertEqual(
+            response.headers["Content-Type"], "text/csv", "Error. Return not csv"
+        )
