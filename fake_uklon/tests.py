@@ -18,7 +18,8 @@ class UserAusenticateTest(TestCase):
     def test_user_authenticate_ok(self):
         """input correct login and password"""
         response = self.c.post(
-            "/fake_uklon/login/", {"login": "TestUserName", "password": "My_password"}
+            "/fake_uklon/login/",
+            {"login": "TestUserName", "loginPassword": "My_password"},
         )
         self.assertEqual(response.status_code, 200, "Error status code")
         content = str(response.content)
@@ -28,7 +29,7 @@ class UserAusenticateTest(TestCase):
         """input wrong password"""
         response = self.c.post(
             "/fake_uklon/login/",
-            {"login": "TestUserName", "password": "My_wrong_password"},
+            {"login": "TestUserName", "loginPassword": "My_wrong_password"},
         )
         self.assertEqual(response.status_code, 200, "Error status code")
         content = str(response.content)
@@ -39,10 +40,12 @@ class UserAusenticateTest(TestCase):
         self.assertEqual(response.status_code, 200, "Error status code")
         content = str(response.content)
         self.assertIn('name="login"', content, "Error load loging page")
-        self.assertIn('name="password"', content, "Error load loging page")
+        self.assertIn('name="loginPassword"', content, "Error load loging page")
 
     def test_get_report_html(self):
-        request = self.factory.get("/fake_uklon/partner/export/fares")
+        request = self.factory.get(
+            "/fake_uklon/partner/export/fares?page=1&pageSize=20&startDate=1663534800&endDate=1664139600"
+        )
         user = User.objects.get(username="TestUserName")
         request.user = user
         response = Export.as_view()(request)
@@ -54,7 +57,9 @@ class UserAusenticateTest(TestCase):
         )
 
     def test_get_report_csv(self):
-        request = self.factory.get("/fake_uklon/partner/export/fares?format=csv")
+        request = self.factory.get(
+            "/fake_uklon/partner/export/fares?page=1&pageSize=20&startDate=1663534800&endDate=1664139600&format=csv"
+        )
         user = User.objects.get(username="TestUserName")
         request.user = user
         response = Export.as_view()(request)

@@ -1,7 +1,6 @@
 from django.urls import path
 
-from fake_uklon.views import Login, Export
-
+from fake_uklon.views import Export, Login
 
 urlpatterns = [
     path("login/", Login.as_view()),
