@@ -43,10 +43,15 @@ class Login(View):
 
 class Export(LoginRequiredMixin, View):
     """Generate report"""
-    TEST_DATA = """Signal||LicencePlate||TotalRides||TotalDistance||TotalAmountCach||TotalAmountCachLess||TotalAmount||TotalAmountWithoutComission||Bonuses
+
+    TEST_DATA1 = """Signal||LicencePlate||TotalRides||TotalDistance||TotalAmountCach||TotalAmountCachLess||TotalAmount||TotalAmountWithoutComission||Bonuses
     324460||KA8443EA||26||329||1679||2863||4542||772.14||0
     372353||AA3108YA||17||159||444||2035||2479||421.43||0
     362612||KA4897EM||42||355||2085||3465||5550||943.50||0"""
+
+    TEST_DATA2 = """Signal||LicencePlate||TotalRides||TotalDistance||TotalAmountCach||TotalAmountCachLess||TotalAmount||TotalAmountWithoutComission||Bonuses
+    324460||KA8443EA||35||435||3402||2612||6014||1022.38||0
+    362612||KA4897EM||33||259||2247||1841||4088||694.96||0"""
 
     redirect_field_name = "/fake_uklon/login/"
     # url = f"https://partner.uklon.com.ua/partner/export/fares?
@@ -70,7 +75,9 @@ class Export(LoginRequiredMixin, View):
             filename = f"Куцко - Income_{sm}_{sd}_{sy} 3_00_00 AM-{em}_{ed}_{ey} 3_00_00 AM.csv"
 
             response = HttpResponse(
-                Export.TEST_DATA,
+                Export.TEST_DATA1
+                if request.path == "/fake_uklon/partner/export/fares"
+                else Export.TEST_DATA2,
                 content_type="text/csv",
                 headers={
                     "Content-Disposition": f"attachment; filename={urllib.parse.quote(filename)}"

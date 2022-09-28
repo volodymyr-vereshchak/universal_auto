@@ -67,3 +67,15 @@ class UserAusenticateTest(TestCase):
         self.assertEqual(
             response.headers["Content-Type"], "text/csv", "Error. Return not csv"
         )
+
+    def test_get_report_csv_second_url(self):
+        request = self.factory.get(
+            "/fake_uklon/partner/export/fares2?page=1&pageSize=20&startDate=1663534800&endDate=1664139600&format=csv"
+        )
+        user = User.objects.get(username="TestUserName")
+        request.user = user
+        response = Export.as_view()(request)
+        self.assertEqual(response.status_code, 200, "Error status code")
+        self.assertEqual(
+            response.headers["Content-Type"], "text/csv", "Error. Return not csv"
+        )
