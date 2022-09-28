@@ -1,6 +1,7 @@
 version: "3.9"
 services:
   web:
+    platform: linux/amd64
     depends_on:
       postgres:
         condition: service_healthy
