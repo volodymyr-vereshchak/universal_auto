@@ -10,6 +10,7 @@ import datetime
 import pendulum
 import sys
 import os
+import re
 import itertools
 from app.models import UklonPaymentsOrder
 from app.models import UberPaymentsOrder
@@ -293,21 +294,16 @@ class Bolt(SeleniumTools):
         if self.sleep:
             time.sleep(self.sleep)
         items = []
+
+        filenames = os.listdir(os.curdir)
+        file1 = ''
+        for file in filenames:
+          match = re.search(f"2022W{self.week_number()}", file)
+          if match:
+            report_file_name = file  
         
-        try:
-            report_file_name = self.payments_order_file_name()
-            report = open(report_file_name)
-        except OSError as e:
-            self.logger.error(str(e))
-            try:
-                report_file_name = self.payments_order_file_name2()
-                report = open(report_file_name)
-            except OSError as e:
-                self.logger.error(str(e))
-                report_file_name = self.payments_order_file_name3()
-                report = open(report_file_name)
-
-
+        report = open(report_file_name)
+        
         with report as file:
             reader = csv.reader(file)
             next(reader)
@@ -464,7 +460,8 @@ def get_report(driver=True, sleep=5, headless=True):
         'Анатолій Мухін':    ['9a182345-fd18-490f-a908-94f520a9d2d1', '362612', '+380936503350'],
         'Сергій Желамський': ['cd725b41-9e47-4fd0-8a1f-3514ddf6238a', '372350', '+380668914200'],
         'Олег Філіппов':     ['d303a6c5-56f7-4ebf-a341-9cfa7c759388', '324460', '+380671887096'],
-        'Юрій Філіппов':     ['9c7eb6cb-34e8-46a2-b55b-b41657878376', '357339', '+380502428878']
+        'Юрій Філіппов':     ['9c7eb6cb-34e8-46a2-b55b-b41657878376', '357339', '+380502428878'],
+        'Володимир Золотніков': ['368808', '+380669692591'] 
       },
       "rates": {
         'Олександр Холін':   {"uber": 0.50, "bolt": 0.50, "uklon": 0.50},
@@ -472,6 +469,7 @@ def get_report(driver=True, sleep=5, headless=True):
         'Сергій Желамський': {"uber": 0.50, "bolt": 0.50, "uklon": 0.50},
         'Олег Філіппов':     {"uber": 0.60, "bolt": 0.60, "uklon": 0.40},
         'Юрій Філіппов':     {"uber": 0.60, "bolt": 0.60, "uklon": 0.40},
+        'Володимир Золотніков': {"uber": 0.60, "bolt": 0.60, "uklon": 0.40}
       }
 
     }
