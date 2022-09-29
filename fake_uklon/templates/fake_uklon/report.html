@@ -206,7 +206,7 @@
                             <div class="form-group">
                                 <label class="sr-only">From</label>
                                 <div class="input-group col-md-10">
-                                    <input type="text" name="StartDate" value="19.09.2022 00:00" class="datetimepicker form-control" autocomplete="off">
+                                    <input type="text" name="StartDate" value="{{start}}" class="datetimepicker form-control" autocomplete="off">
                                     <span class="input-group-addon"><i class="fa fa-calendar"></i></span>
                                 </div>
                             </div>
@@ -215,7 +215,7 @@
                             <div class="form-group ">
                                 <label class="sr-only">To</label>
                                 <div class="input-group col-md-10">
-                                    <input type="text" name="EndDate" value="25.09.2022 00:00" class="datetimepicker form-control" autocomplete="off">
+                                    <input type="text" name="EndDate" value="{{end}}" class="datetimepicker form-control" autocomplete="off">
                                     <span class="input-group-addon"><i class="fa fa-calendar"></i></span>
                                 </div>
                             </div>
@@ -292,6 +292,7 @@
             </tr>
         </thead>
         <tbody>
+                {% for driver in drivers %}
                 <tr data-driverid="477f17e3-4e80-4b98-a2af-609f86ace552">
                     <td>
                       <strong>
@@ -299,144 +300,29 @@
                       </strong>
                     </td>
                     <td>
-                        368808
+                        {{ driver.signal }}
                     </td>
                     <td>
-                        KA1644CT
+                        {{driver.licence_plate}}
                     </td>
-                    <td>21</td>
-                    <td>309.00</td>
-                    <td>1741.00</td>
+                    <td>{{driver.total_rides}}</td>
+                    <td>{{driver.total_distance}}</td>
+                    <td>{{driver.total_amount_cach_less}}</td>
                     <td>
-                        2369.00
-                    </td>
-                    <td>
-                        4110.00
+                        {{driver.total_amount_cach}}
                     </td>
                     <td>
-                        698.70
+                        {{driver.total_amount}}
+                    </td>
+                    <td>
+                        {{driver.total_amount_without_comission}}
                     </td>
                      <td>
-                        3411.30
+                        {{driver.profit}}
                     </td>
-                    <td class="hide">0.00</td>
+                    <td class="hide">{{driver.bonuses}}</td>
                 </tr>
-                <tr data-driverid="6bf75830-5a25-41a6-8949-b2d7ad98d8ef">
-                    <td>
-                      <strong>
-                        <a class="text-primary" href="https://partner.uklon.com.ua/driver/6bf75830-5a25-41a6-8949-b2d7ad98d8ef/profile" target="_parent" title="Profile">Driver Куцко Сергій</a>
-                      </strong>
-                    </td>
-                    <td>
-                        324460
-                    </td>
-                    <td>
-                        KA8443EA
-                    </td>
-                    <td>255</td>
-                    <td>2940.00</td>
-                    <td>23506.00</td>
-                    <td>
-                        17807.00
-                    </td>
-                    <td>
-                        41313.00
-                    </td>
-                    <td>
-                        7023.21
-                    </td>
-                     <td>
-                        34289.79
-                    </td>
-                    <td class="hide">0.00</td>
-                </tr>
-                <tr data-driverid="9900c0e9-ca02-4402-8e00-c12a65db418a">
-                    <td>
-                      <strong>
-                        <a class="text-primary" href="https://partner.uklon.com.ua/driver/9900c0e9-ca02-4402-8e00-c12a65db418a/profile" target="_parent" title="Profile">Driver Куцко Сергій</a>
-                      </strong>
-                    </td>
-                    <td>
-                        372353
-                    </td>
-                    <td>
-                        AA3108YA
-                    </td>
-                    <td>66</td>
-                    <td>624.00</td>
-                    <td>6530.00</td>
-                    <td>
-                        3037.00
-                    </td>
-                    <td>
-                        9567.00
-                    </td>
-                    <td>
-                        1626.39
-                    </td>
-                     <td>
-                        7940.61
-                    </td>
-                    <td class="hide">0.00</td>
-                </tr>
-                <tr data-driverid="99ece989-010c-4f4d-9f0c-8c4baf0abba2">
-                    <td>
-                      <strong>
-                        <a class="text-primary" href="https://partner.uklon.com.ua/driver/99ece989-010c-4f4d-9f0c-8c4baf0abba2/profile" target="_parent" title="Profile">Driver Куцко Сергій</a>
-                      </strong>
-                    </td>
-                    <td>
-                        357339
-                    </td>
-                    <td>
-                        KA6047EI
-                    </td>
-                    <td>2</td>
-                    <td>15.00</td>
-                    <td>233.00</td>
-                    <td>
-                        0.00
-                    </td>
-                    <td>
-                        233.00
-                    </td>
-                    <td>
-                        39.61
-                    </td>
-                     <td>
-                        193.39
-                    </td>
-                    <td class="hide">0.00</td>
-                </tr>
-                <tr data-driverid="b3a412cc-20ea-4829-9f77-3d44aa9ffe68">
-                    <td>
-                      <strong>
-                        <a class="text-primary" href="https://partner.uklon.com.ua/driver/b3a412cc-20ea-4829-9f77-3d44aa9ffe68/profile" target="_parent" title="Profile">Driver Куцко Сергій</a>
-                      </strong>
-                    </td>
-                    <td>
-                        362612
-                    </td>
-                    <td>
-                        KA4897EM
-                    </td>
-                    <td>217</td>
-                    <td>2019.00</td>
-                    <td>19630.00</td>
-                    <td>
-                        10680.00
-                    </td>
-                    <td>
-                        30310.00
-                    </td>
-                    <td>
-                        5152.70
-                    </td>
-                     <td>
-                        25157.30
-                    </td>
-                    <td class="hide">0.00</td>
-                </tr>
+                {% endfor %}
         </tbody>
         <tfoot>
             <tr>
