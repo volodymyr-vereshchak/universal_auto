@@ -54,7 +54,7 @@ class BoltPaymentsOrder(models.Model):
     report_file_name = models.CharField(max_length=255)
     driver_full_name = models.CharField(max_length=24)
     mobile_number = models.CharField(max_length=12)
-    range_string =  models.CharField(max_length=50)
+    range_string = models.CharField(max_length=50)
     total_amount = models.DecimalField(decimal_places=2, max_digits=10)
     cancels_amount = models.DecimalField(decimal_places=2, max_digits=10)
     autorization_payment = models.DecimalField(decimal_places=2, max_digits=10)
@@ -141,5 +141,7 @@ def save_uber_report_to_db(file_name):
                                  ajustment_payment =row[20],
                                  cancel_payment = row[21])
             order.save()
-    
-  
+
+
+
+
