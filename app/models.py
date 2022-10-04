@@ -171,3 +171,16 @@ class Vehicle(models.Model):
 
     def __str__(self) -> str:
         return self.name
+
+class Fleets_drivers_vehicles_rate(models.Model):
+    fleet = models.ForeignKey(Fleet, on_delete=models.CASCADE)
+    driver = models.ForeignKey(Driver, on_delete=models.CASCADE)
+    vehicle = models.ForeignKey(Vehicle, on_delete=models.CASCADE)
+    driver_external_id = models.CharField(max_length=255)
+    rate = models.DecimalField(decimal_places=2, max_digits=3, default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    deleted_at = models.DateTimeField(null=True, blank=True)
+
+    def str(self) -> str:
+        return self.driver_external_id
