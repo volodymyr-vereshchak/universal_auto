@@ -141,5 +141,33 @@ def save_uber_report_to_db(file_name):
                                  ajustment_payment =row[20],
                                  cancel_payment = row[21])
             order.save()
-    
-  
+
+class Driver(models.Model):
+    full_name = models.CharField(max_length=255)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    deleted_at = models.DateTimeField(null=True, blank=True)
+
+    def __str__(self) -> str:
+        return self.full_name
+
+class Fleet(models.Model):
+    name = models.CharField(max_length=255)
+    fees = models.DecimalField(decimal_places=2, max_digits=3, default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    deleted_at = models.DateTimeField(null=True, blank=True)
+
+    def __str__(self) -> str:
+        return self.name
+
+class Vehicle(models.Model):
+    name = models.CharField(max_length=255)
+    licence_plate = models.CharField(max_length=24)
+    vin_code = models.CharField(max_length=17)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    deleted_at = models.DateTimeField(null=True, blank=True)
+
+    def __str__(self) -> str:
+        return self.name
