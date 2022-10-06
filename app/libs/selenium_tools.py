@@ -179,7 +179,7 @@ class Uber(SeleniumTools):
                     returns = row[5] or 0,
                     total_amount_cach = row[6] or 0,
                     transfered_to_bank = row[7] or 0,
-                    tips = row[9] or 0)
+                    tips = row[8] or 0)
 
                 order.save()
                 items.append(order)
