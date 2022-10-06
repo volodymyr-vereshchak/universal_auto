@@ -1,22 +1,25 @@
+import time
+import csv
+import datetime
+import sys
+import os
+import re
+import itertools
+import logging
+
+import redis
+import pendulum
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-import time
-import csv
-import datetime
-import pendulum
-import sys
-import os
-import re
-import itertools
+
 from app.models import UklonPaymentsOrder
 from app.models import UberPaymentsOrder
 from app.models import BoltPaymentsOrder
-import redis
-import logging
+from app.models import Driver, Fleets_drivers_vehicles_rate
 
 class SeleniumTools():
     def __init__(self, session):
