@@ -509,10 +509,10 @@ def get_report(driver=True, sleep=5, headless=True):
 
     for name, results in reports.items():
         results = list(results)
-        totals[name] = '\n'.join(c.report_text(name, drivers_maps['rates'][name][c.vendor()]) for c in results)
+        totals[name]  = f'Общаяя касса {name}: %.2f\n' % sum(c.kassa() for c in results)
+        totals[name] += '\n'.join(c.report_text(name, drivers_maps['rates'][name][c.vendor()]) for c in results)
         totals[name] += f'\nЗарплата за неделю {name}: %.2f\n' % sum(c.total_drivers_amount(drivers_maps['rates'][name][c.vendor()]) for c in results)
-        #totals[name] += f'\nДоход по {name}: %.2f\n' % sum(c.total_owner_amount(drivers_maps['rates'][name][c.vendor()]) for c in results)
         totals["Fleet Owner"] += sum(c.total_owner_amount(drivers_maps['rates'][name][c.vendor()]) for c in results)
-    totals["Fleet Owner"] = f"Fleet Owner: {f'%.2f' % totals['Fleet Owner']}" + '\n\n'
+    totals["Fleet Owner"] = f"Fleet Owner: {f'%.2f' % totals['Fleet Owner']}"
     return '\n'.join(list(totals.values()))
 

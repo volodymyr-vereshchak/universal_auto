@@ -8,11 +8,11 @@ This repo is supposed to get statistics from Uber, Bold, Uklon to calculate perf
 4. Replace <add your telegram token here> with token given by telegram 
 5. Run `docker-compose build`
 6. Run `docker-compose up`
-7. Run migrations by `docker exec -it universal_auto_web_1 python manage.py migrate`
+7. Run migrations by `docker exec -it universal_auto_web python manage.py migrate`
 8. Open http://localhost:8080/ in browser
 
 # How to run report and see results in console?
 ```
-docker exec -it universal_auto_web_1 python manage.py runscript weekly
+docker exec -it universal_auto_web python manage.py runscript weekly
 ```
 
