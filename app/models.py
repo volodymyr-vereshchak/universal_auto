@@ -53,7 +53,7 @@ class BoltPaymentsOrder(models.Model):
     report_to = models.DateTimeField()
     report_file_name = models.CharField(max_length=255)
     driver_full_name = models.CharField(max_length=24)
-    mobile_number = models.CharField(max_length=12)
+    mobile_number = models.CharField(max_length=24)
     range_string =  models.CharField(max_length=50)
     total_amount = models.DecimalField(decimal_places=2, max_digits=10)
     cancels_amount = models.DecimalField(decimal_places=2, max_digits=10)
@@ -144,7 +144,7 @@ def save_uber_report_to_db(file_name):
 
 class Driver(models.Model):
     full_name = models.CharField(max_length=255)
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(editable=False, auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     deleted_at = models.DateTimeField(null=True, blank=True)
 
@@ -152,9 +152,9 @@ class Driver(models.Model):
         return self.full_name
 
 class Fleet(models.Model):
-    name = models.CharField(max_length=255)
+    name = models.CharField(unique=True, max_length=255)
     fees = models.DecimalField(decimal_places=2, max_digits=3, default=0)
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(editable=False, auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     deleted_at = models.DateTimeField(null=True, blank=True)
 
@@ -165,7 +165,7 @@ class Vehicle(models.Model):
     name = models.CharField(max_length=255)
     licence_plate = models.CharField(max_length=24)
     vin_code = models.CharField(max_length=17)
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(editable=False, auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     deleted_at = models.DateTimeField(null=True, blank=True)
 
@@ -178,7 +178,7 @@ class Fleets_drivers_vehicles_rate(models.Model):
     vehicle = models.ForeignKey(Vehicle, on_delete=models.CASCADE)
     driver_external_id = models.CharField(max_length=255)
     rate = models.DecimalField(decimal_places=2, max_digits=3, default=0)
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(editable=False, auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     deleted_at = models.DateTimeField(null=True, blank=True)
 
