@@ -390,13 +390,13 @@ class Uklon(SeleniumTools):
             time.sleep(self.sleep)
         items = []
         
-        #try:
-        report_file_name = self.payments_order_file_name()
-        report = open(report_file_name)
-        # except OSError as e:
-        #     self.logger.error(str(e))
-        #     report_file_name = self.payments_order_file_name2()
-        #     report = open(report_file_name) 
+        try:
+            report_file_name = self.payments_order_file_name()
+            report = open(report_file_name)
+        except OSError as e:
+            self.logger.error(str(e))
+            report_file_name = self.payments_order_file_name2()
+            report = open(report_file_name) 
         
         with report as file:
             reader = csv.reader(file)
