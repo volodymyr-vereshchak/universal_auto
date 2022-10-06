@@ -12,7 +12,7 @@ services:
       - "8080:8080"
     command: honcho start
     volumes:
-      - .:/code
+      - .:/app
 
     environment:
       TELEGRAM_TOKEN: <add Your telegram token here>
