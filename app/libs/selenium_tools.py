@@ -22,10 +22,22 @@ from app.models import BoltPaymentsOrder
 from app.models import Driver, Fleets_drivers_vehicles_rate
 
 class SeleniumTools():
-    def __init__(self, session):
-       self.session_file_name = session
-       logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.DEBUG)
-       self.logger = logging.getLogger(__name__)
+    def __init__(self, session, week_number=None):
+        self.session_file_name = session
+        logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.DEBUG)
+        self.logger = logging.getLogger(__name__)
+        if(week_number):
+            self.current_date = pendulum.parse(week_number, tz="Europe/Kiev")
+        else:
+            self.current_date = pendulum.now().start_of('week').subtract(days=3)
+
+    def week_number(self):
+        return f'{int(self.start_of_week().strftime("%W"))}'
+
+    def start_of_week(self):
+        return self.current_date.start_of('week')
+    def end_of_week(self):
+        return self.current_date.end_of('week')
 
     def remove_session(self):
         os.remove(self.session_file_name)
@@ -75,8 +87,8 @@ class SeleniumTools():
         return driver
 
 class Uber(SeleniumTools):    
-    def __init__(self, driver=True, sleep=3, headless=False):
-        super().__init__('uber')
+    def __init__(self, week_number=None, driver=True, sleep=3, headless=False):
+        super().__init__('uber', week_number=week_number)
         self.sleep = sleep
         if driver:
             self.driver = self.retry(self.build_driver, headless)
@@ -144,11 +156,6 @@ class Uber(SeleniumTools):
             pass 
         self.driver.execute_script("arguments[0].click();", self.driver.find_element(By.XPATH, download_button))
 
-    def start_of_week(self):
-        return pendulum.now().start_of('week').subtract(days=3).start_of('week')
-
-    def end_of_week(self):
-        return pendulum.now().start_of('week').subtract(days=3).end_of('week')
 
     def payments_order_file_name(self):
         start =  self.start_of_week()
@@ -182,7 +189,7 @@ class Uber(SeleniumTools):
                     returns = row[5] or 0,
                     total_amount_cach = row[6] or 0,
                     transfered_to_bank = row[7] or 0,
-                    tips = row[9] or 0)
+                    tips = row[8] or 0)
 
                 order.save()
                 items.append(order)
@@ -267,8 +274,8 @@ class Uber(SeleniumTools):
         self.driver.get_screenshot_as_file('UBER_NAME.png')
 
 class Bolt(SeleniumTools):    
-    def __init__(self, driver=True, sleep=3, headless=False):
-        super().__init__('bolt')
+    def __init__(self, week_number=None, driver=True, sleep=3, headless=False):
+        super().__init__('bolt', week_number=week_number)
         self.sleep = sleep
         if driver:
             self.driver = self.retry(self.build_driver, headless)
@@ -299,7 +306,7 @@ class Bolt(SeleniumTools):
         items = []
 
         filenames = os.listdir(os.curdir)
-        file1 = ''
+        print(f"2022W{self.week_number()}")
         for file in filenames:
           match = re.search(f"2022W{self.week_number()}", file)
           if match:
@@ -350,20 +357,13 @@ class Bolt(SeleniumTools):
     def payments_order_file_name3(self):
         return f'Щотижневий звіт Bolt – 2022W{self.week_number()} – Kyiv Fleet 03_232 park Universal-auto.csv'
         
-    def week_number(self):
-        return f'{int(self.start_of_week().strftime("%W"))}'
-
-    def start_of_week(self):
-        return pendulum.now().start_of('week').subtract(days=3).start_of('week')
-    def end_of_week(self):
-        return pendulum.now().start_of('week').subtract(days=3).end_of('week')
 
 from app.models import UklonPaymentsOrder
 
 
 class Uklon(SeleniumTools):    
-    def __init__(self, driver=True, sleep=3, headless=False):
-        super().__init__('uklon')
+    def __init__(self, week_number=None, driver=True, sleep=3, headless=False):
+        super().__init__('uklon',week_number=week_number)
         self.sleep = sleep
         if driver:
             self.driver = self.retry(self.build_driver, headless)
@@ -424,11 +424,7 @@ class Uklon(SeleniumTools):
         return round(self.start_of_week().timestamp())
     def end_of_week_timestamp(self):
         return round(self.end_of_week().timestamp())
-    def start_of_week(self):
-        return pendulum.now().start_of('week').subtract(days=3).start_of('week')
-    def end_of_week(self):
-        return pendulum.now().start_of('week').subtract(days=3).end_of('week')
-
+    
     def payments_order_file_name(self):
         start =  self.start_of_week()
         end   =  self.end_of_week().end_of('day').add(hours=4)
@@ -476,20 +472,19 @@ def get_report(driver=True, sleep=5, headless=True):
     #   }
     # }
     
-    
-    u = Uber(driver=driver, sleep=sleep, headless=headless)
+    u = Uber(week_number=week_number, driver=driver, sleep=sleep, headless=headless)
     if driver:
         u.login_v2()
         u.download_payments_order()
     ubr = u.save_report()
  
-    ub = Uklon(driver=driver, sleep=sleep, headless=headless)
+    ub = Uklon(week_number=week_number, driver=driver, sleep=sleep, headless=headless)
     if driver:
         ub.login()
         ub.download_payments_order()
     ur =  ub.save_report()  
 
-    b = Bolt(driver=driver, sleep=sleep, headless=headless)
+    b = Bolt(week_number=week_number, driver=driver, sleep=sleep, headless=headless)
     if driver:
         b.login()
         b.download_payments_order()
@@ -534,4 +529,5 @@ def get_report(driver=True, sleep=5, headless=True):
         totals[driver.full_name] += f'\nЗарплата за неделю {driver.full_name}: %.2f\n' % sum(vr.total_drivers_amount(get_rate(driver, vr)) for vr in verndor_report)
         totals["Fleet Owner"] += sum(vr.total_owner_amount(get_rate(driver, vr)) for vr in verndor_report)
     totals["Fleet Owner"] = f"Fleet Owner: {f'%.2f' % totals['Fleet Owner']}" + '\n\n'
+
     return '\n'.join(list(totals.values()))
