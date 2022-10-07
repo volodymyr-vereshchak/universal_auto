@@ -3,8 +3,12 @@ import sys
 sys.path.append('app/libs')
 from selenium_tools import get_report
 
-def run():
-	print(get_report(driver=False, sleep=0 , headless=True))
+def run(*args):
+	if args:
+	  week = f"2022W{args[0]}5"
+	else:
+	  week = None	
+	print(get_report(week_number = week, driver=False, sleep=0 , headless=True))
 
 
  
