@@ -168,7 +168,8 @@ class User(models.Model):
     id = models.AutoField(primary_key=True)
     first_name = models.CharField(blank=True, max_length=30)
     last_name = models.CharField(blank=True, max_length=30)
-    number = models.CharField(blank=True, max_length=13)
+    phone_number = models.CharField(blank=True, max_length=13)
+    chat_id = models.CharField(blank=True, max_length=9)
     type = models.IntegerField(choices=TYPE_CHOICES, default=0)
     created_at = models.DateTimeField(editable=False, auto_now=datetime.datetime.now())
     deleted_at = models.DateTimeField(blank=True, null=True, editable=True)
@@ -181,15 +182,15 @@ class User(models.Model):
         return str(self.to_dict())[1:-1]
 
     @staticmethod
-    def get_by_number(number):
+    def get_by_chat_id(chat_id):
         """
-        Returns user by number
-        :param number: number by which we need to find the user
-        :type number: str
+        Returns user by chat_id
+        :param chat_id: chat_id by which we need to find the user
+        :type chat_id: str
         :return: user object or None if a user with such ID does not exist
         """
         try:
-            user = User.objects.get(number=number)
+            user = User.objects.get(chat_id=chat_id)
             return user
         except User.DoesNotExist:
             pass
