@@ -27,6 +27,12 @@ class SeleniumTools():
             self.current_date = pendulum.parse(week_number, tz="Europe/Kiev")
         else:
             self.current_date = pendulum.now().start_of('week').subtract(days=3)
+    
+    def report_file_name(self, patern):
+        filenames = os.listdir(os.curdir)
+        for file in filenames:
+            if re.search(patern, file):
+                return file 
 
     def week_number(self):
         return f'{int(self.start_of_week().strftime("%W"))}'
@@ -40,7 +46,6 @@ class SeleniumTools():
         os.remove(self.session_file_name)
     
     def retry(self, fun, headless=False):
-        print(self.session_file_name)
         for i in range(2):
             try:
                time.sleep(0.3)
@@ -291,7 +296,6 @@ class Bolt(SeleniumTools):
           time.sleep(self.sleep)
 
     def download_payments_order(self):
-        print(self.payments_order_file_name())
         if os.path.exists(self.payments_order_file_name()):
             return self.payments_order_file_name()
         self.driver.get(f"https://fleets.bolt.eu/company/58225/reports/weekly/2022W{self.week_number()}")
@@ -301,15 +305,7 @@ class Bolt(SeleniumTools):
         if self.sleep:
             time.sleep(self.sleep)
         items = []
-
-        filenames = os.listdir(os.curdir)
-        print(f"2022W{self.week_number()}")
-        for file in filenames:
-          match = re.search(f"2022W{self.week_number()}", file)
-          if match:
-            report_file_name = file  
-        
-        report = open(report_file_name)
+        report = open(self.report_file_name(f"2022W{self.week_number()}"))
         
         with report as file:
             reader = csv.reader(file)
@@ -323,7 +319,7 @@ class Bolt(SeleniumTools):
                 order = BoltPaymentsOrder(
                     report_from = self.start_of_week(),
                     report_to = self.end_of_week(),
-                    report_file_name = report_file_name,
+                    report_file_name = report.name,
                     driver_full_name = row[0],
                     mobile_number = row[1],
                     range_string =  row[2],
@@ -343,17 +339,6 @@ class Bolt(SeleniumTools):
                 order.save()
                 items.append(order)
         return items
-
-
-    def payments_order_file_name(self):
-        return f'Bolt Wochenbericht - 2022W{self.week_number()} - Kyiv Fleet 03_232 park Universal-auto.csv'
-    
-    def payments_order_file_name2(self):
-        return f'Bolt Weekly Report - 2022W{self.week_number()} - Kyiv Fleet 03_232 park Universal-auto.csv'
-
-    def payments_order_file_name3(self):
-        return f'Щотижневий звіт Bolt – 2022W{self.week_number()} – Kyiv Fleet 03_232 park Universal-auto.csv'
-        
 
 from app.models import UklonPaymentsOrder
 
@@ -377,23 +362,15 @@ class Uklon(SeleniumTools):
 
     def download_payments_order(self):
         url = f"https://partner.uklon.com.ua/partner/export/fares?page=1&pageSize=20&startDate={self.start_of_week_timestamp()}&endDate={self.end_of_week_timestamp()}&format=csv"
-        print(url)
-        print(self.driver.get(url))
+        self.driver.get(url)
         return self.payments_order_file_name()
 
     def save_report(self):
         if self.sleep:
             time.sleep(self.sleep)
         items = []
-        
-        try:
-            report_file_name = self.payments_order_file_name()
-            report = open(report_file_name)
-        except OSError as e:
-            self.logger.error(str(e))
-            report_file_name = self.payments_order_file_name2()
-            report = open(report_file_name) 
-        
+        report = open(self.report_file_name(self.file_patern()))
+
         with report as file:
             reader = csv.reader(file)
             next(reader)
@@ -402,7 +379,7 @@ class Uklon(SeleniumTools):
                 order = UklonPaymentsOrder(
                                            report_from = self.start_of_week(),
                                            report_to = self.end_of_week(),
-                                           report_file_name = report_file_name,
+                                           report_file_name = file.name,
                                            signal = row[0], 
                                            licence_plate = row[1],
                                            total_rides = row[2],
@@ -422,19 +399,13 @@ class Uklon(SeleniumTools):
     def end_of_week_timestamp(self):
         return round(self.end_of_week().timestamp())
     
-    def payments_order_file_name(self):
-        start =  self.start_of_week()
-        end   =  self.end_of_week().end_of('day').add(hours=4)
-        sd, sy, sm  = start.strftime("%-d"), start.strftime("%Y"), start.strftime("%-m")
-        ed, ey, em  = end.strftime("%-d"), end.strftime("%Y"), end.strftime("%-m")
-        return f'Куцко - Income_{sm}_{sd}_{sy} 3_00_00 AM-{em}_{ed}_{ey} 3_00_00 AM.csv'
-    
-    def payments_order_file_name2(self):
+    def file_patern(self):
         start =  self.start_of_week()
         end   =  self.end_of_week().end_of('day').add(hours=4)
         sd, sy, sm  = start.strftime("%d"), start.strftime("%Y"), start.strftime("%m")
-        ed, ey, em  = end.strftime("%d"), end.strftime("%Y"), end.strftime("%m")
-        return f'Куцко - Income_{sd}.{sm}.{sy} 3_00_00-{ed}.{em}.{ey} 3_00_00.csv'
+        ed, ey, em  = end.strftime("%d"), end.strftime("%Y"), end.strftime("%m")    
+        return f'{sd}.{sm}.{sy}.+{ed}.{em}.{ey}|{start.strftime("%-m")}_{start.strftime("%-d")}_{sy}.+{end.strftime("%-m")}_{end.strftime("%-d")}_{ey}'
+    
 
 
 def get_report(week_number = None, driver=True, sleep=5, headless=True):
