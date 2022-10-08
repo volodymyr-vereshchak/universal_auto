@@ -168,20 +168,12 @@ TYPE_CHOICES = (
 
 class User(models.Model):
     id = models.AutoField(primary_key=True)
-    first_name = models.CharField(blank=True, max_length=30)
-    last_name = models.CharField(blank=True, max_length=30)
+    email = models.EmailField(blank=True, max_length=254)
     phone_number = models.CharField(blank=True, max_length=13)
     chat_id = models.CharField(blank=True, max_length=9)
     type = models.IntegerField(choices=TYPE_CHOICES, default=0)
     created_at = models.DateTimeField(editable=False, auto_now=datetime.datetime.now())
     deleted_at = models.DateTimeField(blank=True, null=True, editable=True)
-
-    def __str__(self):
-        """
-        Show all information about User.
-        :return: user id, user first_name, user last_name, user number
-        """
-        return str(self.to_dict())[1:-1]
 
     @staticmethod
     def get_by_chat_id(chat_id):
@@ -197,12 +189,13 @@ class User(models.Model):
         except User.DoesNotExist:
             pass
 
+
     @staticmethod
     def fill_deleted_at_by_number(number):
         """
         :param number: a number of a user to fill deleted_at
         :type number: str
         """
-        user = User.objects.filter(number=number).first()
+        user = User.objects.filter(phone_number=number).first()
         user.deleted_at = datetime.datetime.now()
         user.save()
