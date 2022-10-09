@@ -1,5 +1,7 @@
 import logging
+import telegram
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
+from app.models import save_weekly_reports_to_db
 import os
 import time
 import csv
@@ -9,7 +11,7 @@ import sys
 import redis
 
 sys.path.append('app/libs')
-from selenium_tools import get_report
+from app.libs.selenium_tools import get_report
 PORT = int(os.environ.get('PORT', '8443'))
 
 DEVELOPER_CHAT_ID = 803129892
@@ -31,11 +33,19 @@ def error(update, context):
     """Log Errors caused by Updates."""
     logger.warning('Update "%s" caused error "%s"', update, context.error)
 
+def save_reports(update, context):
+    save_weekly_reports_to_db()
+    update.message.reply_text("Reports have been saved")
+
 def code(update, context):
     r = redis.Redis.from_url(os.environ["REDIS_URL"])
     r.publish('code', update.message.text)
     update.message.reply_text('Wait for report...')
     context.bot.send_chat_action(chat_id=update.effective_message.chat_id, action=ChatAction.TYPING)
+
+def working(update, context):
+    update.message.reply_text("Enter you Uber OTP code from SMS:")
+    update.message.reply_text(get_report())
     
 
 def main():
@@ -43,6 +53,7 @@ def main():
     dp = updater.dispatcher
     dp.add_handler(CommandHandler("start", start))
     dp.add_handler(CommandHandler("report", report, run_async=True))
+    dp.add_handler(CommandHandler("save_reports", save_reports))
     dp.add_handler(MessageHandler(Filters.text, code))
     dp.add_error_handler(error)
     updater.start_polling()
