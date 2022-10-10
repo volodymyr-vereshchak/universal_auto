@@ -498,16 +498,11 @@ def get_report(driver=True, sleep=5, headless=True):
     #         list(filter(lambda p: p.signal in ids, ur))
     #      ])
     drivers = Driver.objects.filter(deleted_at=None)
-    
-    def get_driver_external_id(vendor, driver):
-        if Fleets_drivers_vehicles_rate.objects.filter(fleet__name=vendor, driver=driver, deleted_at=None).exists():
-            driver_external_id = Fleets_drivers_vehicles_rate.objects.get(fleet__name=vendor, driver=driver, deleted_at=None).driver_external_id
-        return driver_external_id
         
     for driver in drivers:
-        uber_id = get_driver_external_id('Uber', driver)
-        bolt_id = get_driver_external_id('Bolt', driver)
-        uklon_id = get_driver_external_id('Uklon', driver)
+        uber_id = driver.get_driver_external_id('Uber')
+        bolt_id = driver.get_driver_external_id('Bolt')
+        uklon_id = driver.get_driver_external_id('Uklon')
 
         reports[driver] = itertools.chain(*[
             [p for p in ubr if p.driver_uuid == uber_id],
@@ -516,18 +511,13 @@ def get_report(driver=True, sleep=5, headless=True):
         ])
     
     totals = {"Fleet Owner": 0, "Owner": ""}
-
-    def get_rate(driver, verndor_rate):
-        vendor = verndor_rate.vendor().capitalize()
-        if Fleets_drivers_vehicles_rate.objects.filter(fleet__name=vendor, driver=driver, deleted_at=None).exists():
-            rate = float(Fleets_drivers_vehicles_rate.objects.get(fleet__name=vendor, driver=driver, deleted_at=None).rate)
-        return rate
     
     for driver, verndor_report in reports.items():
         verndor_report = list(verndor_report)
-        totals[driver.full_name] = '\n'.join(vr.report_text(driver.full_name, get_rate(driver, vr)) for vr in verndor_report)
-        totals[driver.full_name] += f'\nЗарплата за неделю {driver.full_name}: %.2f\n' % sum(vr.total_drivers_amount(get_rate(driver, vr)) for vr in verndor_report)
-        totals["Fleet Owner"] += sum(vr.total_owner_amount(get_rate(driver, vr)) for vr in verndor_report)
+        totals[driver.full_name]  = f'Общаяя касса {driver.full_name}: %.2f\n' % sum(vr.kassa() for vr in verndor_report)
+        totals[driver.full_name] = '\n'.join(vr.report_text(driver.full_name, driver.get_rate(vr)) for vr in verndor_report)
+        totals[driver.full_name] += f'\nЗарплата за неделю {driver.full_name}: %.2f\n' % sum(vr.total_drivers_amount(driver.get_rate(vr)) for vr in verndor_report)
+        totals["Fleet Owner"] += sum(vr.total_owner_amount(driver.get_rate(vr)) for vr in verndor_report)
     totals["Fleet Owner"] = f"Fleet Owner: {f'%.2f' % totals['Fleet Owner']}" + '\n\n'
 
     return '\n'.join(list(totals.values()))
