@@ -9,13 +9,13 @@ This repo is supposed to get statistics from Uber, Bold, Uklon to calculate perf
 5. Run `docker-compose up --build pgadmin`
 6. Open http://localhost:5050/browser/ with password: `universal_auto_dev` and create DB `universal_auto_dev`
 7. Run `docker-compose up --build`
-8. Run migrations by `docker exec -it universal_auto_web_1 python manage.py migrate`
-9. Run to create admin user `docker exec -it universal_auto_web_1 python manage.py createsuperuser` 
+8. Run migrations by `docker exec -it universal_auto_web python manage.py migrate`
+9. Run to create admin user `docker exec -it universal_auto_web python manage.py createsuperuser` 
 10. Open http://localhost:8080/admin/ in browser and auth with user created at step 9
 
 # How to run report and see results in console?
 ```
-docker exec -it universal_auto_web_1 python manage.py runscript weekly
+docker exec -it universal_auto_web python manage.py runscript weekly
 ```
 
 # How to start contribute?

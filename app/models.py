@@ -54,6 +54,9 @@ class UklonPaymentsOrder(models.Model):
     def total_owner_amount(self, rate=0.35):
         return -self.total_drivers_amount(rate)
 
+    def kassa(self):
+        return float(self.total_amount) * 0.83
+
     @staticmethod
     def save_uklon_weekly_report_to_database(file):
         """This function reads the weekly file and packs the data into a database."""
@@ -86,7 +89,7 @@ class UklonPaymentsOrder(models.Model):
     @staticmethod
     def download_uklon_weekly_file(files: list):
         """ The function checks if the file exists in the directory, if not, it downloads it """
-        u = Uklon(driver=True, sleep=3, headless=True)
+        u = Uklon(week_number=None, driver=True, sleep=3, headless=True)
         name_file_1, name_file_2 = u.payments_order_file_name(), u.payments_order_file_name2()
         if (name_file_1 and name_file_2) not in files:
             u.login()
@@ -98,7 +101,7 @@ class BoltPaymentsOrder(models.Model):
     report_to = models.DateTimeField()
     report_file_name = models.CharField(max_length=255)
     driver_full_name = models.CharField(max_length=24)
-    mobile_number = models.CharField(max_length=12)
+    mobile_number = models.CharField(max_length=13)
     range_string = models.CharField(max_length=50)
     total_amount = models.DecimalField(decimal_places=2, max_digits=10)
     cancels_amount = models.DecimalField(decimal_places=2, max_digits=10)
@@ -118,7 +121,7 @@ class BoltPaymentsOrder(models.Model):
 
     def report_text(self, name=None, rate=0.65):
         name = name or self.driver_full_name
-        return f'Bolt {name}: Безналичные: {self.total_cach_less_drivers_amount()}, Наличные: {float(self.total_amount_cach)}, Зарплата: {"%.2f" % self.total_drivers_amount(rate)}'
+        return f'Bolt {name}: Касса({"%.2f" % self.kassa()}) * {"%.0f" % (rate*100)}% = {"%.2f" % (self.kassa() * rate)} - Наличные({"%.2f" % float(self.total_amount_cach)}) = {"%.2f" % self.total_drivers_amount(rate)}'
 
     def total_drivers_amount(self, rate=0.65):
         res = self.total_cach_less_drivers_amount() * rate + float(self.total_amount_cach)
@@ -130,7 +133,10 @@ class BoltPaymentsOrder(models.Model):
     def vendor(self):
         return 'bolt'
 
-    def total_owner_amount(self, rate = 0.65):
+    def kassa(self):
+        return (self.total_cach_less_drivers_amount())
+
+    def total_owner_amount(self, rate=0.65):
        return self.total_cach_less_drivers_amount() * (1 - rate) - self.total_drivers_amount(rate)
 
     @staticmethod
@@ -173,7 +179,7 @@ class BoltPaymentsOrder(models.Model):
     @staticmethod
     def download_bolt_weekly_file(files: list):
         """ The function checks if the file exists in the directory, if not, it downloads it """
-        b = Bolt(driver=True, sleep=3, headless=True)
+        b = Bolt(week_number=None, driver=True, sleep=3, headless=True)
         name_file_1, name_file_2 = b.payments_order_file_name(), b.payments_order_file_name2()
         name_file_3 = b.payments_order_file_name3()
         if (name_file_1 and name_file_2 and name_file_3) not in files:
@@ -199,7 +205,7 @@ class UberPaymentsOrder(models.Model):
 
     def report_text(self, name=None, rate=0.65):
         name = name or f'{self.first_name} {self.last_name}'
-        return f'Uber {name}: Безналичные: {float(self.total_amount)}, Наличные: {float(self.total_amount_cach)}, Зарплата: {"%.2f" % self.total_drivers_amount(rate)}'
+        return f'Uber {name}: Касса({"%.2f" % self.kassa()}) * {"%.0f" % (rate*100)}% = {"%.2f" % (self.kassa() * rate)} - Наличные({float(self.total_amount_cach)}) = {"%.2f" % self.total_drivers_amount(rate)}'
 
     def total_drivers_amount(self, rate=0.65):
        return float(self.total_amount) * rate + float(self.total_amount_cach)
@@ -209,6 +215,9 @@ class UberPaymentsOrder(models.Model):
 
     def total_owner_amount(self, rate=0.65):
        return float(self.total_amount) * (1 - rate) - self.total_drivers_amount(rate)
+
+    def kassa(self):
+        return float(self.total_amount) + float(self.total_amount_cach)
 
     @staticmethod
     def save_uber_weekly_report_to_database(file):
@@ -240,7 +249,7 @@ class UberPaymentsOrder(models.Model):
     @staticmethod
     def download_uber_weekly_file(files: list):
         """ The function checks if the file exists in the directory, if not, it downloads it """
-        u = Uber(driver=True, sleep=5, headless=False)
+        u = Uber(week_number=None, driver=True, sleep=5, headless=False)
         name_file = u.payments_order_file_name()
         if name_file not in files:
             u.login_v2()

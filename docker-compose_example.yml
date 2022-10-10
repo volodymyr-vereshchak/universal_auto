@@ -1,6 +1,7 @@
 version: "3.9"
 services:
   web:
+    container_name: universal_auto_web
     platform: linux/amd64
     depends_on:
       postgres:
@@ -12,7 +13,7 @@ services:
       - "8080:8080"
     command: honcho start
     volumes:
-      - .:/code
+      - .:/app
 
     environment:
       TELEGRAM_TOKEN: <add Your telegram token here>
@@ -29,6 +30,7 @@ services:
       POSTGRES_PASSWORD: "pass"
 
   redis:
+    container_name: universal_auto_redis
     image: redis:6.2-alpine
     restart: always
     command: redis-server --save 20 1 --loglevel warning
@@ -38,7 +40,7 @@ services:
       test: [ "CMD", "redis-cli", "--raw", "incr", "ping" ]
 
   postgres:
-    container_name: postgres_container
+    container_name: universal_auto_postgres
     image: postgres:13.8
     environment:
       POSTGRES_DB: "universal_auto_dev"
@@ -62,10 +64,10 @@ services:
           memory: 1G
 
   pgadmin:
+    container_name: universal_auto_pgadmin
     depends_on:
       postgres:
         condition: service_healthy
-    container_name: pgadmin_container
     image: dpage/pgadmin4:6.14
     environment:
       PGADMIN_DEFAULT_EMAIL: "universal_auto_dev@example.com"

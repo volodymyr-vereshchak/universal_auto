@@ -6,7 +6,7 @@ sys.path.append('app/libs')
 from selenium_tools import get_report, Uber, Uklon, Bolt
 
 
-def run():
+def run(*args):
 	directory = '../app'
 	files = os.listdir(directory)
 
@@ -14,4 +14,11 @@ def run():
 	UklonPaymentsOrder.download_uklon_weekly_file(files=files)
 	BoltPaymentsOrder.download_bolt_weekly_file(files=files)
 
-	print(get_report(driver=False, sleep=0, headless=True))
+	if args:
+	  week = f"2022W{args[0]}5"
+	else:
+	  week = None	
+	print(get_report(week_number = week, driver=False, sleep=0 , headless=True))
+
+	
+
