@@ -485,7 +485,7 @@ def get_report(driver=True, sleep=5, headless=True):
     if driver:
         ub.login()
         ub.download_payments_order()
-    ur =  ub.save_report()  
+    ur = ub.save_report()
 
     b = Bolt(driver=driver, sleep=sleep, headless=headless)
     if driver:
