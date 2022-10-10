@@ -40,16 +40,13 @@ class UklonPaymentsOrder(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     def report_text(self, name = None, rate = 0.35):
-        return f'Uklon {name} {self.signal}: Касса({"%.2f" % self.kassa()}) * {"%.0f" % (rate*100)}% = {"%.2f" % (self.kassa() * rate)} - Наличные(-{"%.2f" % float(self.total_amount_cach)}) = {"%.2f" % self.total_drivers_amount(rate)}'
+        return f'Uklon {name} {self.signal}: Аренда авто: {"%.2f" % self.total_drivers_amount(rate)}'
     def total_drivers_amount(self, rate = 0.35):
-        return -(self.kassa()) * rate
+        return -(float(self.total_amount) * 0.83) * rate
     def vendor(self):
         return 'uklon'
     def total_owner_amount(self, rate = 0.35):
         return -self.total_drivers_amount(rate)
-    def kassa(self):
-        return float(self.total_amount) * 0.83
-
        
 class BoltPaymentsOrder(models.Model):
     report_from = models.DateTimeField()
@@ -75,7 +72,7 @@ class BoltPaymentsOrder(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     def report_text(self, name = None, rate = 0.65):
         name = name or self.driver_full_name
-        return f'Bolt {name}: Касса({"%.2f" % self.kassa()}) * {"%.0f" % (rate*100)}% = {"%.2f" % (self.kassa() * rate)} - Наличные({"%.2f" % float(self.total_amount_cach)}) = {"%.2f" % self.total_drivers_amount(rate)}'
+        return f'Bolt {name}: Безналичные: {self.total_cach_less_drivers_amount()}, Наличные: {float(self.total_amount_cach)}, Зарплата: {"%.2f" % self.total_drivers_amount(rate)}'
     def total_drivers_amount(self, rate = 0.65):
         res = self.total_cach_less_drivers_amount() * rate  + float(self.total_amount_cach)
         return res
@@ -85,9 +82,6 @@ class BoltPaymentsOrder(models.Model):
     
     def vendor(self):
         return 'bolt'
-
-    def kassa(self):
-        return (self.total_cach_less_drivers_amount())
 
     def total_owner_amount(self, rate = 0.65):
        return self.total_cach_less_drivers_amount() * (1 - rate) - self.total_drivers_amount(rate)
@@ -109,7 +103,7 @@ class UberPaymentsOrder(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     def report_text(self, name = None, rate = 0.65):
         name = name or f'{self.first_name} {self.last_name}'
-        return f'Uber {name}: Касса({"%.2f" % self.kassa()}) * {"%.0f" % (rate*100)}% = {"%.2f" % (self.kassa() * rate)} - Наличные({float(self.total_amount_cach)}) = {"%.2f" % self.total_drivers_amount(rate)}'
+        return f'Uber {name}: Безналичные: {float(self.total_amount)}, Наличные: {float(self.total_amount_cach)}, Зарплата: {"%.2f" % self.total_drivers_amount(rate)}'
     def total_drivers_amount(self, rate = 0.65):
        return float(self.total_amount) * rate + float(self.total_amount_cach)
 
@@ -118,9 +112,6 @@ class UberPaymentsOrder(models.Model):
 
     def total_owner_amount(self, rate = 0.65):
        return float(self.total_amount) * (1 - rate) - self.total_drivers_amount(rate)
-
-    def kassa(self):
-        return float(self.total_amount) + float(self.total_amount_cach)
 
 def save_uber_report_to_db(file_name):
     with open(file_name) as file:
@@ -156,6 +147,17 @@ class Driver(models.Model):
     created_at = models.DateTimeField(editable=False, auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     deleted_at = models.DateTimeField(null=True, blank=True)
+    
+    def get_driver_external_id(self, vendor:str) -> str:
+        if Fleets_drivers_vehicles_rate.objects.filter(fleet__name=vendor, driver=self, deleted_at=None).exists():
+            driver_external_id = Fleets_drivers_vehicles_rate.objects.get(fleet__name=vendor, driver=self, deleted_at=None).driver_external_id
+        return driver_external_id
+    
+    def get_rate(self, verndor_rate:str) -> float:
+        vendor = verndor_rate.vendor().capitalize()
+        if Fleets_drivers_vehicles_rate.objects.filter(fleet__name=vendor, driver=self, deleted_at=None).exists():
+            rate = float(Fleets_drivers_vehicles_rate.objects.get(fleet__name=vendor, driver=self, deleted_at=None).rate)
+        return rate
 
     def __str__(self) -> str:
         return self.full_name
@@ -191,5 +193,5 @@ class Fleets_drivers_vehicles_rate(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     deleted_at = models.DateTimeField(null=True, blank=True)
 
-    def str(self) -> str:
+    def __str__(self) -> str:
         return self.driver_external_id
