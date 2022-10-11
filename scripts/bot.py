@@ -41,9 +41,9 @@ def update_db(update, context):
     directory = '../app'
     files = os.listdir(directory)
 
-    UberPaymentsOrder.download_uber_weekly_file(files=files)
-    UklonPaymentsOrder.download_uklon_weekly_file(files=files)
-    BoltPaymentsOrder.download_bolt_weekly_file(files=files)
+    UberPaymentsOrder.download_uber_weekly_file()
+    UklonPaymentsOrder.download_uklon_weekly_file()
+    BoltPaymentsOrder.download_bolt_weekly_file()
 
     files = os.listdir(directory)
     files_csv = filter(lambda x: x.endswith('.csv'), files)

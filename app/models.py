@@ -92,13 +92,19 @@ class UklonPaymentsOrder(models.Model):
             order.save()
 
     @staticmethod
-    def download_uklon_weekly_file(files: list):
-        """ The function checks if the file exists in the directory, if not, it downloads it """
-        u = Uklon(week_number=None, driver=True, sleep=3, headless=True)
-        name_file_1, name_file_2 = u.payments_order_file_name(), u.payments_order_file_name2()
-        if (name_file_1 and name_file_2) not in files:
-            u.login()
-            u.download_payments_order()
+    def download_uklon_weekly_file(week_number=None, driver=True, sleep=5, headless=True):
+        """ The function checks if the file exists in the directory, if not, it downloads it
+                                                                        or downloads file by week_number"""
+        u = Uklon(week_number=week_number, driver=driver, sleep=sleep, headless=headless)
+        if week_number is None:
+            name_file_1, name_file_2 = u.payments_order_file_name(), u.payments_order_file_name2()
+            if (name_file_1 and name_file_2) not in files:
+                u.login()
+                u.download_payments_order()
+        else:
+            ub = Uklon(week_number=week_number, driver=True, sleep=5, headless=headless)
+            ub.login()
+            ub.download_payments_order()
 
 
 class BoltPaymentsOrder(models.Model):
@@ -183,12 +189,18 @@ class BoltPaymentsOrder(models.Model):
             order.save()
 
     @staticmethod
-    def download_bolt_weekly_file(files: list):
-        """ The function checks if the file exists in the directory, if not, it downloads it """
-        b = Bolt(week_number=None, driver=True, sleep=3, headless=True)
-        name_file_1, name_file_2 = b.payments_order_file_name(), b.payments_order_file_name2()
-        name_file_3 = b.payments_order_file_name3()
-        if (name_file_1 and name_file_2 and name_file_3) not in files:
+    def download_bolt_weekly_file(week_number=None, driver=True, sleep=5, headless=True):
+        """ The function checks if the file exists in the directory, if not, it downloads it
+                                                                            or downloads file by week_number"""
+        b = Bolt(week_number=week_number, driver=driver, sleep=sleep, headless=headless)
+        if week_number is None:
+            name_file_1, name_file_2 = b.payments_order_file_name(), b.payments_order_file_name2()
+            name_file_3 = b.payments_order_file_name3()
+            if (name_file_1 and name_file_2 and name_file_3) not in files:
+                b.login()
+                b.download_payments_order()
+        else:
+            b = Bolt(week_number=week_number, driver=True, sleep=5, headless=True)
             b.login()
             b.download_payments_order()
 
@@ -253,14 +265,20 @@ class UberPaymentsOrder(models.Model):
             order.save()
 
     @staticmethod
-    def download_uber_weekly_file(files: list):
-        """ The function checks if the file exists in the directory, if not, it downloads it """
-        u = Uber(week_number=None, driver=True, sleep=5, headless=False)
-        name_file = u.payments_order_file_name()
-        if name_file not in files:
+    def download_uber_weekly_file(week_number=None, driver=True, sleep=5, headless=True):
+        """ The function checks if the file exists in the directory, if not, it downloads it
+                                                                        or downloads file by week_number"""
+        u = Uber(week_number=week_number, driver=driver, sleep=sleep, headless=headless)
+        if week_number is None:
+            name_file = u.payments_order_file_name()
+            if name_file not in files:
+                u.login_v2()
+                u.download_payments_order()
+                u.quit()
+        else:
+            u = Uber(week_number=week_number, driver=True, sleep=5, headless=headless)
             u.login_v2()
             u.download_payments_order()
-            u.quit()
 
 
 class FileNameProcessed(models.Model):
