@@ -95,11 +95,11 @@ def get_update_report(update, context):
     global username
     if username in uklon_drivers_list:
         update.message.reply_text("Enter you Uklon OTP code from SMS:")
-        uklon.run2()
+        uklon.run()
         aut_handler()
     elif username in bolt_drivers_list:
         update.message.reply_text("Enter you Bolt OTP code from SMS:")
-        bolt.run2()
+        bolt.run()
         aut_handler()
     elif username in uber_drivers_list:
         update.message.reply_text("Enter you Uber OTP code from SMS:")
