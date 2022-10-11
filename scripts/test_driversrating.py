@@ -5,23 +5,22 @@ import django
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "auto.settings")
 django.setup()
 
-from scripts.driversrating import UberDriversRating, BoltDriversRating, UklonDriversRating
-
 from django.test import TestCase
 
+from scripts.driversrating import UberDriversRating, BoltDriversRating, UklonDriversRating
 from app.models import UberPaymentsOrder, BoltPaymentsOrder, UklonPaymentsOrder
-
+from app.libs.selenium_tools import SeleniumTools
 
 class UklonDriversRatingTest(TestCase):
-    start_of_week = datetime.datetime(2022, 10, 3, 0, 0, 0, tzinfo=datetime.timezone.utc)
-    end_of_week = datetime.datetime(2022, 10, 9, 23, 59, 59, tzinfo=datetime.timezone.utc)
+
+    st = SeleniumTools(session='', week_number='2022-10-03')
 
     @classmethod
     def setUpTestData(cls):
         for i in range(5):
             UklonPaymentsOrder.objects.create(
-                report_from=cls.start_of_week,
-                report_to=cls.end_of_week,
+                report_from=cls.st.start_of_week(),
+                report_to=cls.st.end_of_week(),
                 report_file_name='Name',
                 signal='123',
                 licence_plate='555',
@@ -35,7 +34,7 @@ class UklonDriversRatingTest(TestCase):
             )
 
     def setUp(self):
-        self.rating = UklonDriversRating(self.start_of_week, self.end_of_week).get_rating()
+        self.rating = UklonDriversRating(self.st.start_of_week(), self.st.end_of_week()).get_rating()
 
     def test_len(self):
         self.assertEqual(len(self.rating), 1)
@@ -49,15 +48,14 @@ class UklonDriversRatingTest(TestCase):
 
 class UberDriversRatingTest(TestCase):
 
-    start_of_week = datetime.datetime(2022, 10, 3, 0, 0, 0, tzinfo=datetime.timezone.utc)
-    end_of_week = datetime.datetime(2022, 10, 9, 23, 59, 59, tzinfo=datetime.timezone.utc)
+    st = SeleniumTools(session='', week_number='2022-10-03')
 
     @classmethod
     def setUpTestData(cls):
         for i in range(10):
             UberPaymentsOrder.objects.create(
-                report_from=cls.start_of_week,
-                report_to=cls.end_of_week,
+                report_from=cls.st.start_of_week(),
+                report_to=cls.st.end_of_week(),
                 driver_uuid=i,
                 first_name=f'Name{i}',
                 last_name=f'LastName{i}',
@@ -70,10 +68,10 @@ class UberDriversRatingTest(TestCase):
             )
 
     def setUp(self):
-        self.rating = UberDriversRating(self.start_of_week, self.end_of_week).get_rating()
+        self.rating = UberDriversRating(self.st.start_of_week(), self.st.end_of_week()).get_rating()
 
     def test_len(self):
-        self.assertEqual(len(self.rating), 10)
+        self.assertEqual(len(self.rating), 11)
 
     def test_max_rating(self):
         self.assertEqual(self.rating[0]['driver'], 'Name9 LastName9')
@@ -81,15 +79,14 @@ class UberDriversRatingTest(TestCase):
 
 class BoltDriversRatingTest(TestCase):
 
-    start_of_week = datetime.datetime(2022, 10, 3, 0, 0, 0, tzinfo=datetime.timezone.utc)
-    end_of_week = datetime.datetime(2022, 10, 9, 23, 59, 59, tzinfo=datetime.timezone.utc)
+    st = SeleniumTools(session='', week_number='2022-10-03')
 
     @classmethod
     def setUpTestData(cls):
         for i in range(5):
             BoltPaymentsOrder.objects.create(
-                report_from=cls.start_of_week,
-                report_to=cls.end_of_week,
+                report_from=cls.st.start_of_week(),
+                report_to=cls.st.end_of_week(),
                 report_file_name='',
                 driver_full_name=f'Name{i}',
                 mobile_number='111111111',
@@ -109,10 +106,10 @@ class BoltDriversRatingTest(TestCase):
             )
 
     def setUp(self):
-        self.rating = BoltDriversRating(self.start_of_week, self.end_of_week).get_rating()
+        self.rating = BoltDriversRating(self.st.start_of_week(), self.st.end_of_week()).get_rating()
 
     def test_len(self):
-        self.assertEqual(len(self.rating),5)
+        self.assertEqual(len(self.rating), 5)
 
     def test_max_rating(self):
         self.assertEqual(self.rating[0]['driver'], 'Name4')

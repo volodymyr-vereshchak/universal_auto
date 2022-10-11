@@ -1,19 +1,20 @@
 import pendulum
 from django.db.models import Sum, F
 
+from app.libs.selenium_tools import SeleniumTools
 from app.models import UberPaymentsOrder, BoltPaymentsOrder, UklonPaymentsOrder
 
 
 class DriversRatingMixin:
 
     def get_rating(self):
-        start_of_week = pendulum.now().start_of('week').subtract(days=3).start_of('week')
-        end_of_week = pendulum.now().start_of('week').subtract(days=3).end_of('week')
+        # st = SeleniumTools(session='', week_number='2022-09-26')
+        st = SeleniumTools(session='')
 
         fleets = [
-            UberDriversRating(start_of_week, end_of_week),
-            BoltDriversRating(start_of_week, end_of_week),
-            UklonDriversRating(start_of_week, end_of_week),
+            UberDriversRating(st.start_of_week(), st.end_of_week()),
+            BoltDriversRating(st.start_of_week(), st.end_of_week()),
+            UklonDriversRating(st.start_of_week(), st.end_of_week()),
         ]
         return [{'fleet': item.fleet_name, 'rating': item.get_rating()} for item in fleets]
 
