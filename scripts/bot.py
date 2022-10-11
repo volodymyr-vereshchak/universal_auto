@@ -1,7 +1,7 @@
 import logging
 import telegram
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
-from app.models import save_weekly_reports_to_db
+from app.models import WeeklyReportFile
 import os
 import time
 import csv
@@ -34,7 +34,8 @@ def error(update, context):
     logger.warning('Update "%s" caused error "%s"', update, context.error)
 
 def save_reports(update, context):
-    save_weekly_reports_to_db()
+    wrf = WeeklyReportFile()
+    wrf.save_weekly_reports_to_db()
     update.message.reply_text("Reports have been saved")
 
 def code(update, context):
