@@ -37,7 +37,6 @@ def save_reports(update, context):
     wrf.save_weekly_reports_to_db()
     update.message.reply_text("Reports have been saved")
     
-=======
 def code(update, context):
     r = redis.Redis.from_url(os.environ["REDIS_URL"])
     r.publish('code', update.message.text)
