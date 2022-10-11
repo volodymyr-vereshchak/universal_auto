@@ -3,9 +3,6 @@ from datetime import datetime
 import glob
 import os
 from django.db import models
-import csv
-import os
-import glob
 import django
 
 
@@ -191,7 +188,7 @@ class WeeklyReportFile(models.Model):
         start = datetime.strptime(start, '%Y-%m-%d').date()
         end = datetime.strptime(end, '%Y-%m-%d').date()
         difference = end - start
-        if difference.days >= 7:
+        if difference.days == 7:
             return True
         else:
             print(f"{file_name} include {difference.days} days of the week")
