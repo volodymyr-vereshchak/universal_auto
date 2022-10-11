@@ -69,6 +69,13 @@ def error_handler(update: object, context: CallbackContext) -> None:
     # Finally, send the message
     context.bot.send_message(chat_id=DEVELOPER_CHAT_ID, text=message, parse_mode=ParseMode.HTML)
 
+def drivers_rating(context):
+    text = 'Drivers Rating\n\n'
+    for fleet in DriversRatingMixin().get_rating():
+        text += fleet['fleet'] + '\n'
+        text += '\n'.join([f"{item['num']} {item['driver']} {item['trips']}" for item in fleet['rating']]) + '\n\n'
+    context.bot.send_message(chat_id=-828544906, text=text)
+    
 def main():
     updater = Updater(os.environ['TELEGRAM_TOKEN'], use_context=True)
     dp = updater.dispatcher
