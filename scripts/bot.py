@@ -1,6 +1,7 @@
+import logging
+from app.models import WeeklyReportFile
 from telegram import Update, ParseMode
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
-
 import os
 import time
 import csv
@@ -14,7 +15,7 @@ import logging
 import traceback
 
 sys.path.append('app/libs')
-from selenium_tools import get_report
+from app.libs.selenium_tools import get_report
 PORT = int(os.environ.get('PORT', '8443'))
 
 DEVELOPER_CHAT_ID = 803129892
@@ -31,6 +32,11 @@ def report(update, context):
     update.message.reply_text("Enter you Uber OTP code from SMS:")
     update.message.reply_text(get_report())
 
+def save_reports(update, context):
+    wrf = WeeklyReportFile()
+    wrf.save_weekly_reports_to_db()
+    update.message.reply_text("Reports have been saved")
+    
 def code(update, context):
     r = redis.Redis.from_url(os.environ["REDIS_URL"])
     r.publish('code', update.message.text)
@@ -66,6 +72,7 @@ def main():
     dp = updater.dispatcher
     dp.add_handler(CommandHandler("start", start))
     dp.add_handler(CommandHandler("report", report, run_async=True))
+    dp.add_handler(CommandHandler("save_reports", save_reports))
     dp.add_handler(MessageHandler(Filters.text, code))
     dp.add_error_handler(error_handler)
     updater.start_polling()
