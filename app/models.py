@@ -99,6 +99,9 @@ class BoltPaymentsOrder(models.Model):
 
     def vendor(self):
         return 'bolt'
+    
+    def kassa(self):
+        return (self.total_cach_less_drivers_amount())
 
     def total_owner_amount(self, rate = 0.65):
        return self.total_cach_less_drivers_amount() * (1 - rate) - self.total_drivers_amount(rate)
@@ -121,7 +124,8 @@ class UberPaymentsOrder(models.Model):
 
     def report_text(self, name=None, rate=0.65):
         name = name or f'{self.first_name} {self.last_name}'
-        return f'Uber {name}: Безналичные: {float(self.total_amount)}, Наличные: {float(self.total_amount_cach)}, Зарплата: {"%.2f" % self.total_drivers_amount(rate)}'
+        return f'Uber {name}: Касса({"%.2f" % self.kassa()}) * {"%.0f" % (rate*100)}% = {"%.2f" % (self.kassa() * rate)} - Наличные({float(self.total_amount_cach)}) = {"%.2f" % self.total_drivers_amount(rate)}'
+
     def total_drivers_amount(self, rate = 0.65):
        return float(self.total_amount) * rate + float(self.total_amount_cach)
 
