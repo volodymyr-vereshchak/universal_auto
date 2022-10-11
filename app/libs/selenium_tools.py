@@ -18,6 +18,7 @@ from app.models import BoltPaymentsOrder
 import redis
 import logging
 
+
 class SeleniumTools():
     def __init__(self, session, week_number=None):
         self.session_file_name = session
@@ -276,6 +277,7 @@ class Uber(SeleniumTools):
         self.driver.find_element(selector, button).click() 
         self.driver.get_screenshot_as_file('UBER_NAME.png')
 
+
 class Bolt(SeleniumTools):    
     def __init__(self, week_number=None, driver=True, sleep=3, headless=False, base_url="https://fleets.bolt.eu"):
         super().__init__('bolt', week_number=week_number)
@@ -329,29 +331,28 @@ class Bolt(SeleniumTools):
                     cancels_amount = row[4],
                     autorization_payment = row[5],
                     autorization_deduction = row[6],
-                    additional_fee = row[7],
-                    fee = row[8],
-                    total_amount_cach = row[9],
-                    discount_cash_trips = row[10],
-                    driver_bonus = row[11],
-                    compensation = row[12] or 0,
-                    refunds = row[13],
-                    tips =  row[14],
-                    weekly_balance = row[15])
+                    additional_fee=row[7],
+                    fee=row[8],
+                    total_amount_cach=row[9],
+                    discount_cash_trips=row[10],
+                    driver_bonus=row[11],
+                    compensation=row[12] or 0,
+                    refunds=row[13],
+                    tips=row[14],
+                    weekly_balance=row[15])
                 order.save()
                 items.append(order)
         return items
 
-from app.models import UklonPaymentsOrder
-
 
 class Uklon(SeleniumTools):    
     def __init__(self, week_number=None, driver=True, sleep=3, headless=False, base_url="https://partner.uklon.com.ua"):
-        super().__init__('uklon',week_number=week_number)
+        super().__init__('uklon', week_number=week_number)
         self.sleep = sleep
         if driver:
             self.driver = self.retry(self.build_driver, headless)
             self.base_url = base_url
+
     def quit(self):
         self.driver.quit()
 
@@ -398,14 +399,15 @@ class Uklon(SeleniumTools):
     
     def start_of_week_timestamp(self):
         return round(self.start_of_week().timestamp())
+
     def end_of_week_timestamp(self):
         return round(self.end_of_week().timestamp())
     
     def file_patern(self):
-        start =  self.start_of_week()
-        end   =  self.end_of_week().end_of('day').add(hours=4)
-        sd, sy, sm  = start.strftime("%d"), start.strftime("%Y"), start.strftime("%m")
-        ed, ey, em  = end.strftime("%d"), end.strftime("%Y"), end.strftime("%m")    
+        start = self.start_of_week()
+        end = self.end_of_week().end_of('day').add(hours=4)
+        sd, sy, sm = start.strftime("%d"), start.strftime("%Y"), start.strftime("%m")
+        ed, ey, em = end.strftime("%d"), end.strftime("%Y"), end.strftime("%m")
         return f'{sd}.{sm}.{sy}.+{ed}.{em}.{ey}|{start.strftime("%-m")}_{start.strftime("%-d")}_{sy}.+{end.strftime("%-m")}_{end.strftime("%-d")}_{ey}'
     
 
@@ -425,18 +427,18 @@ def get_report(week_number=None, driver=True, sleep=5, headless=True):
         "values": ['324460', '362612', '372353', '372350', '357339']
       },
       "drivers": {
-        'Олександр Холін':   ['775f8943-b0ca-4079-90d3-c81d6563d0f1', '372353', '+380661891408'],
-        'Анатолій Мухін':    ['9a182345-fd18-490f-a908-94f520a9d2d1', '362612', '+380936503350'],
-        'Сергій Желамський': ['cd725b41-9e47-4fd0-8a1f-3514ddf6238a', '372350', '+380668914200'],
-        'Олег Філіппов':     ['d303a6c5-56f7-4ebf-a341-9cfa7c759388', '324460', '+380671887096'],
-        'Юрій Філіппов':     ['9c7eb6cb-34e8-46a2-b55b-b41657878376', '357339', '+380502428878'],
-        'Володимир Золотніков': ['368808', '+380669692591'] 
+        'Олександр Холін':      ['775f8943-b0ca-4079-90d3-c81d6563d0f1', '372353', '+380661891408'],
+        'Анатолій Мухін':       ['9a182345-fd18-490f-a908-94f520a9d2d1', '362612', '+380936503350'],
+        'Сергій Желамський':    ['cd725b41-9e47-4fd0-8a1f-3514ddf6238a', '372350', '+380668914200'],
+        'Олег Філіппов':        ['d303a6c5-56f7-4ebf-a341-9cfa7c759388', '374707', '+380671887096'],
+        'Юрій Філіппов':        ['9c7eb6cb-34e8-46a2-b55b-b41657878376', '357339', '+380502428878'],
+        'Володимир Золотніков': ['3b4ff5f9-ae59-465e-8e19-f00970963876', '368808', '+380669692591'] 
       },
       "rates": {
         'Олександр Холін':   {"uber": 0.50, "bolt": 0.50, "uklon": 0.50},
         'Анатолій Мухін':    {"uber": 0.65, "bolt": 0.65, "uklon": 0.35},
         'Сергій Желамський': {"uber": 0.50, "bolt": 0.50, "uklon": 0.50},
-        'Олег Філіппов':     {"uber": 0.60, "bolt": 0.60, "uklon": 0.40},
+        'Олег Філіппов':     {"uber": 0.50, "bolt": 0.50, "uklon": 0.50},
         'Юрій Філіппов':     {"uber": 0.60, "bolt": 0.60, "uklon": 0.40},
         'Володимир Золотніков': {"uber": 0.60, "bolt": 0.60, "uklon": 0.40}
       }
@@ -481,8 +483,8 @@ def get_report(week_number=None, driver=True, sleep=5, headless=True):
         b.login()
         b.download_payments_order()
         br = b.save_report() 
-    
-     
+
+
     reports = {}
     for name, ids in drivers_maps["drivers"].items():
         reports[name] = itertools.chain(*[
