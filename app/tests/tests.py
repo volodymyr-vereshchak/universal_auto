@@ -1,8 +1,8 @@
 # from django.test import TestCase
 import pytest
-from app.models import WeeklyReportFile, check_full_data, save_weekly_reports_to_db
+from app.models import WeeklyReportFile
 
-
+wrf = WeeklyReportFile()
 @pytest.mark.django_db
 def test_weekly_report_file_create():
     weekly_report_file = WeeklyReportFile.objects.create(
@@ -22,7 +22,7 @@ def test_weekly_report_file_create():
 # Checks the function on files in the main folder
 @pytest.mark.django_db
 def test_save_data_to_db():
-    save_weekly_reports_to_db()
+    wrf.save_weekly_reports_to_db()
     assert True
 
 
@@ -31,7 +31,7 @@ def test_save_data_to_db():
                                                   ("2022-10-08", "2022-10-15", "file_name"),
                                                   ("2023-10-08", "2023-10-15", "file_name")])
 def test_check_full_data_all(start, end, filename):
-    assert check_full_data(start, end, filename) == True
+    assert wrf.check_full_data(start, end, filename) == True
 
 
 # Checks more or less days in report
@@ -40,7 +40,7 @@ def test_check_full_data_all(start, end, filename):
                                                   ("2023-10-08", "2024-10-15", "file_name"),
                                                   ("2022-10-08", "2022-09-08", "file_name")])
 def test_check_full_data_not_all(start, end, filename):
-    assert check_full_data(start, end, filename) == False
+    assert wrf.check_full_data(start, end, filename) == False
 
 
 @pytest.mark.parametrize("start, end, filename, expected_exception",
@@ -49,4 +49,4 @@ def test_check_full_data_not_all(start, end, filename):
                           ("last_name", "first_name", "file_name", ValueError)])
 def test_check_full_data_errors(start, end, filename, expected_exception):
     with pytest.raises(expected_exception):
-        check_full_data(start, end, filename)
+        wrf.check_full_data(start, end, filename)
