@@ -41,9 +41,9 @@ def update_db(update, context):
     directory = '../app'
     files = os.listdir(directory)
 
-    UberPaymentsOrder.download_uber_weekly_file()
-    UklonPaymentsOrder.download_uklon_weekly_file()
-    BoltPaymentsOrder.download_bolt_weekly_file()
+    UberPaymentsOrder.download_weekly_report()
+    UklonPaymentsOrder.download_weekly_report()
+    BoltPaymentsOrder.download_weekly_report()
 
     files = os.listdir(directory)
     files_csv = filter(lambda x: x.endswith('.csv'), files)
@@ -57,11 +57,11 @@ def update_db(update, context):
             processed_files.append(name_file)
             with open(f'{directory}/{name_file}', encoding='utf8') as file:
                 if 'Куцко - Income_' in name_file:
-                    UklonPaymentsOrder.save_uklon_weekly_report_to_database(file=file)
+                    UklonPaymentsOrder.parse_and_save_weekly_report_to_database(file=file)
                 elif '-payments_driver-___.csv' in name_file:
-                    UberPaymentsOrder.save_uber_weekly_report_to_database(file=file)
+                    UberPaymentsOrder.parse_and_save_weekly_report_to_database(file=file)
                 elif 'Kyiv Fleet 03_232 park Universal-auto.csv' in name_file:
-                    BoltPaymentsOrder.save_bolt_weekly_report_to_database(file=file)
+                    BoltPaymentsOrder.parse_and_save_weekly_report_to_database(file=file)
 
         FileNameProcessed.save_filename_to_db(processed_files)
         list_new_files.clear()

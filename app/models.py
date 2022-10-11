@@ -63,7 +63,7 @@ class UklonPaymentsOrder(models.Model):
         return float(self.total_amount) * 0.81
 
     @staticmethod
-    def save_uklon_weekly_report_to_database(file):
+    def parse_and_save_weekly_report_to_database(file):
         """This function reads the weekly file and packs the data into a database."""
         reader = csv.reader(file)
         next(reader)
@@ -92,7 +92,7 @@ class UklonPaymentsOrder(models.Model):
             order.save()
 
     @staticmethod
-    def download_uklon_weekly_file(week_number=None, driver=True, sleep=5, headless=True):
+    def download_weekly_report(week_number=None, driver=True, sleep=5, headless=True):
         """ The function checks if the file exists in the directory, if not, it downloads it
                                                                         or downloads file by week_number"""
         u = Uklon(week_number=week_number, driver=driver, sleep=sleep, headless=headless)
@@ -152,7 +152,7 @@ class BoltPaymentsOrder(models.Model):
        return self.total_cach_less_drivers_amount() * (1 - rate) - self.total_drivers_amount(rate)
 
     @staticmethod
-    def save_bolt_weekly_report_to_database(file):
+    def parse_and_save_weekly_report_to_database(file):
         """This function reads the weekly file and packs the data into a database."""
         reader = csv.reader(file, delimiter=',')
         next(reader)
@@ -189,7 +189,7 @@ class BoltPaymentsOrder(models.Model):
             order.save()
 
     @staticmethod
-    def download_bolt_weekly_file(week_number=None, driver=True, sleep=5, headless=True):
+    def download_weekly_report(week_number=None, driver=True, sleep=5, headless=True):
         """ The function checks if the file exists in the directory, if not, it downloads it
                                                                             or downloads file by week_number"""
         b = Bolt(week_number=week_number, driver=driver, sleep=sleep, headless=headless)
@@ -238,7 +238,7 @@ class UberPaymentsOrder(models.Model):
         return float(self.total_amount)
 
     @staticmethod
-    def save_uber_weekly_report_to_database(file):
+    def parse_and_save_weekly_report_to_database(file):
         """This function reads the weekly file and packs the data into a database."""
         reader = csv.reader(file, delimiter=',')
         next(reader)
@@ -265,7 +265,7 @@ class UberPaymentsOrder(models.Model):
             order.save()
 
     @staticmethod
-    def download_uber_weekly_file(week_number=None, driver=True, sleep=5, headless=True):
+    def download_weekly_report(week_number=None, driver=True, sleep=5, headless=True):
         """ The function checks if the file exists in the directory, if not, it downloads it
                                                                         or downloads file by week_number"""
         u = Uber(week_number=week_number, driver=driver, sleep=sleep, headless=headless)

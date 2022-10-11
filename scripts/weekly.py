@@ -10,9 +10,9 @@ def run(*args):
 	directory = '../app'
 	files = os.listdir(directory)
 
-	UberPaymentsOrder.download_uber_weekly_file(files=files)
-	UklonPaymentsOrder.download_uklon_weekly_file(files=files)
-	BoltPaymentsOrder.download_bolt_weekly_file(files=files)
+	UberPaymentsOrder.download_weekly_report()
+	UklonPaymentsOrder.download_weekly_report()
+	BoltPaymentsOrder.download_weekly_report()
 
 	if args:
 		week = f"2022W{args[0]}5"
