@@ -8,9 +8,3 @@ def run():
     b.login()
     b.download_payments_order()
     b.save_report()
-    
-def run2():
-    b = Bolt(driver=True, sleep=3, headless=True)
-    b.login()
-    b.download_day_order()
-    b.save_today_order()
