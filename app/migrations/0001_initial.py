@@ -106,4 +106,16 @@ class Migration(migrations.Migration):
                 ('updated_at', models.DateTimeField(auto_now=True)),
             ],
         ),
+        migrations.CreateModel(
+            name='WeeklyReportFile',
+            fields=[
+                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('organization_name', models.CharField(max_length=20)),
+                ('report_file_name', models.CharField(max_length=255, unique=True)),
+                ('report_from', models.CharField(max_length=10)),
+                ('report_to', models.CharField(max_length=10)),
+                ('file', models.TextField()),
+                ('created_at', models.DateTimeField(auto_now_add=True)),
+            ],
+        ),
     ]
