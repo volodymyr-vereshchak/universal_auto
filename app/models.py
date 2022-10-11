@@ -59,7 +59,7 @@ class UklonPaymentsOrder(models.Model):
         return -self.total_drivers_amount(rate)
 
     def kassa(self):
-        return float(self.total_amount) * 0.83
+        return float(self.total_amount) * 0.81
 
 
 class BoltPaymentsOrder(models.Model):
@@ -135,7 +135,7 @@ class UberPaymentsOrder(models.Model):
 
 
     def kassa(self):
-        return float(self.total_amount) + float(self.total_amount_cach)
+        return float(self.total_amount)
 
 def save_uber_report_to_db(file_name):
     with open(file_name) as file:
