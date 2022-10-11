@@ -57,11 +57,6 @@ def report(update, context):
     update.message.reply_text(get_report())
 
 
-def error(update, context):
-    """Log Errors caused by Updates."""
-    logger.warning('Update "%s" caused error "%s"', update, context.error)
-
-
 def code(update: Update, context: CallbackContext):
     r = redis.Redis.from_url(os.environ["REDIS_URL"])
     r.publish('code', update.message.text)
@@ -122,11 +117,7 @@ def main():
     updater = Updater(os.environ['TELEGRAM_TOKEN'], use_context=True)
     dp = updater.dispatcher
     dp.add_handler(CommandHandler("start", start))
-    dp.add_handler(CommandHandler("report", report, run_async=True))
-    dp.add_handler(CommandHandler("save_reports", save_reports))
-    dp.add_handler(MessageHandler(Filters.text, code))
     dp.add_handler(MessageHandler(Filters.contact, get_number))
-    dp.add_error_handler(error)
     dp.add_error_handler(error_handler)
     updater.start_polling()
     updater.idle()
