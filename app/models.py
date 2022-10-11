@@ -50,11 +50,10 @@ class UklonPaymentsOrder(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    def report_text(self, name=None, rate=0.35):
-        return f'Uklon {name} {self.signal}: Аренда авто: {"%.2f" % self.total_drivers_amount(rate)}'
-
-    def total_drivers_amount(self, rate=0.35):
-        return -(float(self.total_amount) * 0.83) * rate
+    def report_text(self, name = None, rate = 0.35):
+        return f'Uklon {name} {self.signal}: Касса({"%.2f" % self.kassa()}) * {"%.0f" % (rate*100)}% = {"%.2f" % (self.kassa() * rate)} - Наличные(-{"%.2f" % float(self.total_amount_cach)}) = {"%.2f" % self.total_drivers_amount(rate)}'
+    def total_drivers_amount(self, rate = 0.35):
+        return -(self.kassa()) * rate
 
     def vendor(self):
         return 'uklon'
@@ -62,14 +61,17 @@ class UklonPaymentsOrder(models.Model):
     def total_owner_amount(self, rate=0.35):
         return -self.total_drivers_amount(rate)
 
+    def kassa(self):
+        return float(self.total_amount) * 0.83
+
 
 class BoltPaymentsOrder(models.Model):
     report_from = models.DateTimeField()
     report_to = models.DateTimeField()
     report_file_name = models.CharField(max_length=255)
     driver_full_name = models.CharField(max_length=24)
-    mobile_number = models.CharField(max_length=12)
-    range_string = models.CharField(max_length=50)
+    mobile_number = models.CharField(max_length=13)
+    range_string =  models.CharField(max_length=50)
     total_amount = models.DecimalField(decimal_places=2, max_digits=10)
     cancels_amount = models.DecimalField(decimal_places=2, max_digits=10)
     autorization_payment = models.DecimalField(decimal_places=2, max_digits=10)
@@ -88,10 +90,10 @@ class BoltPaymentsOrder(models.Model):
 
     def report_text(self, name=None, rate=0.65):
         name = name or self.driver_full_name
-        return f'Bolt {name}: Безналичные: {self.total_cach_less_drivers_amount()}, Наличные: {float(self.total_amount_cach)}, Зарплата: {"%.2f" % self.total_drivers_amount(rate)}'
 
-    def total_drivers_amount(self, rate=0.65):
-        res = self.total_cach_less_drivers_amount() * rate + float(self.total_amount_cach)
+        return f'Bolt {name}: Касса({"%.2f" % self.kassa()}) * {"%.0f" % (rate*100)}% = {"%.2f" % (self.kassa() * rate)} - Наличные({"%.2f" % float(self.total_amount_cach)}) = {"%.2f" % self.total_drivers_amount(rate)}'
+    def total_drivers_amount(self, rate = 0.65):
+        res = self.total_cach_less_drivers_amount() * rate  + float(self.total_amount_cach)
         return res
 
     def total_cach_less_drivers_amount(self):
@@ -100,9 +102,11 @@ class BoltPaymentsOrder(models.Model):
     def vendor(self):
         return 'bolt'
 
-    def total_owner_amount(self, rate=0.65):
-        return self.total_cach_less_drivers_amount() * (1 - rate) - self.total_drivers_amount(rate)
+    def kassa(self):
+        return (self.total_cach_less_drivers_amount())
 
+    def total_owner_amount(self, rate = 0.65):
+       return self.total_cach_less_drivers_amount() * (1 - rate) - self.total_drivers_amount(rate)
 
 class UberPaymentsOrder(models.Model):
     report_from = models.DateTimeField()
@@ -122,10 +126,9 @@ class UberPaymentsOrder(models.Model):
 
     def report_text(self, name=None, rate=0.65):
         name = name or f'{self.first_name} {self.last_name}'
-        return f'Uber {name}: Безналичные: {float(self.total_amount)}, Наличные: {float(self.total_amount_cach)}, Зарплата: {"%.2f" % self.total_drivers_amount(rate)}'
-
-    def total_drivers_amount(self, rate=0.65):
-        return float(self.total_amount) * rate + float(self.total_amount_cach)
+        return f'Uber {name}: Касса({"%.2f" % self.kassa()}) * {"%.0f" % (rate*100)}% = {"%.2f" % (self.kassa() * rate)} - Наличные({float(self.total_amount_cach)}) = {"%.2f" % self.total_drivers_amount(rate)}'
+    def total_drivers_amount(self, rate = 0.65):
+       return float(self.total_amount) * rate + float(self.total_amount_cach)
 
     def vendor(self):
         return 'uber'
@@ -133,6 +136,9 @@ class UberPaymentsOrder(models.Model):
     def total_owner_amount(self, rate=0.65):
         return float(self.total_amount) * (1 - rate) - self.total_drivers_amount(rate)
 
+
+    def kassa(self):
+        return float(self.total_amount) + float(self.total_amount_cach)
 
 def save_uber_report_to_db(file_name):
     with open(file_name) as file:
