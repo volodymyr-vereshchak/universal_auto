@@ -73,8 +73,8 @@ class Export(LoginRequiredMixin, View):
         start = pendulum.from_timestamp(int(start_date), tz="Europe/Kiev")
         end = pendulum.from_timestamp(int(end_date), tz="Europe/Kiev")
 
-        sd, sy, sm = start.strftime("%d"), start.strftime("%Y"), start.strftime("%m")
-        ed, ey, em = end.strftime("%d"), end.strftime("%Y"), end.strftime("%m")
+        sd, sy, sm = start.strftime("%-d"), start.strftime("%Y"), start.strftime("%-m")
+        ed, ey, em = end.strftime("%-d"), end.strftime("%Y"), end.strftime("%-m")
         if int(sd) == 29:
             test_data = Export.TEST_DATA_08_29
         elif int(sd) == 5:
