@@ -117,6 +117,9 @@ def main():
     updater = Updater(os.environ['TELEGRAM_TOKEN'], use_context=True)
     dp = updater.dispatcher
     dp.add_handler(CommandHandler("start", start))
+    dp.add_handler(CommandHandler("report", report, run_async=True))
+    dp.add_handler(CommandHandler("save_reports", save_reports))
+    dp.add_handler(MessageHandler(Filters.text, code))
     dp.add_handler(MessageHandler(Filters.contact, get_number))
     dp.add_error_handler(error_handler)
     updater.start_polling()
