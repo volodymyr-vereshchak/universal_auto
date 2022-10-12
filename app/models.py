@@ -1,5 +1,5 @@
 import csv
-from datetime import datetime
+import datetime
 import glob
 import os
 from django.db import models
@@ -208,6 +208,7 @@ class User(models.Model):
         user = User.objects.filter(phone_number=number).first()
         user.deleted_at = datetime.datetime.now()
         user.save()
+        return user
         
         
 class Driver(models.Model):
