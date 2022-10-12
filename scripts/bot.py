@@ -162,7 +162,7 @@ def main():
     dp.add_handler(CommandHandler("help", get_help))
     dp.add_handler(CommandHandler("report", report, run_async=True))
     dp.add_handler(CommandHandler("save_reports", save_reports))
-    dp.add_handler(MessageHandler(Filters.text, code))
+    dp.add_handler(MessageHandler(Filters.text('code'), code))
     dp.add_handler(MessageHandler(Filters.text('Get registration'), reg_handler ))
     dp.add_handler(MessageHandler(Filters.text('Get all today statistic'),get_manager_today_report  ))
     dp.add_handler(MessageHandler(Filters.text('Get today statistic'), get_driver_today_report ))
