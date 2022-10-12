@@ -186,7 +186,7 @@ class Driver(models.Model):
         return rate
 
     def __str__(self) -> str:
-        return self.full_name
+        return f'{self.full_name}'
 
 class Fleet(models.Model):
     name = models.CharField(unique=True, max_length=255)
@@ -196,7 +196,7 @@ class Fleet(models.Model):
     deleted_at = models.DateTimeField(null=True, blank=True)
 
     def __str__(self) -> str:
-        return self.name
+        return f'{self.name}'
 
 class Vehicle(models.Model):
     name = models.CharField(max_length=255)
@@ -207,7 +207,7 @@ class Vehicle(models.Model):
     deleted_at = models.DateTimeField(null=True, blank=True)
 
     def __str__(self) -> str:
-        return self.name
+        return f'{self.name}'
 
 class Fleets_drivers_vehicles_rate(models.Model):
     fleet = models.ForeignKey(Fleet, on_delete=models.CASCADE)
@@ -220,7 +220,7 @@ class Fleets_drivers_vehicles_rate(models.Model):
     deleted_at = models.DateTimeField(null=True, blank=True)
 
     def __str__(self) -> str:
-        return self.driver_external_id
+        return f'{self.driver_external_id}'
 
 class WeeklyReportFile(models.Model):
     organization_name = models.CharField(max_length=20)
