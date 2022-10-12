@@ -1,22 +1,25 @@
+import time
+import csv
+import datetime
+import sys
+import os
+import re
+import itertools
+import logging
+
+import redis
+import pendulum
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-import time
-import csv
-import datetime
-import pendulum
-import sys
-import os
-import re
-import itertools
+
 from app.models import UklonPaymentsOrder
 from app.models import UberPaymentsOrder
 from app.models import BoltPaymentsOrder
-import redis
-import logging
+from app.models import Driver, Fleets_drivers_vehicles_rate
 
 class SeleniumTools():
     def __init__(self, session, week_number=None):
@@ -409,40 +412,37 @@ class Uklon(SeleniumTools):
         return f'{sd}.{sm}.{sy}.+{ed}.{em}.{ey}|{start.strftime("%-m")}_{start.strftime("%-d")}_{sy}.+{end.strftime("%-m")}_{end.strftime("%-d")}_{ey}'
     
 
-
 def get_report(week_number = None, driver=True, sleep=5, headless=True):
-    drivers_maps = {
-      "uber": {
-        "key": "driver_uuid",
-         "values": ['775f8943-b0ca-4079-90d3-c81d6563d0f1', '9a182345-fd18-490f-a908-94f520a9d2d1', 'cd725b41-9e47-4fd0-8a1f-3514ddf6238a']
-      },
-      "bolt": {
-        "key": "mobile_number",
-        "values": ['+380661891408', '+380936503350', '+380668914200', '+380502428878', '+380671887096']
-      },
-      "uklon": {
-        "key": "signal",
-        "values": ['324460', '362612', '372353', '372350', '357339']
-      },
-      "drivers": {
-        'Олександр Холін':      ['775f8943-b0ca-4079-90d3-c81d6563d0f1', '372353', '+380661891408'],
-        'Анатолій Мухін':       ['9a182345-fd18-490f-a908-94f520a9d2d1', '362612', '+380936503350'],
-        'Сергій Желамський':    ['cd725b41-9e47-4fd0-8a1f-3514ddf6238a', '372350', '+380668914200'],
-        'Олег Філіппов':        ['d303a6c5-56f7-4ebf-a341-9cfa7c759388', '374707', '+380671887096'],
-        'Юрій Філіппов':        ['9c7eb6cb-34e8-46a2-b55b-b41657878376', '357339', '+380502428878'],
-        'Володимир Золотніков': ['3b4ff5f9-ae59-465e-8e19-f00970963876', '368808', '+380669692591'] 
-      },
-      "rates": {
-        'Олександр Холін':   {"uber": 0.50, "bolt": 0.50, "uklon": 0.50},
-        'Анатолій Мухін':    {"uber": 0.65, "bolt": 0.65, "uklon": 0.35},
-        'Сергій Желамський': {"uber": 0.50, "bolt": 0.50, "uklon": 0.50},
-        'Олег Філіппов':     {"uber": 0.50, "bolt": 0.50, "uklon": 0.50},
-        'Юрій Філіппов':     {"uber": 0.60, "bolt": 0.60, "uklon": 0.40},
-        'Володимир Золотніков': {"uber": 0.60, "bolt": 0.60, "uklon": 0.40}
-      }
-
-    }
-    
+    # drivers_maps = {
+    #   "uber": {
+    #     "key": "driver_uuid",
+    #      "values": ['775f8943-b0ca-4079-90d3-c81d6563d0f1', '9a182345-fd18-490f-a908-94f520a9d2d1', 'cd725b41-9e47-4fd0-8a1f-3514ddf6238a']
+    #   },
+    #   "bolt": {
+    #     "key": "mobile_number",
+    #     "values": ['+380661891408', '+380936503350', '+380668914200', '+380502428878', '+380671887096']
+    #   },
+    #   "uklon": {
+    #     "key": "signal",
+    #     "values": ['324460', '362612', '372353', '372350', '357339']
+    #   },
+    #   "drivers": {
+    #     'Олександр Холін':   ['775f8943-b0ca-4079-90d3-c81d6563d0f1', '372353', '+380661891408'],
+    #     'Анатолій Мухін':    ['9a182345-fd18-490f-a908-94f520a9d2d1', '362612', '+380936503350'],
+    #     'Сергій Желамський': ['cd725b41-9e47-4fd0-8a1f-3514ddf6238a', '372350', '+380668914200'],
+    #     'Олег Філіппов':     ['d303a6c5-56f7-4ebf-a341-9cfa7c759388', '324460', '+380671887096'],
+    #     'Юрій Філіппов':     ['9c7eb6cb-34e8-46a2-b55b-b41657878376', '357339', '+380502428878'],
+    #     'Володимир Золотніков': ['368808', '+380669692591'] 
+    #   },
+    #   "rates": {
+    #     'Олександр Холін':   {"uber": 0.50, "bolt": 0.50, "uklon": 0.50},
+    #     'Анатолій Мухін':    {"uber": 0.65, "bolt": 0.65, "uklon": 0.35},
+    #     'Сергій Желамський': {"uber": 0.50, "bolt": 0.50, "uklon": 0.50},
+    #     'Олег Філіппов':     {"uber": 0.60, "bolt": 0.60, "uklon": 0.40},
+    #     'Юрій Філіппов':     {"uber": 0.60, "bolt": 0.60, "uklon": 0.40},
+    #     'Володимир Золотніков': {"uber": 0.60, "bolt": 0.60, "uklon": 0.40}
+    #   }
+    # }
     
     u = Uber(week_number=week_number, driver=driver, sleep=sleep, headless=headless)
     if driver:
@@ -485,21 +485,33 @@ def get_report(week_number = None, driver=True, sleep=5, headless=True):
     
      
     reports = {}
-    for name, ids in drivers_maps["drivers"].items():
-        reports[name] = itertools.chain(*[
-            list(filter(lambda p: p.driver_uuid in ids, ubr)),
-            list(filter(lambda p: p.mobile_number in ids, br)),
-            list(filter(lambda p: p.signal in ids, ur))
-         ])
+    # for name, ids in drivers_maps["drivers"].items():
+    #     reports[name] = itertools.chain(*[
+    #         list(filter(lambda p: p.driver_uuid in ids, ubr)),
+    #         list(filter(lambda p: p.mobile_number in ids, br)),
+    #         list(filter(lambda p: p.signal in ids, ur))
+    #      ])
+    drivers = Driver.objects.filter(deleted_at=None)
+        
+    for driver in drivers:
+        uber_id = driver.get_driver_external_id('Uber')
+        bolt_id = driver.get_driver_external_id('Bolt')
+        uklon_id = driver.get_driver_external_id('Uklon')
+
+        reports[driver] = itertools.chain(*[
+            [p for p in ubr if p.driver_uuid == uber_id],
+            [p for p in br if p.mobile_number == bolt_id],
+            [p for p in ur if p.signal == uklon_id]
+        ])
     
     totals = {"Fleet Owner": 0, "Owner": ""}
+    
+    for driver, verndor_report in reports.items():
+        verndor_report = list(verndor_report)
+        totals[driver.full_name]  = f'Общаяя касса {driver.full_name}: %.2f\n' % sum(vr.kassa() for vr in verndor_report)
+        totals[driver.full_name] = '\n'.join(vr.report_text(driver.full_name, driver.get_rate(vr)) for vr in verndor_report)
+        totals[driver.full_name] += f'\nЗарплата за неделю {driver.full_name}: %.2f\n' % sum(vr.total_drivers_amount(driver.get_rate(vr)) for vr in verndor_report)
+        totals["Fleet Owner"] += sum(vr.total_owner_amount(driver.get_rate(vr)) for vr in verndor_report)
+    totals["Fleet Owner"] = f"Fleet Owner: {f'%.2f' % totals['Fleet Owner']}" + '\n\n'
 
-    for name, results in reports.items():
-        results = list(results)
-        totals[name]  = f'Общаяя касса {name}: %.2f\n' % sum(c.kassa() for c in results)
-        totals[name] += '\n'.join(c.report_text(name, drivers_maps['rates'][name][c.vendor()]) for c in results)
-        totals[name] += f'\nЗарплата за неделю {name}: %.2f\n' % sum(c.total_drivers_amount(drivers_maps['rates'][name][c.vendor()]) for c in results)
-        totals["Fleet Owner"] += sum(c.total_owner_amount(drivers_maps['rates'][name][c.vendor()]) for c in results)
-    totals["Fleet Owner"] = f"Fleet Owner: {f'%.2f' % totals['Fleet Owner']}"
     return '\n'.join(list(totals.values()))
-
