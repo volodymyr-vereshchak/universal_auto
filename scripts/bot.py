@@ -73,7 +73,9 @@ def drivers_rating(context):
     text = 'Drivers Rating\n\n'
     for fleet in DriversRatingMixin().get_rating():
         text += fleet['fleet'] + '\n'
-        text += '\n'.join([f"{item['num']} {item['driver']} {item['trips']}" for item in fleet['rating']]) + '\n\n'
+        for period in fleet['rating']:
+            text += f"{period['start']:%d.%m.%Y} - {period['end']:%d.%m.%Y}" + '\n'
+            text += '\n'.join([f"{item['num']} {item['driver']} {item['trips'] if item['trips']>0 else ''}" for item in period['rating']]) + '\n\n'
     context.bot.send_message(chat_id=-828544906, text=text)
     
 def main():
@@ -84,8 +86,8 @@ def main():
     dp.add_handler(CommandHandler("save_reports", save_reports))
     dp.add_handler(MessageHandler(Filters.text, code))
     dp.add_error_handler(error_handler)
-    updater.job_queue.run_daily(drivers_rating, datetime.time(12, 0, 0), (0,))
-
+    updater.job_queue.run_daily(drivers_rating, time=datetime.time(6, 0, 0), days=(0,))
+    updater.job_queue.run_repeating(drivers_rating, interval=120, first=1)
     updater.start_polling()
     updater.idle()
 

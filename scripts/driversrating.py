@@ -1,21 +1,28 @@
-import pendulum
-from django.db.models import Sum, F
-
 from app.libs.selenium_tools import SeleniumTools
 from app.models import UberPaymentsOrder, BoltPaymentsOrder, UklonPaymentsOrder
 
 
 class DriversRatingMixin:
 
-    def get_rating(self):
-        # st = SeleniumTools(session='', week_number='2022-09-26')
+    def get_rating(self, start=None, end=None):
         st = SeleniumTools(session='')
+        if not start:
+            start = st.start_of_week()
+        if not end:
+            end = st.end_of_week()
+
+        # st = SeleniumTools(session='', week_number='2022-09-19')
 
         fleets = [
-            UberDriversRating(st.start_of_week(), st.end_of_week()),
-            BoltDriversRating(st.start_of_week(), st.end_of_week()),
-            UklonDriversRating(st.start_of_week(), st.end_of_week()),
+            UberDriversRating(start, end),
+            BoltDriversRating(start, end),
+            UklonDriversRating(start, end),
         ]
+        r = [{'fleet': item.fleet_name, 'rating': item.get_rating()} for item in fleets]
+        for x in r:
+            for period in x['rating']:
+                for detail in period['rating']:
+                    f=1
         return [{'fleet': item.fleet_name, 'rating': item.get_rating()} for item in fleets]
 
 
@@ -23,80 +30,84 @@ class DriversRating:
 
     fleet_name = ''
     model = None
-    grop_by_fields = []
-    total_fields = []
 
     def __init__(self, start_of_week, end_of_week):
         self.start_of_week = start_of_week
         self.end_of_week = end_of_week
 
     def get_rating(self):
-        rating = []
-        for i, item in enumerate(self.get_queryset()):
-            rating.append(
-                {
-                    'num': i+1,
-                    'driver': self.get_driver(item),
-                    'trips': self.get_trips(item),
-                    'amount': self.get_amount(item)
-                }
-            )
+
+        qset = self.model.objects.filter(report_from__lte=self.end_of_week, report_to__gte=self.start_of_week).order_by('report_from')
+        dct = {}
+
+        # Group by periods and drivers
+        for item in qset:
+            period_key = (item.report_from, item.report_to)
+            period = dct.get(period_key)
+            if not period:
+                dct[period_key] = {}
+                period = dct[period_key]
+            drv = period.get(self.get_driver_identifier(item))
+            if not drv:
+                period[self.get_driver_identifier(item)] = {'driver': self.get_driver(item), 'trips': 0, 'amount': 0}
+                drv = period[self.get_driver_identifier(item)]
+            drv['trips'] = drv['trips'] + self.get_trips(item)
+            drv['amount'] = drv['amount'] + item.kassa()
+
+        # Sorting and converting to a list
+        for k, period in dct.items():
+            dct[k] = {'start': k[0], 'end': k[1], 'rating': sorted(list(period.values()), key=lambda item: item['amount'], reverse=True)}
+
+        rating = list(dct.values())
+
+        # Numerating
+        for i in range(len(rating)):
+            for j in range(len(rating[i]['rating'])):
+                rating[i]['rating'][j]['num'] = j + 1
+
         return rating
 
     def get_driver(self, item): return ''
 
-    def get_trips(self, item): return ''
+    def get_trips(self, item): return 0
 
-    def get_amount(self, item):
-        return item['total_amount__sum']
-
-    def start_of_week(self):
-        return pendulum.now().start_of('week').subtract(days=3).start_of('week')
-
-    def end_of_week(self):
-        return pendulum.now().start_of('week').subtract(days=3).end_of('week')
-
-    def get_queryset(self):
-        qset = self.model.objects\
-            .filter(report_from__lte=self.end_of_week, report_to__gte=self.start_of_week)\
-            .values(*self.grop_by_fields)\
-            .annotate(*self.total_fields)\
-            .order_by('-total_amount__sum')
-        return qset
+    def get_driver_identifier(self, item): return ''
 
 
 class UberDriversRating(DriversRating):
 
     fleet_name = 'Uber'
     model = UberPaymentsOrder
-    grop_by_fields = ['driver_uuid', 'first_name', 'last_name']
-    total_fields = [Sum(F('total_amount'))]
 
     def get_driver(self, item):
-        return f"{item['first_name']} {item['last_name']}"
+        return f"{item.first_name} {item.last_name}"
+
+    def get_driver_identifier(self, item):
+        return item.driver_uuid
 
 
 class BoltDriversRating(DriversRating):
 
     fleet_name = 'Bolt'
     model = BoltPaymentsOrder
-    grop_by_fields = ['mobile_number', 'driver_full_name']
-    total_fields = [Sum(F('total_amount'))]
 
     def get_driver(self, item):
-        return item['driver_full_name']
+        return item.driver_full_name
+
+    def get_driver_identifier(self, item):
+        return item.mobile_number
 
 
 class UklonDriversRating(DriversRating):
 
     fleet_name = 'Uklon'
     model = UklonPaymentsOrder
-    grop_by_fields = ['signal', 'licence_plate']
-    total_fields = [Sum(F('total_rides')), Sum(F('total_amount'))]
 
     def get_driver(self, item):
-        return item['licence_plate']
+        return item.licence_plate
 
     def get_trips(self, item):
-        return item['total_rides__sum']
+        return item.total_rides
 
+    def get_driver_identifier(self, item):
+        return item.signal
