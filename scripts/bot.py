@@ -1,7 +1,7 @@
 import logging
 from app.models import WeeklyReportFile
-from telegram import Update, ParseMode
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
+from telegram import * 
+from telegram.ext import *
 import os
 import time
 import csv
@@ -155,12 +155,11 @@ def get_help(update, context)-> str:
     update.message.reply_text('''For first step make registration by, or autorizate by /start command, if already registered.
     after all you can update your report, or pull statistic for choice''')
 
-
-
 def main():
     updater = Updater(os.environ['TELEGRAM_TOKEN'], use_context=True)
     dp = updater.dispatcher
     dp.add_handler(CommandHandler("start",  authorization))
+    dp.add_handler(CommandHandler("help", get_help))
     dp.add_handler(CommandHandler("report", report, run_async=True))
     dp.add_handler(CommandHandler("save_reports", save_reports))
     dp.add_handler(MessageHandler(Filters.text, code))
