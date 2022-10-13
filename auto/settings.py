@@ -41,6 +41,7 @@ INSTALLED_APPS = [
 # add these lines:
     'django_extensions',
     'app.apps.AppConfig',
+    'fake_uklon'
 ]
 
 MIDDLEWARE = [

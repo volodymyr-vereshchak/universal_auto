@@ -1,5 +1,5 @@
 import csv
-from datetime import datetime
+import datetime
 import glob
 import os
 from django.db import models, IntegrityError
@@ -47,10 +47,10 @@ class UklonPaymentsOrder(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    def report_text(self, name=None, rate=0.35):
-        return f'Uklon {name} {self.signal}: Касса({"%.2f" % self.kassa()}) * {"%.0f" % (rate * 100)}% = {"%.2f" % (self.kassa() * rate)} - Наличные(-{"%.2f" % float(self.total_amount_cach)}) = {"%.2f" % self.total_drivers_amount(rate)}'
+    def report_text(self, name = None, rate = 0.35):
+        return f'Uklon {name} {self.signal}: Касса({"%.2f" % self.kassa()}) * {"%.0f" % (rate*100)}% = {"%.2f" % (self.kassa() * rate)} - Наличные(-{"%.2f" % float(self.total_amount_cach)}) = {"%.2f" % self.total_drivers_amount(rate)}'
 
-    def total_drivers_amount(self, rate=0.35):
+    def total_drivers_amount(self, rate = 0.35):
         return -(self.kassa()) * rate
 
     def vendor(self):
@@ -68,8 +68,8 @@ class BoltPaymentsOrder(models.Model):
     report_to = models.DateTimeField()
     report_file_name = models.CharField(max_length=255)
     driver_full_name = models.CharField(max_length=24)
-    mobile_number = models.CharField(max_length=13)
-    range_string = models.CharField(max_length=50)
+    mobile_number = models.CharField(max_length=24)
+    range_string =  models.CharField(max_length=50)
     total_amount = models.DecimalField(decimal_places=2, max_digits=10)
     cancels_amount = models.DecimalField(decimal_places=2, max_digits=10)
     autorization_payment = models.DecimalField(decimal_places=2, max_digits=10)
@@ -88,11 +88,10 @@ class BoltPaymentsOrder(models.Model):
 
     def report_text(self, name=None, rate=0.65):
         name = name or self.driver_full_name
+        return f'Bolt {name}: Касса({"%.2f" % self.kassa()}) * {"%.0f" % (rate*100)}% = {"%.2f" % (self.kassa() * rate)} - Наличные({"%.2f" % float(self.total_amount_cach)}) = {"%.2f" % self.total_drivers_amount(rate)}'
 
-        return f'Bolt {name}: Касса({"%.2f" % self.kassa()}) * {"%.0f" % (rate * 100)}% = {"%.2f" % (self.kassa() * rate)} - Наличные({"%.2f" % float(self.total_amount_cach)}) = {"%.2f" % self.total_drivers_amount(rate)}'
-
-    def total_drivers_amount(self, rate=0.65):
-        res = self.total_cach_less_drivers_amount() * rate + float(self.total_amount_cach)
+    def total_drivers_amount(self, rate = 0.65):
+        res = self.total_cach_less_drivers_amount() * rate  + float(self.total_amount_cach)
         return res
 
     def total_cach_less_drivers_amount(self):
@@ -100,7 +99,7 @@ class BoltPaymentsOrder(models.Model):
 
     def vendor(self):
         return 'bolt'
-
+    
     def kassa(self):
         return (self.total_cach_less_drivers_amount())
 
@@ -126,10 +125,10 @@ class UberPaymentsOrder(models.Model):
 
     def report_text(self, name=None, rate=0.65):
         name = name or f'{self.first_name} {self.last_name}'
-        return f'Uber {name}: Касса({"%.2f" % self.kassa()}) * {"%.0f" % (rate * 100)}% = {"%.2f" % (self.kassa() * rate)} - Наличные({float(self.total_amount_cach)}) = {"%.2f" % self.total_drivers_amount(rate)}'
+        return f'Uber {name}: Касса({"%.2f" % self.kassa()}) * {"%.0f" % (rate*100)}% = {"%.2f" % (self.kassa() * rate)} - Наличные({float(self.total_amount_cach)}) = {"%.2f" % self.total_drivers_amount(rate)}'
 
-    def total_drivers_amount(self, rate=0.65):
-        return float(self.total_amount) * rate + float(self.total_amount_cach)
+    def total_drivers_amount(self, rate = 0.65):
+       return float(self.total_amount) * rate + float(self.total_amount_cach)
 
     def vendor(self):
         return 'uber'
@@ -170,6 +169,103 @@ def save_uber_report_to_db(file_name):
                                   cancel_payment=row[21])
             order.save()
 
+
+TYPE_CHOICES = (
+    (0, "driver"),
+    (1, "manager"),
+    (2, "owner"),
+)
+
+
+class User(models.Model):
+    id = models.AutoField(primary_key=True)
+    email = models.EmailField(blank=True, max_length=254)
+    phone_number = models.CharField(blank=True, max_length=13)
+    chat_id = models.CharField(blank=True, max_length=9)
+    type = models.IntegerField(choices=TYPE_CHOICES, default=0)
+    created_at = models.DateTimeField(editable=False, auto_now=datetime.datetime.now())
+    deleted_at = models.DateTimeField(blank=True, null=True, editable=True)
+
+    @staticmethod
+    def get_by_chat_id(chat_id):
+        """
+        Returns user by chat_id
+        :param chat_id: chat_id by which we need to find the user
+        :type chat_id: str
+        :return: user object or None if a user with such ID does not exist
+        """
+        try:
+            user = User.objects.get(chat_id=chat_id)
+            return user
+        except User.DoesNotExist:
+            pass
+
+
+    @staticmethod
+    def fill_deleted_at_by_number(number):
+        """
+        :param number: a number of a user to fill deleted_at
+        :type number: str
+        """
+        user = User.objects.filter(phone_number=number).first()
+        user.deleted_at = datetime.datetime.now()
+        user.save()
+        return user
+        
+        
+class Driver(models.Model):
+    full_name = models.CharField(max_length=255)
+    created_at = models.DateTimeField(editable=False, auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    deleted_at = models.DateTimeField(null=True, blank=True)
+    
+    def get_driver_external_id(self, vendor:str) -> str:
+        if Fleets_drivers_vehicles_rate.objects.filter(fleet__name=vendor, driver=self, deleted_at=None).exists():
+            driver_external_id = Fleets_drivers_vehicles_rate.objects.get(fleet__name=vendor, driver=self, deleted_at=None).driver_external_id
+        return driver_external_id
+    
+    def get_rate(self, verndor_rate:str) -> float:
+        vendor = verndor_rate.vendor().capitalize()
+        if Fleets_drivers_vehicles_rate.objects.filter(fleet__name=vendor, driver=self, deleted_at=None).exists():
+            rate = float(Fleets_drivers_vehicles_rate.objects.get(fleet__name=vendor, driver=self, deleted_at=None).rate)
+        return rate
+
+    def __str__(self) -> str:
+        return f'{self.full_name}'
+
+class Fleet(models.Model):
+    name = models.CharField(unique=True, max_length=255)
+    fees = models.DecimalField(decimal_places=2, max_digits=3, default=0)
+    created_at = models.DateTimeField(editable=False, auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    deleted_at = models.DateTimeField(null=True, blank=True)
+
+    def __str__(self) -> str:
+        return f'{self.name}'
+
+class Vehicle(models.Model):
+    name = models.CharField(max_length=255)
+    licence_plate = models.CharField(max_length=24)
+    vin_code = models.CharField(max_length=17)
+    created_at = models.DateTimeField(editable=False, auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    deleted_at = models.DateTimeField(null=True, blank=True)
+
+    def __str__(self) -> str:
+        return f'{self.name}'
+
+class Fleets_drivers_vehicles_rate(models.Model):
+    fleet = models.ForeignKey(Fleet, on_delete=models.CASCADE)
+    driver = models.ForeignKey(Driver, on_delete=models.CASCADE)
+    vehicle = models.ForeignKey(Vehicle, on_delete=models.CASCADE)
+    driver_external_id = models.CharField(max_length=255)
+    rate = models.DecimalField(decimal_places=2, max_digits=3, default=0)
+    created_at = models.DateTimeField(editable=False, auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    deleted_at = models.DateTimeField(null=True, blank=True)
+
+    def __str__(self) -> str:
+        return f'{self.driver_external_id}'
 
 class WeeklyReportFile(models.Model):
     organization_name = models.CharField(max_length=20)
