@@ -1,5 +1,5 @@
 import csv
-from datetime import datetime
+import datetime
 import glob
 import os
 from django.db import models, IntegrityError
@@ -168,6 +168,49 @@ def save_uber_report_to_db(file_name):
             order.save()
 
 
+TYPE_CHOICES = (
+    (0, "driver"),
+    (1, "manager"),
+    (2, "owner"),
+)
+
+
+class User(models.Model):
+    id = models.AutoField(primary_key=True)
+    email = models.EmailField(blank=True, max_length=254)
+    phone_number = models.CharField(blank=True, max_length=13)
+    chat_id = models.CharField(blank=True, max_length=9)
+    type = models.IntegerField(choices=TYPE_CHOICES, default=0)
+    created_at = models.DateTimeField(editable=False, auto_now=datetime.datetime.now())
+    deleted_at = models.DateTimeField(blank=True, null=True, editable=True)
+
+    @staticmethod
+    def get_by_chat_id(chat_id):
+        """
+        Returns user by chat_id
+        :param chat_id: chat_id by which we need to find the user
+        :type chat_id: str
+        :return: user object or None if a user with such ID does not exist
+        """
+        try:
+            user = User.objects.get(chat_id=chat_id)
+            return user
+        except User.DoesNotExist:
+            pass
+
+
+    @staticmethod
+    def fill_deleted_at_by_number(number):
+        """
+        :param number: a number of a user to fill deleted_at
+        :type number: str
+        """
+        user = User.objects.filter(phone_number=number).first()
+        user.deleted_at = datetime.datetime.now()
+        user.save()
+        return user
+        
+        
 class Driver(models.Model):
     full_name = models.CharField(max_length=255)
     created_at = models.DateTimeField(editable=False, auto_now_add=True)
