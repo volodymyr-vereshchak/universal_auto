@@ -282,7 +282,7 @@ class UberPaymentsOrder(models.Model):
 
 
 class FileNameProcessed(models.Model):
-    filename_weekly = models.CharField(max_length=70, unique=True)
+    filename_weekly = models.CharField(max_length=150, unique=True)
 
     @staticmethod
     def save_filename_to_db(processed_files: list):
