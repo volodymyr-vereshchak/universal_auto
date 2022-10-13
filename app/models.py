@@ -2,7 +2,7 @@ import csv
 from datetime import datetime
 import glob
 import os
-from django.db import models
+from django.db import models, IntegrityError
 import django
 
 
@@ -333,3 +333,105 @@ class WeeklyReportFile(models.Model):
             # Catches an error if the filename is already exist in DB
             except django.db.utils.IntegrityError as error:
                 print(f"{report_name} already exists in Database")
+
+class UberTransactions(models.Model):
+    transaction_uuid = models.UUIDField(unique=True)
+    driver_uuid = models.UUIDField()
+    driver_name = models.CharField(max_length=50)
+    driver_second_name = models.CharField(max_length=50)
+    trip_uuid = models.UUIDField()
+    trip_description = models.CharField(max_length=50)
+    organization_name = models.CharField(max_length=50)
+    organization_nickname = models.CharField(max_length=50)
+    transaction_time = models.CharField(max_length=50)
+    paid_to_you = models.DecimalField(decimal_places=2, max_digits=10)
+    your_earnings = models.DecimalField(decimal_places=2, max_digits=10)
+    cash = models.DecimalField(decimal_places=2, max_digits=10)
+    fare = models.DecimalField(decimal_places=2, max_digits=10)
+    tax = models.DecimalField(decimal_places=2, max_digits=10)
+    fare2 = models.DecimalField(decimal_places=2, max_digits=10)
+    service_tax = models.DecimalField(decimal_places=2, max_digits=10)
+    wait_time = models.DecimalField(decimal_places=2, max_digits=10)
+    transfered_to_bank = models.DecimalField(decimal_places=2, max_digits=10)
+    peak_rate = models.DecimalField(decimal_places=2, max_digits=10)
+    tips = models.DecimalField(decimal_places=2, max_digits=10)
+    cancel_payment = models.DecimalField(decimal_places=2, max_digits=10)
+
+
+def save_uber_transactions_to_db(file_name):
+    with open(file_name, 'r', encoding='utf-8') as fl:
+        reader = csv.reader(fl)
+        next(reader)
+        for row in reader:
+            try:
+                transaction = UberTransactions(transaction_uuid=row[0],
+                                                   driver_uuid=row[1],
+                                                   driver_name=row[2],
+                                                   driver_second_name=row[3],
+                                                   trip_uuid=row[4],
+                                                   trip_description=row[5],
+                                                   organization_name=row[6],
+                                                   organization_nickname=row[7],
+                                                   transaction_time=row[8],
+                                                   paid_to_you=row[9],
+                                                   your_earnings=row[10],
+                                                   cash=row[11],
+                                                   fare=row[12],
+                                                   tax=row[13],
+                                                   fare2=row[14],
+                                                   service_tax=row[15],
+                                                   wait_time=row[16],
+                                                   transfered_to_bank=row[17],
+                                                   peak_rate=row[18],
+                                                   tips=row[19],
+                                                   cancel_payment=row[20])
+                transaction.save()
+            except IntegrityError:
+                print(f"{row[0]} transaction is already in DB")
+
+
+class BoltTransactions(models.Model):
+    driver_name = models.CharField(max_length=50)
+    driver_number = models.CharField(max_length=13)
+    trip_date = models.CharField(max_length=50)
+    payment_confirmed = models.CharField(max_length=50)
+    boarding = models.CharField(max_length=255)
+    payment_method = models.CharField(max_length=30)
+    requsted_time = models.CharField(max_length=5)
+    fare = models.DecimalField(decimal_places=2, max_digits=10)
+    payment_authorization = models.DecimalField(decimal_places=2, max_digits=10)
+    service_tax = models.DecimalField(decimal_places=2, max_digits=10)
+    cancel_payment = models.DecimalField(decimal_places=2, max_digits=10)
+    tips = models.DecimalField(decimal_places=2, max_digits=10)
+    order_status = models.CharField(max_length=50)
+    car = models.CharField(max_length=50)
+    license_plate = models.CharField(max_length=30)
+
+    class Meta:
+        unique_together = (('driver_name', 'driver_number', 'trip_date', 'payment_confirmed', 'boarding'))
+
+
+def save_bolt_transactions_to_db(file_name):
+    with open(file_name, 'r', encoding='utf-8') as fl:
+        reader = csv.reader(fl)
+        for row in reader:
+            if row[17] == "" and row[0] != "" and row[0] != "Ім'я водія":
+                try:
+                    transaction = BoltTransactions(driver_name=row[0],
+                                                       driver_number=row[1],
+                                                       trip_date=row[2],
+                                                       payment_confirmed=row[3],
+                                                       boarding=row[4],
+                                                       payment_method=row[5],
+                                                       requsted_time=row[6],
+                                                       fare=row[7],
+                                                       payment_authorization=row[8],
+                                                       service_tax=row[9],
+                                                       cancel_payment=row[10],
+                                                       tips=row[11],
+                                                       order_status=row[12],
+                                                       car=row[13],
+                                                       license_plate=row[14])
+                    transaction.save()
+                except IntegrityError:
+                    print(f"Transaction is already in DB")
