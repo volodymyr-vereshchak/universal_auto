@@ -1,6 +1,6 @@
-from app.models import UberPaymentsOrder, BoltPaymentsOrder, UklonPaymentsOrder, FileNameProcessed, WeeklyReportFile
+from app.models import UberPaymentsOrder, BoltPaymentsOrder, UklonPaymentsOrder, FileNameProcessed, WeeklyReportFile, User
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
-from telegram import Update, ParseMode
+from telegram import Update, ParseMode, ChatAction, KeyboardButton, ReplyKeyboardMarkup
 import logging
 import os
 import time
@@ -9,31 +9,60 @@ import datetime
 import pendulum
 import sys
 import redis
+import re
 import html
 import json
 import logging
 import traceback
+
+from scripts.driversrating import DriversRatingMixin
 
 sys.path.append('app/libs')
 from selenium_tools import get_report, Uber, Uklon, Bolt
 PORT = int(os.environ.get('PORT', '8443'))
 
 DEVELOPER_CHAT_ID = 803129892
-
 # Enable logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
                     level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
+
 def start(update, context):
     update.message.reply_text('Hi!')
+    chat_id = update.message.chat.id
+    user = User.get_by_chat_id(chat_id)
+    reply_markup = ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text="Give phone number", request_contact=True),
+             ],
+        ],
+        resize_keyboard=True,
+    )
+    if user:
+        update.message.reply_text("You are already started bot")
+    else:
+        update.message.reply_text("Please give your number to start bot", reply_markup=reply_markup, )
+
+
+def get_number(update, context):
+    chat_id = update.message.chat.id
+    user = User.get_by_chat_id(chat_id)
+    if not user:
+        phone_number = update.message.contact.phone_number
+        custom_user = User(email="null", phone_number=phone_number, chat_id=chat_id)
+        custom_user.save()
+        update.message.reply_text("Enter your email:")
+
 
 
 def report(update, context):
     update.message.reply_text("Enter you Uber OTP code from SMS:")
     update.message.reply_text(get_report())
 
+
 processed_files = []
+
 
 def update_db(update, context):
     """Pushing data to database from weekly_csv files"""
@@ -67,15 +96,39 @@ def update_db(update, context):
         list_new_files.clear()
         update.message.reply_text('Database updated')
 
+
+def code(update: Update, context: CallbackContext):
+    r = redis.Redis.from_url(os.environ["REDIS_URL"])
+    r.publish('code', update.message.text)
+    update.message.reply_text('Generating a report...')
+    context.bot.send_chat_action(chat_id=update.effective_message.chat_id, action=ChatAction.TYPING)
+    chat_id = update.message.chat.id
+    user = User.get_by_chat_id(chat_id)
+    if user.email == "null":
+        regex = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'
+        email = update.message.text
+        if re.fullmatch(regex, email):
+            user.email = email
+            user.save()
+        else:
+            update.message.reply_text('Your email is incorrect, please write again')
+    else:
+        if user.type == 0:
+            # write your code here if user is driver
+            pass
+        elif user.type == 1:
+            # write your code here if user is manager
+            pass
+        elif user.type == 2:
+            # write your code here if user is owner
+            pass
+
+
 def save_reports(update, context):
     wrf = WeeklyReportFile()
     wrf.save_weekly_reports_to_db()
     update.message.reply_text("Reports have been saved")
-    
-def code(update, context):
-    r = redis.Redis.from_url(os.environ["REDIS_URL"])
-    r.publish('code', update.message.text)
-    update.message.reply_text('Generating a report...')
+
 
 def error_handler(update: object, context: CallbackContext) -> None:
     """Log the error and send a telegram message to notify the developer."""
@@ -102,6 +155,16 @@ def error_handler(update: object, context: CallbackContext) -> None:
     # Finally, send the message
     context.bot.send_message(chat_id=DEVELOPER_CHAT_ID, text=message, parse_mode=ParseMode.HTML)
 
+
+def drivers_rating(context):
+    text = 'Drivers Rating\n\n'
+    for fleet in DriversRatingMixin().get_rating():
+        text += fleet['fleet'] + '\n'
+        for period in fleet['rating']:
+            text += f"{period['start']:%d.%m.%Y} - {period['end']:%d.%m.%Y}" + '\n'
+            text += '\n'.join([f"{item['num']} {item['driver']} {item['trips'] if item['trips']>0 else ''}" for item in period['rating']]) + '\n\n'
+    context.bot.send_message(chat_id=-828544906, text=text)
+    
 def main():
     updater = Updater(os.environ['TELEGRAM_TOKEN'], use_context=True)
     dp = updater.dispatcher
@@ -110,7 +173,10 @@ def main():
     dp.add_handler(CommandHandler("report", report, run_async=True))
     dp.add_handler(CommandHandler("save_reports", save_reports))
     dp.add_handler(MessageHandler(Filters.text, code))
+    dp.add_handler(MessageHandler(Filters.contact, get_number))
     dp.add_error_handler(error_handler)
+    updater.job_queue.run_daily(drivers_rating, time=datetime.time(6, 0, 0), days=(0,))
+    updater.job_queue.run_repeating(drivers_rating, interval=120, first=1)
     updater.start_polling()
     updater.idle()
 
