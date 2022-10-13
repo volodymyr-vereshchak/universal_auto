@@ -47,9 +47,10 @@ class UklonPaymentsOrder(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    def report_text(self, name = None, rate = 0.35):
-        return f'Uklon {name} {self.signal}: Касса({"%.2f" % self.kassa()}) * {"%.0f" % (rate*100)}% = {"%.2f" % (self.kassa() * rate)} - Наличные(-{"%.2f" % float(self.total_amount_cach)}) = {"%.2f" % self.total_drivers_amount(rate)}'
-    def total_drivers_amount(self, rate = 0.35):
+    def report_text(self, name=None, rate=0.35):
+        return f'Uklon {name} {self.signal}: Касса({"%.2f" % self.kassa()}) * {"%.0f" % (rate * 100)}% = {"%.2f" % (self.kassa() * rate)} - Наличные(-{"%.2f" % float(self.total_amount_cach)}) = {"%.2f" % self.total_drivers_amount(rate)}'
+
+    def total_drivers_amount(self, rate=0.35):
         return -(self.kassa()) * rate
 
     def vendor(self):
@@ -68,7 +69,7 @@ class BoltPaymentsOrder(models.Model):
     report_file_name = models.CharField(max_length=255)
     driver_full_name = models.CharField(max_length=24)
     mobile_number = models.CharField(max_length=13)
-    range_string =  models.CharField(max_length=50)
+    range_string = models.CharField(max_length=50)
     total_amount = models.DecimalField(decimal_places=2, max_digits=10)
     cancels_amount = models.DecimalField(decimal_places=2, max_digits=10)
     autorization_payment = models.DecimalField(decimal_places=2, max_digits=10)
@@ -88,9 +89,10 @@ class BoltPaymentsOrder(models.Model):
     def report_text(self, name=None, rate=0.65):
         name = name or self.driver_full_name
 
-        return f'Bolt {name}: Касса({"%.2f" % self.kassa()}) * {"%.0f" % (rate*100)}% = {"%.2f" % (self.kassa() * rate)} - Наличные({"%.2f" % float(self.total_amount_cach)}) = {"%.2f" % self.total_drivers_amount(rate)}'
-    def total_drivers_amount(self, rate = 0.65):
-        res = self.total_cach_less_drivers_amount() * rate  + float(self.total_amount_cach)
+        return f'Bolt {name}: Касса({"%.2f" % self.kassa()}) * {"%.0f" % (rate * 100)}% = {"%.2f" % (self.kassa() * rate)} - Наличные({"%.2f" % float(self.total_amount_cach)}) = {"%.2f" % self.total_drivers_amount(rate)}'
+
+    def total_drivers_amount(self, rate=0.65):
+        res = self.total_cach_less_drivers_amount() * rate + float(self.total_amount_cach)
         return res
 
     def total_cach_less_drivers_amount(self):
@@ -102,8 +104,9 @@ class BoltPaymentsOrder(models.Model):
     def kassa(self):
         return (self.total_cach_less_drivers_amount())
 
-    def total_owner_amount(self, rate = 0.65):
-       return self.total_cach_less_drivers_amount() * (1 - rate) - self.total_drivers_amount(rate)
+    def total_owner_amount(self, rate=0.65):
+        return self.total_cach_less_drivers_amount() * (1 - rate) - self.total_drivers_amount(rate)
+
 
 class UberPaymentsOrder(models.Model):
     report_from = models.DateTimeField()
@@ -123,9 +126,10 @@ class UberPaymentsOrder(models.Model):
 
     def report_text(self, name=None, rate=0.65):
         name = name or f'{self.first_name} {self.last_name}'
-        return f'Uber {name}: Касса({"%.2f" % self.kassa()}) * {"%.0f" % (rate*100)}% = {"%.2f" % (self.kassa() * rate)} - Наличные({float(self.total_amount_cach)}) = {"%.2f" % self.total_drivers_amount(rate)}'
-    def total_drivers_amount(self, rate = 0.65):
-       return float(self.total_amount) * rate + float(self.total_amount_cach)
+        return f'Uber {name}: Касса({"%.2f" % self.kassa()}) * {"%.0f" % (rate * 100)}% = {"%.2f" % (self.kassa() * rate)} - Наличные({float(self.total_amount_cach)}) = {"%.2f" % self.total_drivers_amount(rate)}'
+
+    def total_drivers_amount(self, rate=0.65):
+        return float(self.total_amount) * rate + float(self.total_amount_cach)
 
     def vendor(self):
         return 'uber'
@@ -133,9 +137,9 @@ class UberPaymentsOrder(models.Model):
     def total_owner_amount(self, rate=0.65):
         return float(self.total_amount) * (1 - rate) - self.total_drivers_amount(rate)
 
-
     def kassa(self):
         return float(self.total_amount)
+
 
 def save_uber_report_to_db(file_name):
     with open(file_name) as file:
@@ -279,6 +283,7 @@ class WeeklyReportFile(models.Model):
             except django.db.utils.IntegrityError as error:
                 print(f"{report_name} already exists in Database")
 
+
 class UberTransactions(models.Model):
     transaction_uuid = models.UUIDField(unique=True)
     driver_uuid = models.UUIDField()
@@ -302,14 +307,14 @@ class UberTransactions(models.Model):
     tips = models.DecimalField(decimal_places=2, max_digits=10)
     cancel_payment = models.DecimalField(decimal_places=2, max_digits=10)
 
-
-def save_uber_transactions_to_db(file_name):
-    with open(file_name, 'r', encoding='utf-8') as fl:
-        reader = csv.reader(fl)
-        next(reader)
-        for row in reader:
-            try:
-                transaction = UberTransactions(transaction_uuid=row[0],
+    @staticmethod
+    def save_transactions_to_db(file_name):
+        with open(file_name, 'r', encoding='utf-8') as fl:
+            reader = csv.reader(fl)
+            next(reader)
+            for row in reader:
+                try:
+                    transaction = UberTransactions(transaction_uuid=row[0],
                                                    driver_uuid=row[1],
                                                    driver_name=row[2],
                                                    driver_second_name=row[3],
@@ -330,9 +335,9 @@ def save_uber_transactions_to_db(file_name):
                                                    peak_rate=row[18],
                                                    tips=row[19],
                                                    cancel_payment=row[20])
-                transaction.save()
-            except IntegrityError:
-                print(f"{row[0]} transaction is already in DB")
+                    transaction.save()
+                except IntegrityError:
+                    print(f"{row[0]} transaction is already in DB")
 
 
 class BoltTransactions(models.Model):
@@ -355,14 +360,14 @@ class BoltTransactions(models.Model):
     class Meta:
         unique_together = (('driver_name', 'driver_number', 'trip_date', 'payment_confirmed', 'boarding'))
 
-
-def save_bolt_transactions_to_db(file_name):
-    with open(file_name, 'r', encoding='utf-8') as fl:
-        reader = csv.reader(fl)
-        for row in reader:
-            if row[17] == "" and row[0] != "" and row[0] != "Ім'я водія":
-                try:
-                    transaction = BoltTransactions(driver_name=row[0],
+    @staticmethod
+    def save_transactions_to_db(file_name):
+        with open(file_name, 'r', encoding='utf-8') as fl:
+            reader = csv.reader(fl)
+            for row in reader:
+                if row[17] == "" and row[0] != "" and row[0] != "Ім'я водія":
+                    try:
+                        transaction = BoltTransactions(driver_name=row[0],
                                                        driver_number=row[1],
                                                        trip_date=row[2],
                                                        payment_confirmed=row[3],
@@ -377,6 +382,6 @@ def save_bolt_transactions_to_db(file_name):
                                                        order_status=row[12],
                                                        car=row[13],
                                                        license_plate=row[14])
-                    transaction.save()
-                except IntegrityError:
-                    print(f"Transaction is already in DB")
+                        transaction.save()
+                    except IntegrityError:
+                        print(f"Transaction is already in DB")
