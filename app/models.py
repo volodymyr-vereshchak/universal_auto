@@ -148,7 +148,7 @@ class BoltPaymentsOrder(models.Model):
         return (self.total_cach_less_drivers_amount())
 
     def total_owner_amount(self, rate=0.65):
-       return self.total_cach_less_drivers_amount() * (1 - rate) - self.total_drivers_amount(rate)
+        return self.total_cach_less_drivers_amount() * (1 - rate) - self.total_drivers_amount(rate)
 
     @staticmethod
     def parse_and_save_weekly_report_to_database(file):
@@ -291,7 +291,6 @@ class FileNameProcessed(models.Model):
                 filename_weekly=name)
 
             order.save()
-
 
 def save_uber_report_to_db(file_name):
     with open(file_name) as file:
@@ -532,6 +531,7 @@ class WeeklyReportFile(models.Model):
             except django.db.utils.IntegrityError as error:
                 print(f"{report_name} already exists in Database")
 
+
 class UberTransactions(models.Model):
     transaction_uuid = models.UUIDField(unique=True)
     driver_uuid = models.UUIDField()
@@ -555,14 +555,14 @@ class UberTransactions(models.Model):
     tips = models.DecimalField(decimal_places=2, max_digits=10)
     cancel_payment = models.DecimalField(decimal_places=2, max_digits=10)
 
-
-def save_uber_transactions_to_db(file_name):
-    with open(file_name, 'r', encoding='utf-8') as fl:
-        reader = csv.reader(fl)
-        next(reader)
-        for row in reader:
-            try:
-                transaction = UberTransactions(transaction_uuid=row[0],
+    @staticmethod
+    def save_transactions_to_db(file_name):
+        with open(file_name, 'r', encoding='utf-8') as fl:
+            reader = csv.reader(fl)
+            next(reader)
+            for row in reader:
+                try:
+                    transaction = UberTransactions(transaction_uuid=row[0],
                                                    driver_uuid=row[1],
                                                    driver_name=row[2],
                                                    driver_second_name=row[3],
@@ -583,9 +583,9 @@ def save_uber_transactions_to_db(file_name):
                                                    peak_rate=row[18],
                                                    tips=row[19],
                                                    cancel_payment=row[20])
-                transaction.save()
-            except IntegrityError:
-                print(f"{row[0]} transaction is already in DB")
+                    transaction.save()
+                except IntegrityError:
+                    print(f"{row[0]} transaction is already in DB")
 
 
 class BoltTransactions(models.Model):
@@ -608,14 +608,14 @@ class BoltTransactions(models.Model):
     class Meta:
         unique_together = (('driver_name', 'driver_number', 'trip_date', 'payment_confirmed', 'boarding'))
 
-
-def save_bolt_transactions_to_db(file_name):
-    with open(file_name, 'r', encoding='utf-8') as fl:
-        reader = csv.reader(fl)
-        for row in reader:
-            if row[17] == "" and row[0] != "" and row[0] != "Ім'я водія":
-                try:
-                    transaction = BoltTransactions(driver_name=row[0],
+    @staticmethod
+    def save_transactions_to_db(file_name):
+        with open(file_name, 'r', encoding='utf-8') as fl:
+            reader = csv.reader(fl)
+            for row in reader:
+                if row[17] == "" and row[0] != "" and row[0] != "Ім'я водія":
+                    try:
+                        transaction = BoltTransactions(driver_name=row[0],
                                                        driver_number=row[1],
                                                        trip_date=row[2],
                                                        payment_confirmed=row[3],
@@ -633,4 +633,3 @@ def save_bolt_transactions_to_db(file_name):
                     transaction.save()
                 except IntegrityError:
                     print(f"Transaction is already in DB")
-
