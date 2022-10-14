@@ -1,5 +1,6 @@
 import unittest
 
+
 class TestBot(unittest.TestCase):
     def test_start(self):
         self.assertIsNotNone("/start")
@@ -18,3 +19,9 @@ class TestBot(unittest.TestCase):
 
     def test_save_reports_2(self):
         self.assertTrue('/save_reports')
+
+    def test_update_db(self):
+        self.assertTrue('/update_db')
+
+    def test_update_db_2(self):
+        self.assertIsNotNone('/update_db')
