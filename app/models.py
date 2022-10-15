@@ -1,8 +1,8 @@
 import csv
-from datetime import datetime
+import datetime
 import glob
 import os
-from django.db import models
+from django.db import models, IntegrityError
 import django
 
 
@@ -49,6 +49,7 @@ class UklonPaymentsOrder(models.Model):
 
     def report_text(self, name = None, rate = 0.35):
         return f'Uklon {name} {self.signal}: Касса({"%.2f" % self.kassa()}) * {"%.0f" % (rate*100)}% = {"%.2f" % (self.kassa() * rate)} - Наличные(-{"%.2f" % float(self.total_amount_cach)}) = {"%.2f" % self.total_drivers_amount(rate)}'
+
     def total_drivers_amount(self, rate = 0.35):
         return -(self.kassa()) * rate
 
@@ -67,7 +68,7 @@ class BoltPaymentsOrder(models.Model):
     report_to = models.DateTimeField()
     report_file_name = models.CharField(max_length=255)
     driver_full_name = models.CharField(max_length=24)
-    mobile_number = models.CharField(max_length=13)
+    mobile_number = models.CharField(max_length=24)
     range_string =  models.CharField(max_length=50)
     total_amount = models.DecimalField(decimal_places=2, max_digits=10)
     cancels_amount = models.DecimalField(decimal_places=2, max_digits=10)
@@ -87,8 +88,8 @@ class BoltPaymentsOrder(models.Model):
 
     def report_text(self, name=None, rate=0.65):
         name = name or self.driver_full_name
-
         return f'Bolt {name}: Касса({"%.2f" % self.kassa()}) * {"%.0f" % (rate*100)}% = {"%.2f" % (self.kassa() * rate)} - Наличные({"%.2f" % float(self.total_amount_cach)}) = {"%.2f" % self.total_drivers_amount(rate)}'
+
     def total_drivers_amount(self, rate = 0.65):
         res = self.total_cach_less_drivers_amount() * rate  + float(self.total_amount_cach)
         return res
@@ -98,7 +99,7 @@ class BoltPaymentsOrder(models.Model):
 
     def vendor(self):
         return 'bolt'
-
+    
     def kassa(self):
         return (self.total_cach_less_drivers_amount())
 
@@ -124,6 +125,7 @@ class UberPaymentsOrder(models.Model):
     def report_text(self, name=None, rate=0.65):
         name = name or f'{self.first_name} {self.last_name}'
         return f'Uber {name}: Касса({"%.2f" % self.kassa()}) * {"%.0f" % (rate*100)}% = {"%.2f" % (self.kassa() * rate)} - Наличные({float(self.total_amount_cach)}) = {"%.2f" % self.total_drivers_amount(rate)}'
+
     def total_drivers_amount(self, rate = 0.65):
        return float(self.total_amount) * rate + float(self.total_amount_cach)
 
@@ -132,7 +134,6 @@ class UberPaymentsOrder(models.Model):
 
     def total_owner_amount(self, rate=0.65):
         return float(self.total_amount) * (1 - rate) - self.total_drivers_amount(rate)
-
 
     def kassa(self):
         return float(self.total_amount)
@@ -166,6 +167,103 @@ def save_uber_report_to_db(file_name):
                                   cancel_payment=row[21])
             order.save()
 
+
+TYPE_CHOICES = (
+    (0, "driver"),
+    (1, "manager"),
+    (2, "owner"),
+)
+
+
+class User(models.Model):
+    id = models.AutoField(primary_key=True)
+    email = models.EmailField(blank=True, max_length=254)
+    phone_number = models.CharField(blank=True, max_length=13)
+    chat_id = models.CharField(blank=True, max_length=9)
+    type = models.IntegerField(choices=TYPE_CHOICES, default=0)
+    created_at = models.DateTimeField(editable=False, auto_now=datetime.datetime.now())
+    deleted_at = models.DateTimeField(blank=True, null=True, editable=True)
+
+    @staticmethod
+    def get_by_chat_id(chat_id):
+        """
+        Returns user by chat_id
+        :param chat_id: chat_id by which we need to find the user
+        :type chat_id: str
+        :return: user object or None if a user with such ID does not exist
+        """
+        try:
+            user = User.objects.get(chat_id=chat_id)
+            return user
+        except User.DoesNotExist:
+            pass
+
+
+    @staticmethod
+    def fill_deleted_at_by_number(number):
+        """
+        :param number: a number of a user to fill deleted_at
+        :type number: str
+        """
+        user = User.objects.filter(phone_number=number).first()
+        user.deleted_at = datetime.datetime.now()
+        user.save()
+        return user
+        
+        
+class Driver(models.Model):
+    full_name = models.CharField(max_length=255)
+    created_at = models.DateTimeField(editable=False, auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    deleted_at = models.DateTimeField(null=True, blank=True)
+    
+    def get_driver_external_id(self, vendor:str) -> str:
+        if Fleets_drivers_vehicles_rate.objects.filter(fleet__name=vendor, driver=self, deleted_at=None).exists():
+            driver_external_id = Fleets_drivers_vehicles_rate.objects.get(fleet__name=vendor, driver=self, deleted_at=None).driver_external_id
+        return driver_external_id
+    
+    def get_rate(self, verndor_rate:str) -> float:
+        vendor = verndor_rate.vendor().capitalize()
+        if Fleets_drivers_vehicles_rate.objects.filter(fleet__name=vendor, driver=self, deleted_at=None).exists():
+            rate = float(Fleets_drivers_vehicles_rate.objects.get(fleet__name=vendor, driver=self, deleted_at=None).rate)
+        return rate
+
+    def __str__(self) -> str:
+        return f'{self.full_name}'
+
+class Fleet(models.Model):
+    name = models.CharField(unique=True, max_length=255)
+    fees = models.DecimalField(decimal_places=2, max_digits=3, default=0)
+    created_at = models.DateTimeField(editable=False, auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    deleted_at = models.DateTimeField(null=True, blank=True)
+
+    def __str__(self) -> str:
+        return f'{self.name}'
+
+class Vehicle(models.Model):
+    name = models.CharField(max_length=255)
+    licence_plate = models.CharField(max_length=24)
+    vin_code = models.CharField(max_length=17)
+    created_at = models.DateTimeField(editable=False, auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    deleted_at = models.DateTimeField(null=True, blank=True)
+
+    def __str__(self) -> str:
+        return f'{self.name}'
+
+class Fleets_drivers_vehicles_rate(models.Model):
+    fleet = models.ForeignKey(Fleet, on_delete=models.CASCADE)
+    driver = models.ForeignKey(Driver, on_delete=models.CASCADE)
+    vehicle = models.ForeignKey(Vehicle, on_delete=models.CASCADE)
+    driver_external_id = models.CharField(max_length=255)
+    rate = models.DecimalField(decimal_places=2, max_digits=3, default=0)
+    created_at = models.DateTimeField(editable=False, auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    deleted_at = models.DateTimeField(null=True, blank=True)
+
+    def __str__(self) -> str:
+        return f'{self.driver_external_id}'
 
 class WeeklyReportFile(models.Model):
     organization_name = models.CharField(max_length=20)
@@ -278,3 +376,105 @@ class WeeklyReportFile(models.Model):
             # Catches an error if the filename is already exist in DB
             except django.db.utils.IntegrityError as error:
                 print(f"{report_name} already exists in Database")
+
+class UberTransactions(models.Model):
+    transaction_uuid = models.UUIDField(unique=True)
+    driver_uuid = models.UUIDField()
+    driver_name = models.CharField(max_length=50)
+    driver_second_name = models.CharField(max_length=50)
+    trip_uuid = models.UUIDField()
+    trip_description = models.CharField(max_length=50)
+    organization_name = models.CharField(max_length=50)
+    organization_nickname = models.CharField(max_length=50)
+    transaction_time = models.CharField(max_length=50)
+    paid_to_you = models.DecimalField(decimal_places=2, max_digits=10)
+    your_earnings = models.DecimalField(decimal_places=2, max_digits=10)
+    cash = models.DecimalField(decimal_places=2, max_digits=10)
+    fare = models.DecimalField(decimal_places=2, max_digits=10)
+    tax = models.DecimalField(decimal_places=2, max_digits=10)
+    fare2 = models.DecimalField(decimal_places=2, max_digits=10)
+    service_tax = models.DecimalField(decimal_places=2, max_digits=10)
+    wait_time = models.DecimalField(decimal_places=2, max_digits=10)
+    transfered_to_bank = models.DecimalField(decimal_places=2, max_digits=10)
+    peak_rate = models.DecimalField(decimal_places=2, max_digits=10)
+    tips = models.DecimalField(decimal_places=2, max_digits=10)
+    cancel_payment = models.DecimalField(decimal_places=2, max_digits=10)
+
+
+def save_uber_transactions_to_db(file_name):
+    with open(file_name, 'r', encoding='utf-8') as fl:
+        reader = csv.reader(fl)
+        next(reader)
+        for row in reader:
+            try:
+                transaction = UberTransactions(transaction_uuid=row[0],
+                                                   driver_uuid=row[1],
+                                                   driver_name=row[2],
+                                                   driver_second_name=row[3],
+                                                   trip_uuid=row[4],
+                                                   trip_description=row[5],
+                                                   organization_name=row[6],
+                                                   organization_nickname=row[7],
+                                                   transaction_time=row[8],
+                                                   paid_to_you=row[9],
+                                                   your_earnings=row[10],
+                                                   cash=row[11],
+                                                   fare=row[12],
+                                                   tax=row[13],
+                                                   fare2=row[14],
+                                                   service_tax=row[15],
+                                                   wait_time=row[16],
+                                                   transfered_to_bank=row[17],
+                                                   peak_rate=row[18],
+                                                   tips=row[19],
+                                                   cancel_payment=row[20])
+                transaction.save()
+            except IntegrityError:
+                print(f"{row[0]} transaction is already in DB")
+
+
+class BoltTransactions(models.Model):
+    driver_name = models.CharField(max_length=50)
+    driver_number = models.CharField(max_length=13)
+    trip_date = models.CharField(max_length=50)
+    payment_confirmed = models.CharField(max_length=50)
+    boarding = models.CharField(max_length=255)
+    payment_method = models.CharField(max_length=30)
+    requsted_time = models.CharField(max_length=5)
+    fare = models.DecimalField(decimal_places=2, max_digits=10)
+    payment_authorization = models.DecimalField(decimal_places=2, max_digits=10)
+    service_tax = models.DecimalField(decimal_places=2, max_digits=10)
+    cancel_payment = models.DecimalField(decimal_places=2, max_digits=10)
+    tips = models.DecimalField(decimal_places=2, max_digits=10)
+    order_status = models.CharField(max_length=50)
+    car = models.CharField(max_length=50)
+    license_plate = models.CharField(max_length=30)
+
+    class Meta:
+        unique_together = (('driver_name', 'driver_number', 'trip_date', 'payment_confirmed', 'boarding'))
+
+
+def save_bolt_transactions_to_db(file_name):
+    with open(file_name, 'r', encoding='utf-8') as fl:
+        reader = csv.reader(fl)
+        for row in reader:
+            if row[17] == "" and row[0] != "" and row[0] != "Ім'я водія":
+                try:
+                    transaction = BoltTransactions(driver_name=row[0],
+                                                       driver_number=row[1],
+                                                       trip_date=row[2],
+                                                       payment_confirmed=row[3],
+                                                       boarding=row[4],
+                                                       payment_method=row[5],
+                                                       requsted_time=row[6],
+                                                       fare=row[7],
+                                                       payment_authorization=row[8],
+                                                       service_tax=row[9],
+                                                       cancel_payment=row[10],
+                                                       tips=row[11],
+                                                       order_status=row[12],
+                                                       car=row[13],
+                                                       license_plate=row[14])
+                    transaction.save()
+                except IntegrityError:
+                    print(f"Transaction is already in DB")

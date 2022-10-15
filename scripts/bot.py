@@ -1,7 +1,4 @@
 import logging
-from app.models import WeeklyReportFile
-from telegram import * 
-from telegram.ext import *
 import os
 import time
 import csv
@@ -9,44 +6,56 @@ import datetime
 import pendulum
 import sys
 import redis
+import re
 import html
 import json
 import logging
 import traceback
+from telegram import * 
+from telegram.ext import *
 from app.models import *
 from . import bolt, uklon, uber
+from scripts.driversrating import DriversRatingMixin
 
 sys.path.append('app/libs')
 from app.libs.selenium_tools import get_report
 PORT = int(os.environ.get('PORT', '8443'))
-
 DEVELOPER_CHAT_ID = 803129892
-
-username = ''  # <- Global username take argument from foo authorization
-managers_list = []  # <- List of users to take all statistic day 
-uber_drivers_list = []# <- List of users who can request only self stat from Uber table
-uklon_drivers_list = []# <- List of users who can request only self stat from Uklon table
-bolt_drivers_list = []# <- List of users who can request only self stat from Bolt table
-owners_list = []
 
 # Enable logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
                     level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
+
+
+
 def report(update, context):
     update.message.reply_text("Enter you Uber OTP code from SMS:")
     update.message.reply_text(get_report())
+
+def code(update: Update, context: CallbackContext):
+    r = redis.Redis.from_url(os.environ["REDIS_URL"])
+    r.publish('code', update.message.text)
+    update.message.reply_text('Generating a report...')
+    context.bot.send_chat_action(chat_id=update.effective_message.chat_id, action=ChatAction.TYPING)
+    chat_id = update.message.chat.id
+    user = User.get_by_chat_id(chat_id)
+    if user.email == "null":
+        regex = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'
+        email = update.message.text
+        if re.fullmatch(regex, email):
+            user.email = email
+            user.save()
+        else:
+            update.message.reply_text('Your email is incorrect, please write again')
+    else:
+        aut_handler(update, context)
 
 def save_reports(update, context):
     wrf = WeeklyReportFile()
     wrf.save_weekly_reports_to_db()
     update.message.reply_text("Reports have been saved")
-    
-def code(update, context):
-    r = redis.Redis.from_url(os.environ["REDIS_URL"])
-    r.publish('code', update.message.text)
-    update.message.reply_text('Generating a report...')
 
 def error_handler(update: object, context: CallbackContext) -> None:
     """Log the error and send a telegram message to notify the developer."""
@@ -75,21 +84,64 @@ def error_handler(update: object, context: CallbackContext) -> None:
 def get_owner_today_report(update, context) -> str:
     pass
 
-def aut_handler(update, context) -> list:
-    global username
-    username = update.message.chat.username
-    if 'Get autorizate' in update.message.text:
-        if username in managers_list:
-            get_stat_for_manager(update, context)
-        elif username in owners_list:
-            get_owner_today_report(update, context)
-        elif username in uber_drivers_list or uklon_drivers_list or bolt_drivers_list:
-            choice_driver_option(update, context)
-        else:
-            error_handler()
+def get_driver_today_report(update, context) -> str:
+    driver_first_name = Users.objects.filter(user_id = {update.message.chat.id})
+    driver_ident = PaymentsOrder.objects.filter(driver_uuid='')
+    if user.type == 0:
+        data = PaymentsOrder.objects.filter(transaction_time = date.today(), driver_uuid = {driver_ident} )
+        update.message.reply_text(f'Hi {update.message.chat.username} driver')
+        update.message.reply_text(text = data)
 
 def get_driver_week_report(update, context) -> str:
     pass
+
+def choice_driver_option(update, context) -> list:
+        update.message.reply_text(f'Hi {update.message.chat.username} driver')
+        buttons = [[KeyboardButton('Get today statistic')], [KeyboardButton('Choice week number')],[KeyboardButton('Update report')]]
+        context.bot.send_message(chat_id=update.effective_chat.id, text='choice option',
+        reply_markup=ReplyKeyboardMarkup(buttons))
+
+def get_manager_today_report(update, context) -> str:
+    global username
+    if user.type == 1:
+        data = PaymentsOrder.objects.filter(transaction_time = date.today())
+        update.message.reply_text(text = data)
+    else:
+        error_handler()
+
+def get_stat_for_manager(update, context) -> list:
+        update.message.reply_text(f'Hi {update.message.chat.username} manager')
+        buttons = [[KeyboardButton('Get all today statistic')]]
+        context.bot.send_message(chat_id=update.effective_chat.id, text='choice option',
+        reply_markup=ReplyKeyboardMarkup(buttons))
+
+def drivers_rating(context):
+    text = 'Drivers Rating\n\n'
+    for fleet in DriversRatingMixin().get_rating():
+        text += fleet['fleet'] + '\n'
+        for period in fleet['rating']:
+            text += f"{period['start']:%d.%m.%Y} - {period['end']:%d.%m.%Y}" + '\n'
+            text += '\n'.join([f"{item['num']} {item['driver']} {item['trips'] if item['trips']>0 else ''}" for item in period['rating']]) + '\n\n'
+
+def get_number(update, context):
+    chat_id = update.message.chat.id
+    user = User.get_by_chat_id(chat_id)
+    if not user:
+        phone_number = update.message.contact.phone_number
+        custom_user = User(email="null", phone_number=phone_number, chat_id=chat_id)
+        custom_user.save()
+        update.message.reply_text("Enter your email:")
+
+def aut_handler(update, context) -> list:
+    if 'Get autorizate' in update.message.text:
+        if user.type == 0:
+            choice_driver_option(update, context)
+        elif user.type == 2:
+            get_owner_today_report(update, context)
+        elif user.type == 1:
+            get_stat_for_manager(update, context)
+        else:
+            get_number()
 
 def get_update_report(update, context):
     global username
@@ -106,51 +158,25 @@ def get_update_report(update, context):
         uber.run()
         aut_handler()
 
-def get_driver_today_report(update, context) -> str:
-    global username
-    driver_first_name = Users.objects.filter(user_id = {update.message.chat.id})
-    driver_ident = PaymentsOrder.objects.filter(driver_uuid='')
-    if username in uklon_drivers_list:
-        data = PaymentsOrder.objects.filter(transaction_time = date.today(), driver_uuid = {driver_ident} )
-        update.message.reply_text(f'Hi {update.message.chat.username} uklon driver')
-        update.message.reply_text(text = data)
-    elif username in bolt_drivers_list:
-        data = PaymentsOrder.objects.filter(transaction_time = date.today(), driver_uuid = {driver_ident} )
-        update.message.reply_text(f'Hi {update.message.chat.username} bolt driver')
-        update.message.reply_text(text = data)
-    elif username in uber_drivers_list:
-        data = PaymentsOrder.objects.filter(transaction_time = date.today(), driver_uuid = {driver_ident})
-        update.message.reply_text(f'Hi {update.message.chat.username} uber driver')
-        update.message.reply_text(text = data)
-
-def get_manager_today_report(update, context) -> str:
-    global username
-    if username in managers_list:
-        data = PaymentsOrder.objects.filter(transaction_time = date.today())
-        update.message.reply_text(text = data)
+def start(update, context):
+    update.message.reply_text('Hi!')
+    chat_id = update.message.chat.id
+    user = User.get_by_chat_id(chat_id)
+    reply_markup = ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text="Give phone number", request_contact=True),
+             ],
+        ],
+        resize_keyboard=True,
+    )
+    if user:
+        update.message.reply_text("You are already started bot")
+        aut_handler()
     else:
-        error_handler()
- 
-def reg_handler(update,context) -> object:
-    pass
+        update.message.reply_text("Please give your number to start bot", reply_markup=reply_markup, )
 
-def choice_driver_option(update, context) -> list:
-        update.message.reply_text(f'Hi {update.message.chat.username} driver')
-        buttons = [[KeyboardButton('Get today statistic')], [KeyboardButton('Choice week number')],[KeyboardButton('Update report')]]
-        context.bot.send_message(chat_id=update.effective_chat.id, text='choice option',
-        reply_markup=ReplyKeyboardMarkup(buttons))
-
-def get_stat_for_manager(update, context) -> list:
-        update.message.reply_text(f'Hi {update.message.chat.username} manager')
-        buttons = [[KeyboardButton('Get all today statistic')]]
-        context.bot.send_message(chat_id=update.effective_chat.id, text='choice option',
-        reply_markup=ReplyKeyboardMarkup(buttons))
-
-def authorization(update, context) -> list: 
-    buttons = [[KeyboardButton('Get autorizate')],[KeyboardButton('Get registration')]]
-    context.bot.send_message(chat_id=update.effective_chat.id, text=f'hi {update.message.chat.username}',
-    reply_markup=ReplyKeyboardMarkup(buttons))
-
+    context.bot.send_message(chat_id=-828544906, text=text)
+    
 def get_help(update, context)-> str:
     update.message.reply_text('''For first step make registration by, or autorizate by /start command, if already registered.
     after all you can update your report, or pull statistic for choice''')
@@ -158,17 +184,19 @@ def get_help(update, context)-> str:
 def main():
     updater = Updater(os.environ['TELEGRAM_TOKEN'], use_context=True)
     dp = updater.dispatcher
-    dp.add_handler(CommandHandler("start",  authorization))
+    dp.add_handler(CommandHandler("start",  start))
     dp.add_handler(CommandHandler("help", get_help))
     dp.add_handler(CommandHandler("report", report, run_async=True))
     dp.add_handler(CommandHandler("save_reports", save_reports))
     dp.add_handler(MessageHandler(Filters.text('code'), code))
-    dp.add_handler(MessageHandler(Filters.text('Get registration'), reg_handler ))
-    dp.add_handler(MessageHandler(Filters.text('Get all today statistic'),get_manager_today_report  ))
-    dp.add_handler(MessageHandler(Filters.text('Get today statistic'), get_driver_today_report ))
+    dp.add_handler(MessageHandler(Filters.text('Get all today statistic'), get_manager_today_report))
+    dp.add_handler(MessageHandler(Filters.text('Get today statistic'), get_driver_today_report))
     dp.add_handler(MessageHandler(Filters.text('Choice week number'), get_driver_week_report))
     dp.add_handler(MessageHandler(Filters.text('Update report'), get_update_report))
+    dp.add_handler(MessageHandler(Filters.contact, get_number))
     dp.add_error_handler(error_handler)
+    updater.job_queue.run_daily(drivers_rating, time=datetime.time(6, 0, 0), days=(0,))
+    updater.job_queue.run_repeating(drivers_rating, interval=120, first=1)
     updater.start_polling()
     updater.idle()
 
