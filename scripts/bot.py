@@ -18,7 +18,7 @@ from . import bolt, uklon, uber
 from scripts.driversrating import DriversRatingMixin
 
 sys.path.append('app/libs')
-from app.libs.selenium_tools import get_report
+from selenium_tools import get_report, Uber, Uklon, Bolt
 PORT = int(os.environ.get('PORT', '8443'))
 DEVELOPER_CHAT_ID = 803129892
 
@@ -30,9 +30,47 @@ logger = logging.getLogger(__name__)
 
 
 
+
 def report(update, context):
     update.message.reply_text("Enter you Uber OTP code from SMS:")
     update.message.reply_text(get_report())
+
+
+processed_files = []
+
+
+def update_db(update, context):
+    """Pushing data to database from weekly_csv files"""
+    # getting and opening files
+    directory = '../app'
+    files = os.listdir(directory)
+
+    UberPaymentsOrder.download_weekly_report()
+    UklonPaymentsOrder.download_weekly_report()
+    BoltPaymentsOrder.download_weekly_report()
+
+    files = os.listdir(directory)
+    files_csv = filter(lambda x: x.endswith('.csv'), files)
+    list_new_files = list(set(files_csv)-set(processed_files))
+
+    if len(list_new_files) == 0:
+        update.message.reply_text('No new updates yet')
+    else:
+        update.message.reply_text('Please wait')
+        for name_file in list_new_files:
+            processed_files.append(name_file)
+            with open(f'{directory}/{name_file}', encoding='utf8') as file:
+                if 'Куцко - Income_' in name_file:
+                    UklonPaymentsOrder.parse_and_save_weekly_report_to_database(file=file)
+                elif '-payments_driver-___.csv' in name_file:
+                    UberPaymentsOrder.parse_and_save_weekly_report_to_database(file=file)
+                elif 'Kyiv Fleet 03_232 park Universal-auto.csv' in name_file:
+                    BoltPaymentsOrder.parse_and_save_weekly_report_to_database(file=file)
+
+        FileNameProcessed.save_filename_to_db(processed_files)
+        list_new_files.clear()
+        update.message.reply_text('Database updated')
+
 
 def code(update: Update, context: CallbackContext):
     r = redis.Redis.from_url(os.environ["REDIS_URL"])
@@ -56,6 +94,7 @@ def save_reports(update, context):
     wrf = WeeklyReportFile()
     wrf.save_weekly_reports_to_db()
     update.message.reply_text("Reports have been saved")
+
 
 def error_handler(update: object, context: CallbackContext) -> None:
     """Log the error and send a telegram message to notify the developer."""
@@ -114,6 +153,7 @@ def get_stat_for_manager(update, context) -> list:
         buttons = [[KeyboardButton('Get all today statistic')]]
         context.bot.send_message(chat_id=update.effective_chat.id, text='choice option',
         reply_markup=ReplyKeyboardMarkup(buttons))
+
 
 def drivers_rating(context):
     text = 'Drivers Rating\n\n'
@@ -185,6 +225,7 @@ def main():
     updater = Updater(os.environ['TELEGRAM_TOKEN'], use_context=True)
     dp = updater.dispatcher
     dp.add_handler(CommandHandler("start",  start))
+    dp.add_handler(CommandHandler('update_db', update_db))
     dp.add_handler(CommandHandler("help", get_help))
     dp.add_handler(CommandHandler("report", report, run_async=True))
     dp.add_handler(CommandHandler("save_reports", save_reports))
@@ -199,6 +240,7 @@ def main():
     updater.job_queue.run_repeating(drivers_rating, interval=120, first=1)
     updater.start_polling()
     updater.idle()
+
 
 def run():
     main()
