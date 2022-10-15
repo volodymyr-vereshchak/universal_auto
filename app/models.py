@@ -630,6 +630,6 @@ class BoltTransactions(models.Model):
                                                        order_status=row[12],
                                                        car=row[13],
                                                        license_plate=row[14])
-                    transaction.save()
-                except IntegrityError:
-                    print(f"Transaction is already in DB")
+                        transaction.save()
+                    except IntegrityError:
+                        print(f"Transaction is already in DB")
