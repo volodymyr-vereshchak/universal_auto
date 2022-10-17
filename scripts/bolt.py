@@ -8,6 +8,3 @@ def run():
     b.login()
     b.download_payments_order()
     b.save_report()
-    
-
- 
