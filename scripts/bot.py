@@ -1,5 +1,6 @@
-import logging
+from telegram import *
 from telegram.ext import *
+import logging
 import os
 import time
 import csv
@@ -7,6 +8,8 @@ import datetime
 import pendulum
 import sys
 import redis
+import traceback
+import hashlib
 
 sys.path.append('app/libs')
 from selenium_tools import get_report

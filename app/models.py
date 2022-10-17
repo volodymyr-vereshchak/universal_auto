@@ -48,7 +48,7 @@ class UklonPaymentsOrder(models.Model):
     def total_owner_amount(self, rate = 0.35):
         return -self.total_drivers_amount(rate)
     def kassa(self):
-        return float(self.total_amount) * 0.83
+        return float(self.total_amount) * 0.81
 
        
 class BoltPaymentsOrder(models.Model):
