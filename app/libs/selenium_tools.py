@@ -410,8 +410,7 @@ class Uklon(SeleniumTools):
         end = self.end_of_week().end_of('day').add(hours=4)
         sd, sy, sm = start.strftime("%d"), start.strftime("%Y"), start.strftime("%m")
         ed, ey, em = end.strftime("%d"), end.strftime("%Y"), end.strftime("%m")
-        return f'{sd}.{sm}.{sy}.+{ed}.{em}.{ey}|{start.strftime("%-m")}_{start.strftime("%-d")}_{sy}.+{end.strftime("%-m")}_{end.strftime("%-d")}_{ey}'
-    
+        return f'{sd}.{sm}.{sy}.+{ed}.{em}.{ey}|{start.strftime("%-m")}_{start.strftime("%-d")}_{sy}.+{end.strftime("%-m")}_{end.strftime("%-d")}_{ey}'    
 
 def get_report(week_number = None, driver=True, sleep=5, headless=True):
     # drivers_maps = {
@@ -486,12 +485,6 @@ def get_report(week_number = None, driver=True, sleep=5, headless=True):
 
 
     reports = {}
-    # for name, ids in drivers_maps["drivers"].items():
-    #     reports[name] = itertools.chain(*[
-    #         list(filter(lambda p: p.driver_uuid in ids, ubr)),
-    #         list(filter(lambda p: p.mobile_number in ids, br)),
-    #         list(filter(lambda p: p.signal in ids, ur))
-    #      ])
     drivers = Driver.objects.filter(deleted_at=None)
         
     for driver in drivers:

@@ -1,4 +1,3 @@
-import logging
 import os
 import time
 import csv
@@ -16,6 +15,8 @@ from telegram.ext import *
 from app.models import *
 from . import bolt, uklon, uber
 from scripts.driversrating import DriversRatingMixin
+import traceback
+import hashlib
 
 sys.path.append('app/libs')
 from selenium_tools import get_report, Uber, Uklon, Bolt
@@ -95,7 +96,6 @@ def save_reports(update, context):
     wrf.save_weekly_reports_to_db()
     update.message.reply_text("Reports have been saved")
 
-
 def error_handler(update: object, context: CallbackContext) -> None:
     """Log the error and send a telegram message to notify the developer."""
     # Log the error before we do anything else, so we can see it even if something breaks.
@@ -120,6 +120,7 @@ def error_handler(update: object, context: CallbackContext) -> None:
 
     # Finally, send the message
     context.bot.send_message(chat_id=DEVELOPER_CHAT_ID, text=message, parse_mode=ParseMode.HTML)
+
 def get_owner_today_report(update, context) -> str:
     pass
 

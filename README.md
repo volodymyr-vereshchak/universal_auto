@@ -5,7 +5,7 @@ This repo is supposed to get statistics from Uber, Bold, Uklon to calculate perf
 1. Install Docker https://docs.docker.com/engine/install/
 2. Create a telegram bot using https://t.me/BotFather and get TELEGRAM_TOKEN 
 3. Rename docker-compose_example.yml to docker-compose.yml
-4. Replace <add your telegram token here> with token given by telegram 
+4. Replace <add your telegram token here> with token given by telegram
 5. Run `docker-compose up --build pgadmin`
 6. Open http://localhost:5050/browser/ with password: `universal_auto_dev` and create DB `universal_auto_dev`
 7. Run `docker-compose up --build`

@@ -55,8 +55,8 @@ class UklonPaymentsOrder(models.Model):
 
     def vendor(self):
         return 'uklon'
-
-    def total_owner_amount(self, rate=0.35):
+F
+    def total_owner_amount(self, rate = 0.35):
         return -self.total_drivers_amount(rate)
 
     def kassa(self):
