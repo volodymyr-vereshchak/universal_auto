@@ -2,8 +2,10 @@ import csv
 import datetime
 import glob
 import os
-from django.db import models, IntegrityError
-import django
+import sys
+
+sys.path.append('app/libs')
+from django.db import models
 
 
 class PaymentsOrder(models.Model):
@@ -55,56 +57,12 @@ class UklonPaymentsOrder(models.Model):
 
     def vendor(self):
         return 'uklon'
-F
+
     def total_owner_amount(self, rate = 0.35):
         return -self.total_drivers_amount(rate)
 
     def kassa(self):
         return float(self.total_amount) * 0.81
-
-    @staticmethod
-    def parse_and_save_weekly_report_to_database(file):
-        """This function reads the weekly file and packs the data into a database."""
-        reader = csv.reader(file)
-        next(reader)
-        for row in reader:
-            row.split('||')
-            # date format update
-            get_first_date = name_file[15:-25].split(' ')
-            first_date = f"{get_first_date[0].replace('_', '-')} {get_first_date[1].replace('_', ':')}"
-            report_from = datetime.datetime.strptime(first_date, "%m-%d-%Y %H:%M:%S").strftime("%Y-%m-%d %H:%M:%S")
-            second_date = name_file[-25:].split('-')[-1][:-7]
-            report_to = datetime.datetime.strptime(second_date, "%m_%d_%Y %H_%M_%S").strftime("%Y-%m-%d %H:%M:%S")
-            order = UklonPaymentsOrder(
-                report_from=f'{report_from}+03:00',
-                report_to=f'{report_to}+03:00',
-                report_file_name=name_file,
-                signal=row[0],
-                licence_plate=row[1],
-                total_rides=int(row[2]),
-                total_distance=int(row[3]),
-                total_amount_cach=float(row[4]),
-                total_amount_cach_less=float(row[5]),
-                total_amount=float(row[6]),
-                total_amount_without_comission=float(row[7]),
-                bonuses=float(row[8]))
-
-            order.save()
-
-    @staticmethod
-    def download_weekly_report(week_number=None, driver=True, sleep=5, headless=True):
-        """ The function checks if the file exists in the directory, if not, it downloads it
-                                                                        or downloads file by week_number"""
-        u = Uklon(week_number=week_number, driver=driver, sleep=sleep, headless=headless)
-        if week_number is None:
-            name_file_1, name_file_2 = u.payments_order_file_name(), u.payments_order_file_name2()
-            if (name_file_1 and name_file_2) not in files:
-                u.login()
-                u.download_payments_order()
-        else:
-            ub = Uklon(week_number=week_number, driver=True, sleep=5, headless=headless)
-            ub.login()
-            ub.download_payments_order()
 
 
 class BoltPaymentsOrder(models.Model):
@@ -150,59 +108,6 @@ class BoltPaymentsOrder(models.Model):
     def total_owner_amount(self, rate=0.65):
         return self.total_cach_less_drivers_amount() * (1 - rate) - self.total_drivers_amount(rate)
 
-    @staticmethod
-    def parse_and_save_weekly_report_to_database(file):
-        """This function reads the weekly file and packs the data into a database."""
-        reader = csv.reader(file, delimiter=',')
-        next(reader)
-        next(reader)
-        for row in reader:
-            if row[0] == "":
-                break
-            if row[0] is None:
-                break
-            get_date = row[2].split(' ')
-            first_datetime = f'{get_date[1]} {datetime.datetime.now().time()}+03:00'
-            second_datetime = f'{get_date[-1]} {datetime.datetime.now().time()}+03:00'
-            order = BoltPaymentsOrder(
-                report_from=first_datetime,
-                report_to=second_datetime,
-                report_file_name=name_file,
-                driver_full_name=row[0],
-                mobile_number=row[1][1:],
-                range_string=row[2],
-                total_amount=float(row[3]),
-                cancels_amount=float(row[4]),
-                autorization_payment=float(row[5]),
-                autorization_deduction=float(row[6]),
-                additional_fee=float(row[7]),
-                fee=float(row[8]),
-                total_amount_cach=float(row[9]),
-                discount_cash_trips=float(row[10]),
-                driver_bonus=float(row[11]),
-                compensation=float(row[12] or 0),
-                refunds=float(row[13]),
-                tips=float(row[14]),
-                weekly_balance=float(row[15]))
-
-            order.save()
-
-    @staticmethod
-    def download_weekly_report(week_number=None, driver=True, sleep=5, headless=True):
-        """ The function checks if the file exists in the directory, if not, it downloads it
-                                                                            or downloads file by week_number"""
-        b = Bolt(week_number=week_number, driver=driver, sleep=sleep, headless=headless)
-        if week_number is None:
-            name_file_1, name_file_2 = b.payments_order_file_name(), b.payments_order_file_name2()
-            name_file_3 = b.payments_order_file_name3()
-            if (name_file_1 and name_file_2 and name_file_3) not in files:
-                b.login()
-                b.download_payments_order()
-        else:
-            b = Bolt(week_number=week_number, driver=True, sleep=5, headless=True)
-            b.login()
-            b.download_payments_order()
-
 
 class UberPaymentsOrder(models.Model):
     report_from = models.DateTimeField()
@@ -236,49 +141,6 @@ class UberPaymentsOrder(models.Model):
     def kassa(self):
         return float(self.total_amount)
 
-    @staticmethod
-    def parse_and_save_weekly_report_to_database(file):
-        """This function reads the weekly file and packs the data into a database."""
-        reader = csv.reader(file, delimiter=',')
-        next(reader)
-        for row in reader:
-            get_date = name_file.split('-')
-            update_first_date = datetime.datetime.strptime(get_date[0], '%Y%m%d').strftime("%Y-%m-%d")
-            update_second_date = datetime.datetime.strptime(get_date[1], '%Y%m%d').strftime("%Y-%m-%d")
-            first_datetime = f'{update_first_date} {datetime.datetime.now().time()}+03:00'
-            second_datetime = f'{update_second_date} {datetime.datetime.now().time()}+03:00'
-            order = UberPaymentsOrder(
-                report_from=first_datetime,
-                report_to=second_datetime,
-                report_file_name=name_file,
-                driver_uuid=row[0],
-                first_name=row[1],
-                last_name=row[2],
-                total_amount=float(row[3] or 0),
-                total_clean_amout=float(row[4] or 0),
-                returns=float(row[5] or 0),
-                total_amount_cach=float(row[6] or 0),
-                transfered_to_bank=float(row[7] or 0),
-                tips=float(row[9] or 0))
-
-            order.save()
-
-    @staticmethod
-    def download_weekly_report(week_number=None, driver=True, sleep=5, headless=True):
-        """ The function checks if the file exists in the directory, if not, it downloads it
-                                                                        or downloads file by week_number"""
-        u = Uber(week_number=week_number, driver=driver, sleep=sleep, headless=headless)
-        if week_number is None:
-            name_file = u.payments_order_file_name()
-            if name_file not in files:
-                u.login_v2()
-                u.download_payments_order()
-                u.quit()
-        else:
-            u = Uber(week_number=week_number, driver=True, sleep=5, headless=headless)
-            u.login_v2()
-            u.download_payments_order()
-
 
 class FileNameProcessed(models.Model):
     filename_weekly = models.CharField(max_length=150, unique=True)
@@ -290,35 +152,6 @@ class FileNameProcessed(models.Model):
             order = FileNameProcessed(
                 filename_weekly=name)
 
-            order.save()
-
-def save_uber_report_to_db(file_name):
-    with open(file_name) as file:
-        reader = csv.reader(file)
-        next(reader)  # Advance past the header
-        for row in reader:
-            order = PaymentsOrder(transaction_uuid=row[0],
-                                  driver_uuid=row[1],
-                                  driver_name=row[2],
-                                  driver_second_name=row[3],
-                                  trip_uuid=row[4],
-                                  trip_description=row[5],
-                                  organization_name=row[6],
-                                  organization_nickname=row[7],
-                                  transaction_time=datetime.datetime.strptime(row[8], "%Y-%m-%d %H:%M:%S.%f %z EEST"),
-                                  paid_to_you=row[9],
-                                  your_earnings=row[10],
-                                  cash=row[11],
-                                  fare=row[12],
-                                  tax=row[13],
-                                  fare2=row[14],
-                                  service_tax=row[15],
-                                  wait_time=row[16],
-                                  out_of_city=row[17],
-                                  tips=row[18],
-                                  transfered_to_bank=row[19],
-                                  ajustment_payment=row[20],
-                                  cancel_payment=row[21])
             order.save()
 
 
@@ -417,7 +250,7 @@ class Fleets_drivers_vehicles_rate(models.Model):
     deleted_at = models.DateTimeField(null=True, blank=True)
 
     def __str__(self) -> str:
-        return f'{self.driver_external_id}'
+        return f'{self.driver.full_name} {self.fleet.name} {int(self.rate * 100)}%'
 
 class WeeklyReportFile(models.Model):
     organization_name = models.CharField(max_length=20)

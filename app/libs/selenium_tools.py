@@ -1,3 +1,10 @@
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+
 import time
 import csv
 import datetime
@@ -6,20 +13,10 @@ import os
 import re
 import itertools
 import logging
-
 import redis
 import pendulum
-from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
 
-from app.models import UklonPaymentsOrder
-from app.models import UberPaymentsOrder
-from app.models import BoltPaymentsOrder
-from app.models import Driver, Fleets_drivers_vehicles_rate
+from app.models import *
 
 
 class SeleniumTools():
@@ -279,6 +276,50 @@ class Uber(SeleniumTools):
         self.driver.find_element(selector, button).click() 
         self.driver.get_screenshot_as_file('UBER_NAME.png')
 
+    @staticmethod
+    def parse_and_save_weekly_report_to_database(file):
+        """This function reads the weekly file and packs the data into a database."""
+        reader = csv.reader(file, delimiter=',')
+        next(reader)
+        for row in reader:
+            get_date = file.split('-')
+            update_first_date = datetime.datetime.strptime(get_date[0], '%Y%m%d').strftime("%Y-%m-%d")
+            update_second_date = datetime.datetime.strptime(get_date[1], '%Y%m%d').strftime("%Y-%m-%d")
+            first_datetime = f'{update_first_date} {datetime.datetime.now().time()}+03:00'
+            second_datetime = f'{update_second_date} {datetime.datetime.now().time()}+03:00'
+            order = UberPaymentsOrder(
+                report_from=first_datetime,
+                report_to=second_datetime,
+                report_file_name=file,
+                driver_uuid=row[0],
+                first_name=row[1],
+                last_name=row[2],
+                total_amount=float(row[3] or 0),
+                total_clean_amout=float(row[4] or 0),
+                returns=float(row[5] or 0),
+                total_amount_cach=float(row[6] or 0),
+                transfered_to_bank=float(row[7] or 0),
+                tips=float(row[9] or 0))
+
+            order.save()
+
+    @staticmethod
+    def download_weekly_report(week_number=None, driver=True, sleep=5, headless=True):
+        """ The function checks if the file exists in the directory, if not, it downloads it
+                                                                        or downloads file by week_number"""
+        u = Uber(week_number=week_number, driver=driver, sleep=sleep, headless=headless)
+        files = os.listdir(os.curdir)
+        if week_number is None:
+            name_file = u.payments_order_file_name()
+            if name_file not in files:
+                u.login_v2()
+                u.download_payments_order()
+                u.quit()
+        else:
+            u = Uber(week_number=week_number, driver=True, sleep=5, headless=headless)
+            u.login_v2()
+            u.download_payments_order()
+
 
 class Bolt(SeleniumTools):    
     def __init__(self, week_number=None, driver=True, sleep=3, headless=False, base_url="https://fleets.bolt.eu"):
@@ -293,6 +334,8 @@ class Bolt(SeleniumTools):
 
     def login(self):
         self.driver.get(f"{self.base_url}/login")
+        if self.sleep:
+            time.sleep(self.sleep)
         element = self.driver.find_element(By.ID,'username')
         element.send_keys('')
         element.send_keys(os.environ["BOLT_NAME"])
@@ -306,14 +349,16 @@ class Bolt(SeleniumTools):
     
     def file_patern(self):
         return f"{self.current_date.strftime('%Y')}W{self.week_number()}"
+   
+    def payments_order_file_name(self):
+        return self.report_file_name(self.file_patern())
+
     
     def save_report(self):
         if self.sleep:
             time.sleep(self.sleep)
         items = []
-        report = open(self.report_file_name(self.file_patern()))
-        
-        with report as file:
+        with open(self.payments_order_file_name()) as file:
             reader = csv.reader(file)
             next(reader)
             next(reader)
@@ -325,7 +370,7 @@ class Bolt(SeleniumTools):
                 order = BoltPaymentsOrder(
                     report_from = self.start_of_week(),
                     report_to = self.end_of_week(),
-                    report_file_name = report.name,
+                    report_file_name = file.name,
                     driver_full_name = row[0],
                     mobile_number = row[1],
                     range_string =  row[2],
@@ -345,6 +390,58 @@ class Bolt(SeleniumTools):
                 order.save()
                 items.append(order)
         return items
+
+    @staticmethod
+    def parse_and_save_weekly_report_to_database(file):
+        """This function reads the weekly file and packs the data into a database."""
+        reader = csv.reader(file, delimiter=',')
+        next(reader)
+        next(reader)
+        for row in reader:
+            if row[0] == "":
+                break
+            if row[0] is None:
+                break
+            get_date = row[2].split(' ')
+            first_datetime = f'{get_date[1]} {datetime.datetime.now().time()}+03:00'
+            second_datetime = f'{get_date[-1]} {datetime.datetime.now().time()}+03:00'
+            order = BoltPaymentsOrder(
+                report_from=first_datetime,
+                report_to=second_datetime,
+                report_file_name=file,
+                driver_full_name=row[0],
+                mobile_number=row[1][1:],
+                range_string=row[2],
+                total_amount=float(row[3]),
+                cancels_amount=float(row[4]),
+                autorization_payment=float(row[5]),
+                autorization_deduction=float(row[6]),
+                additional_fee=float(row[7]),
+                fee=float(row[8]),
+                total_amount_cach=float(row[9]),
+                discount_cash_trips=float(row[10]),
+                driver_bonus=float(row[11]),
+                compensation=float(row[12] or 0),
+                refunds=float(row[13]),
+                tips=float(row[14]),
+                weekly_balance=float(row[15]))
+
+            order.save()
+
+    @staticmethod
+    def download_weekly_report(week_number=None, driver=True, sleep=5, headless=True):
+        """ The function checks if the file exists in the directory, if not, it downloads it
+                                                                            or downloads file by week_number"""
+        b = Bolt(week_number=week_number, driver=driver, sleep=sleep, headless=headless)
+        if week_number is None:
+            files = os.listdir(os.curdir)
+            if (b.payments_order_file_name()) not in files:
+                b.login()
+                b.download_payments_order()
+        else:
+            b = Bolt(week_number=week_number, driver=True, sleep=5, headless=True)
+            b.login()
+            b.download_payments_order()
 
 
 class Uklon(SeleniumTools):    
@@ -405,12 +502,59 @@ class Uklon(SeleniumTools):
     def end_of_week_timestamp(self):
         return round(self.end_of_week().timestamp())
     
+    def payments_order_file_name(self):
+        return self.report_file_name(self.file_patern())
+
     def file_patern(self):
         start = self.start_of_week()
         end = self.end_of_week().end_of('day').add(hours=4)
         sd, sy, sm = start.strftime("%d"), start.strftime("%Y"), start.strftime("%m")
         ed, ey, em = end.strftime("%d"), end.strftime("%Y"), end.strftime("%m")
-        return f'{sd}.{sm}.{sy}.+{ed}.{em}.{ey}|{start.strftime("%-m")}_{start.strftime("%-d")}_{sy}.+{end.strftime("%-m")}_{end.strftime("%-d")}_{ey}'    
+        return f'{sd}.{sm}.{sy}.+{ed}.{em}.{ey}|{start.strftime("%-m")}_{start.strftime("%-d")}_{sy}.+{end.strftime("%-m")}_{end.strftime("%-d")}_{ey}'   
+
+    @staticmethod
+    def parse_and_save_weekly_report_to_database(file):
+        """This function reads the weekly file and packs the data into a database."""
+        reader = csv.reader(file)
+        next(reader)
+        for row in reader:
+            row.split('||')
+            # date format update
+            get_first_date = name_file[15:-25].split(' ')
+            first_date = f"{get_first_date[0].replace('_', '-')} {get_first_date[1].replace('_', ':')}"
+            report_from = datetime.datetime.strptime(first_date, "%m-%d-%Y %H:%M:%S").strftime("%Y-%m-%d %H:%M:%S")
+            second_date = name_file[-25:].split('-')[-1][:-7]
+            report_to = datetime.datetime.strptime(second_date, "%m_%d_%Y %H_%M_%S").strftime("%Y-%m-%d %H:%M:%S")
+            order = UklonPaymentsOrder(
+                report_from=f'{report_from}+03:00',
+                report_to=f'{report_to}+03:00',
+                report_file_name=name_file,
+                signal=row[0],
+                licence_plate=row[1],
+                total_rides=int(row[2]),
+                total_distance=int(row[3]),
+                total_amount_cach=float(row[4]),
+                total_amount_cach_less=float(row[5]),
+                total_amount=float(row[6]),
+                total_amount_without_comission=float(row[7]),
+                bonuses=float(row[8]))
+
+            order.save()
+
+    @staticmethod
+    def download_weekly_report(week_number=None, driver=True, sleep=5, headless=True):
+        """ The function checks if the file exists in the directory, if not, 
+        it downloads it or downloads file by week_number"""
+        u = Uklon(week_number=week_number, driver=driver, sleep=sleep, headless=headless)
+        if week_number is None:
+            files = os.listdir(os.curdir)
+            if (u.payments_order_file_name()) not in files:
+                u.login()
+                u.download_payments_order()
+        else:
+            ub = Uklon(week_number=week_number, driver=True, sleep=5, headless=headless)
+            ub.login()
+            ub.download_payments_order() 
 
 def get_report(week_number = None, driver=True, sleep=5, headless=True):
     # drivers_maps = {

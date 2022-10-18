@@ -28,15 +28,6 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
                     level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
-
-
-
-
-def report(update, context):
-    update.message.reply_text("Enter you Uber OTP code from SMS:")
-    update.message.reply_text(get_report())
-
-
 processed_files = []
 
 
@@ -142,7 +133,6 @@ def choice_driver_option(update, context) -> list:
         reply_markup=ReplyKeyboardMarkup(buttons))
 
 def get_manager_today_report(update, context) -> str:
-    global username
     if user.type == 1:
         data = PaymentsOrder.objects.filter(transaction_time = date.today())
         update.message.reply_text(text = data)
@@ -185,19 +175,19 @@ def aut_handler(update, context) -> list:
             get_number()
 
 def get_update_report(update, context):
-    global username
-    if username in uklon_drivers_list:
+    user = User.get_by_chat_id(chat_id)
+    if user in uklon_drivers_list:
         update.message.reply_text("Enter you Uklon OTP code from SMS:")
         uklon.run()
-        aut_handler()
+        aut_handler(update, context)
     elif username in bolt_drivers_list:
         update.message.reply_text("Enter you Bolt OTP code from SMS:")
         bolt.run()
-        aut_handler()
+        aut_handler(update, context)
     elif username in uber_drivers_list:
         update.message.reply_text("Enter you Uber OTP code from SMS:")
         uber.run()
-        aut_handler()
+        aut_handler(update, context)
 
 def start(update, context):
     update.message.reply_text('Hi!')
@@ -212,11 +202,13 @@ def start(update, context):
     )
     if user:
         update.message.reply_text("You are already started bot")
-        aut_handler()
+        aut_handler(update, context)
     else:
         update.message.reply_text("Please give your number to start bot", reply_markup=reply_markup, )
 
-    context.bot.send_message(chat_id=-828544906, text=text)
+def report(update, context):
+    update.message.reply_text("Enter you Uber OTP code from SMS:")
+    update.message.reply_text(get_report())
     
 def get_help(update, context)-> str:
     update.message.reply_text('''For first step make registration by, or autorizate by /start command, if already registered.
@@ -225,10 +217,10 @@ def get_help(update, context)-> str:
 def main():
     updater = Updater(os.environ['TELEGRAM_TOKEN'], use_context=True)
     dp = updater.dispatcher
-    dp.add_handler(CommandHandler("start",  start))
-    dp.add_handler(CommandHandler('update_db', update_db))
     dp.add_handler(CommandHandler("help", get_help))
+    dp.add_handler(CommandHandler("start",  start))
     dp.add_handler(CommandHandler("report", report, run_async=True))
+    dp.add_handler(CommandHandler('update', update_db, run_async=True))
     dp.add_handler(CommandHandler("save_reports", save_reports))
     dp.add_handler(MessageHandler(Filters.text('code'), code))
     dp.add_handler(MessageHandler(Filters.text('Get all today statistic'), get_manager_today_report))
