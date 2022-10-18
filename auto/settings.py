@@ -27,6 +27,7 @@ SECRET_KEY = 'django-insecure-6k_khpqqm)b)nkws+c!jf)0_cx)#dhurwe7%g$$2k3yo3951+z
 DEBUG = True
 
 ALLOWED_HOSTS = ['*']
+CSRF_TRUSTED_ORIGINS = ['https://snowy-wood-371.fly.dev/']
 
 
 # Application definition
@@ -41,6 +42,7 @@ INSTALLED_APPS = [
 # add these lines:
     'django_extensions',
     'app.apps.AppConfig',
+    'fake_uklon'
 ]
 
 MIDDLEWARE = [
@@ -121,7 +123,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = "Europe/Kiev"
 
 USE_I18N = True
 
