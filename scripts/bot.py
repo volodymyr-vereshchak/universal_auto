@@ -1,7 +1,3 @@
-import logging
-from telegram import ChatAction, KeyboardButton, ReplyKeyboardMarkup, Update, ParseMode
-from app.models import WeeklyReportFile, User
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
 import os
 import time
 import csv
@@ -14,49 +10,58 @@ import html
 import json
 import logging
 import traceback
-
+from telegram import * 
+from telegram.ext import *
+from app.models import *
+from . import bolt, uklon, uber
 from scripts.driversrating import DriversRatingMixin
+import traceback
+import hashlib
 
 sys.path.append('app/libs')
-from app.libs.selenium_tools import get_report
+from selenium_tools import get_report, Uber, Uklon, Bolt
 PORT = int(os.environ.get('PORT', '8443'))
-
 DEVELOPER_CHAT_ID = 803129892
+
 # Enable logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
                     level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
-def start(update, context):
-    update.message.reply_text('Hi!')
-    chat_id = update.message.chat.id
-    user = User.get_by_chat_id(chat_id)
-    reply_markup = ReplyKeyboardMarkup(
-        keyboard=[
-            [KeyboardButton(text="Give phone number", request_contact=True),
-             ],
-        ],
-        resize_keyboard=True,
-    )
-    if user:
-        update.message.reply_text("You are already started bot")
+processed_files = []
+
+
+def update_db(update, context):
+    """Pushing data to database from weekly_csv files"""
+    # getting and opening files
+    directory = '../app'
+    files = os.listdir(directory)
+
+    UberPaymentsOrder.download_weekly_report()
+    UklonPaymentsOrder.download_weekly_report()
+    BoltPaymentsOrder.download_weekly_report()
+
+    files = os.listdir(directory)
+    files_csv = filter(lambda x: x.endswith('.csv'), files)
+    list_new_files = list(set(files_csv)-set(processed_files))
+
+    if len(list_new_files) == 0:
+        update.message.reply_text('No new updates yet')
     else:
-        update.message.reply_text("Please give your number to start bot", reply_markup=reply_markup, )
+        update.message.reply_text('Please wait')
+        for name_file in list_new_files:
+            processed_files.append(name_file)
+            with open(f'{directory}/{name_file}', encoding='utf8') as file:
+                if 'Куцко - Income_' in name_file:
+                    UklonPaymentsOrder.parse_and_save_weekly_report_to_database(file=file)
+                elif '-payments_driver-___.csv' in name_file:
+                    UberPaymentsOrder.parse_and_save_weekly_report_to_database(file=file)
+                elif 'Kyiv Fleet 03_232 park Universal-auto.csv' in name_file:
+                    BoltPaymentsOrder.parse_and_save_weekly_report_to_database(file=file)
 
-
-def get_number(update, context):
-    chat_id = update.message.chat.id
-    user = User.get_by_chat_id(chat_id)
-    if not user:
-        phone_number = update.message.contact.phone_number
-        custom_user = User(email="null", phone_number=phone_number, chat_id=chat_id)
-        custom_user.save()
-        update.message.reply_text("Enter your email:")
-
-
-def report(update, context):
-    update.message.reply_text("Enter you Uber OTP code from SMS:")
-    update.message.reply_text(get_report())
+        FileNameProcessed.save_filename_to_db(processed_files)
+        list_new_files.clear()
+        update.message.reply_text('Database updated')
 
 
 def code(update: Update, context: CallbackContext):
@@ -75,16 +80,8 @@ def code(update: Update, context: CallbackContext):
         else:
             update.message.reply_text('Your email is incorrect, please write again')
     else:
-        if user.type == 0:
-            # write your code here if user is driver
-            pass
-        elif user.type == 1:
-            # write your code here if user is manager
-            pass
-        elif user.type == 2:
-            # write your code here if user is owner
-            pass
-          
+        aut_handler(update, context)
+
 def save_reports(update, context):
     wrf = WeeklyReportFile()
     wrf.save_weekly_reports_to_db()
@@ -115,6 +112,40 @@ def error_handler(update: object, context: CallbackContext) -> None:
     # Finally, send the message
     context.bot.send_message(chat_id=DEVELOPER_CHAT_ID, text=message, parse_mode=ParseMode.HTML)
 
+def get_owner_today_report(update, context) -> str:
+    pass
+
+def get_driver_today_report(update, context) -> str:
+    driver_first_name = Users.objects.filter(user_id = {update.message.chat.id})
+    driver_ident = PaymentsOrder.objects.filter(driver_uuid='')
+    if user.type == 0:
+        data = PaymentsOrder.objects.filter(transaction_time = date.today(), driver_uuid = {driver_ident} )
+        update.message.reply_text(f'Hi {update.message.chat.username} driver')
+        update.message.reply_text(text = data)
+
+def get_driver_week_report(update, context) -> str:
+    pass
+
+def choice_driver_option(update, context) -> list:
+        update.message.reply_text(f'Hi {update.message.chat.username} driver')
+        buttons = [[KeyboardButton('Get today statistic')], [KeyboardButton('Choice week number')],[KeyboardButton('Update report')]]
+        context.bot.send_message(chat_id=update.effective_chat.id, text='choice option',
+        reply_markup=ReplyKeyboardMarkup(buttons))
+
+def get_manager_today_report(update, context) -> str:
+    if user.type == 1:
+        data = PaymentsOrder.objects.filter(transaction_time = date.today())
+        update.message.reply_text(text = data)
+    else:
+        error_handler()
+
+def get_stat_for_manager(update, context) -> list:
+        update.message.reply_text(f'Hi {update.message.chat.username} manager')
+        buttons = [[KeyboardButton('Get all today statistic')]]
+        context.bot.send_message(chat_id=update.effective_chat.id, text='choice option',
+        reply_markup=ReplyKeyboardMarkup(buttons))
+
+
 def drivers_rating(context):
     text = 'Drivers Rating\n\n'
     for fleet in DriversRatingMixin().get_rating():
@@ -122,21 +153,87 @@ def drivers_rating(context):
         for period in fleet['rating']:
             text += f"{period['start']:%d.%m.%Y} - {period['end']:%d.%m.%Y}" + '\n'
             text += '\n'.join([f"{item['num']} {item['driver']} {item['trips'] if item['trips']>0 else ''}" for item in period['rating']]) + '\n\n'
-    context.bot.send_message(chat_id=-828544906, text=text)
+
+def get_number(update, context):
+    chat_id = update.message.chat.id
+    user = User.get_by_chat_id(chat_id)
+    if not user:
+        phone_number = update.message.contact.phone_number
+        custom_user = User(email="null", phone_number=phone_number, chat_id=chat_id)
+        custom_user.save()
+        update.message.reply_text("Enter your email:")
+
+def aut_handler(update, context) -> list:
+    if 'Get autorizate' in update.message.text:
+        if user.type == 0:
+            choice_driver_option(update, context)
+        elif user.type == 2:
+            get_owner_today_report(update, context)
+        elif user.type == 1:
+            get_stat_for_manager(update, context)
+        else:
+            get_number()
+
+def get_update_report(update, context):
+    user = User.get_by_chat_id(chat_id)
+    if user in uklon_drivers_list:
+        update.message.reply_text("Enter you Uklon OTP code from SMS:")
+        uklon.run()
+        aut_handler(update, context)
+    elif username in bolt_drivers_list:
+        update.message.reply_text("Enter you Bolt OTP code from SMS:")
+        bolt.run()
+        aut_handler(update, context)
+    elif username in uber_drivers_list:
+        update.message.reply_text("Enter you Uber OTP code from SMS:")
+        uber.run()
+        aut_handler(update, context)
+
+def start(update, context):
+    update.message.reply_text('Hi!')
+    chat_id = update.message.chat.id
+    user = User.get_by_chat_id(chat_id)
+    reply_markup = ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text="Give phone number", request_contact=True),
+             ],
+        ],
+        resize_keyboard=True,
+    )
+    if user:
+        update.message.reply_text("You are already started bot")
+        aut_handler(update, context)
+    else:
+        update.message.reply_text("Please give your number to start bot", reply_markup=reply_markup, )
+
+def report(update, context):
+    update.message.reply_text("Enter you Uber OTP code from SMS:")
+    update.message.reply_text(get_report())
     
+def get_help(update, context)-> str:
+    update.message.reply_text('''For first step make registration by, or autorizate by /start command, if already registered.
+    after all you can update your report, or pull statistic for choice''')
+
 def main():
     updater = Updater(os.environ['TELEGRAM_TOKEN'], use_context=True)
     dp = updater.dispatcher
-    dp.add_handler(CommandHandler("start", start))
+    dp.add_handler(CommandHandler("help", get_help))
+    dp.add_handler(CommandHandler("start",  start))
     dp.add_handler(CommandHandler("report", report, run_async=True))
+    dp.add_handler(CommandHandler('update', update_db, run_async=True))
     dp.add_handler(CommandHandler("save_reports", save_reports))
-    dp.add_handler(MessageHandler(Filters.text, code))
+    dp.add_handler(MessageHandler(Filters.text('code'), code))
+    dp.add_handler(MessageHandler(Filters.text('Get all today statistic'), get_manager_today_report))
+    dp.add_handler(MessageHandler(Filters.text('Get today statistic'), get_driver_today_report))
+    dp.add_handler(MessageHandler(Filters.text('Choice week number'), get_driver_week_report))
+    dp.add_handler(MessageHandler(Filters.text('Update report'), get_update_report))
     dp.add_handler(MessageHandler(Filters.contact, get_number))
     dp.add_error_handler(error_handler)
     updater.job_queue.run_daily(drivers_rating, time=datetime.time(6, 0, 0), days=(0,))
     updater.job_queue.run_repeating(drivers_rating, interval=120, first=1)
     updater.start_polling()
     updater.idle()
+
 
 def run():
     main()
