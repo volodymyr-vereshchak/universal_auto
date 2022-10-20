@@ -38,10 +38,10 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-# add these lines:
     'django_extensions',
     'app.apps.AppConfig',
-    'fake_uklon'
+    'fake_uklon',
+    'polymorphic'
 ]
 
 MIDDLEWARE = [

@@ -1,6 +1,4 @@
-from app.libs.selenium_tools import SeleniumTools
-from app.models import UberPaymentsOrder, BoltPaymentsOrder, UklonPaymentsOrder
-
+from app.models import UberPaymentsOrder, BoltPaymentsOrder, UklonPaymentsOrder, SeleniumTools
 
 class DriversRatingMixin:
 
