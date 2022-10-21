@@ -195,7 +195,7 @@ class UberPaymentsOrder(models.Model):
         else:
             u = Uber(week_number=week_number, driver=True, sleep=5, headless=headless)
             u.login_v2()
-            u.download_payments_order()x
+            u.download_payments_order()
 
 class FileNameProcessed(models.Model):
     filename_weekly = models.CharField(max_length=150, unique=True)

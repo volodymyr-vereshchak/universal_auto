@@ -21,8 +21,8 @@ DRIVERS_MAP = {
             'fleets_drivers_vehicles_rate':
                 [
                     {'fleet': 'Uber', 'driver_external_id': '775f8943-b0ca-4079-90d3-c81d6563d0f1', 'rate': 0.50},
-                    {'fleet': 'Bolt', 'driver_external_id': '372353', 'rate': 0.50},
-                    {'fleet': 'Uklon', 'driver_external_id': '+380661891408', 'rate': 0.50},
+                    {'fleet': 'Bolt', 'driver_external_id': '+380661891408', 'rate': 0.50},
+                    {'fleet': 'Uklon', 'driver_external_id': '372353', 'rate': 0.50},
                 ]
         },
         {
@@ -31,8 +31,8 @@ DRIVERS_MAP = {
             'fleets_drivers_vehicles_rate':
                 [
                     {'fleet': 'Uber', 'driver_external_id': '9a182345-fd18-490f-a908-94f520a9d2d1', 'rate': 0.65},
-                    {'fleet': 'Bolt', 'driver_external_id': '362612', 'rate': 0.65},
-                    {'fleet': 'Uklon', 'driver_external_id': '+380936503350', 'rate': 0.35},
+                    {'fleet': 'Bolt', 'driver_external_id': '+380936503350', 'rate': 0.65},
+                    {'fleet': 'Uklon', 'driver_external_id': '362612', 'rate': 0.35},
                 ]
         },
         {
@@ -41,8 +41,8 @@ DRIVERS_MAP = {
             'fleets_drivers_vehicles_rate':
                 [
                     {'fleet': 'Uber', 'driver_external_id': 'cd725b41-9e47-4fd0-8a1f-3514ddf6238a', 'rate': 0.50},
-                    {'fleet': 'Bolt', 'driver_external_id': '372350', 'rate': 0.50},
-                    {'fleet': 'Uklon', 'driver_external_id': '+380668914200', 'rate': 0.50},
+                    {'fleet': 'Bolt', 'driver_external_id': '+380668914200', 'rate': 0.50},
+                    {'fleet': 'Uklon', 'driver_external_id': '372350', 'rate': 0.50},
                 ]
         },
         {
@@ -51,8 +51,8 @@ DRIVERS_MAP = {
             'fleets_drivers_vehicles_rate':
                 [
                     {'fleet': 'Uber', 'driver_external_id': 'd303a6c5-56f7-4ebf-a341-9cfa7c759388', 'rate': 0.60},
-                    {'fleet': 'Bolt', 'driver_external_id': '324460', 'rate': 0.60},
-                    {'fleet': 'Uklon', 'driver_external_id': '+380671887096', 'rate': 0.40},
+                    {'fleet': 'Bolt', 'driver_external_id': '+380671887096', 'rate': 0.60},
+                    {'fleet': 'Uklon', 'driver_external_id': '324460', 'rate': 0.40},
                 ]
         },
         {
@@ -61,8 +61,8 @@ DRIVERS_MAP = {
             'fleets_drivers_vehicles_rate':
                 [
                     {'fleet': 'Uber', 'driver_external_id': '49dffc54-e8d9-47bd-a1e5-52ce16241cb6', 'rate': 0.60},
-                    {'fleet': 'Bolt', 'driver_external_id': '357339', 'rate': 0.60},
-                    {'fleet': 'Uklon', 'driver_external_id': '+380502428878', 'rate': 0.40},
+                    {'fleet': 'Bolt', 'driver_external_id': '+380502428878', 'rate': 0.60},
+                    {'fleet': 'Uklon', 'driver_external_id': '357339', 'rate': 0.40},
                 ]
         },
         {
@@ -70,8 +70,8 @@ DRIVERS_MAP = {
             'vehicle': {'licence_plate': 'KA1644CT', 'vin_code': 'VF1RFB00357090131', 'name': '2016 Renault Megane'},
             'fleets_drivers_vehicles_rate':
                 [
-                    {'fleet': 'Bolt', 'driver_external_id': '368808', 'rate': 0.60},
-                    {'fleet': 'Uklon', 'driver_external_id': '+380669692591', 'rate': 0.40},
+                    {'fleet': 'Bolt', 'driver_external_id': '+380669692591', 'rate': 0.60},
+                    {'fleet': 'Uklon', 'driver_external_id': '368808', 'rate': 0.40},
                 ]
         },
 

@@ -18,8 +18,6 @@ from scripts.driversrating import DriversRatingMixin
 import traceback
 import hashlib
 
-sys.path.append('app/libs')
-from selenium_tools import get_report, Uber, Uklon, Bolt
 PORT = int(os.environ.get('PORT', '8443'))
 DEVELOPER_CHAT_ID = 803129892
 
