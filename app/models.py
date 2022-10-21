@@ -305,7 +305,7 @@ class Vehicle(models.Model):
     deleted_at = models.DateTimeField(null=True, blank=True)
 
     def __str__(self) -> str:
-        return f'{self.name}'
+        return f'{self.licence_plate} {self.name}'
 
 class Fleets_drivers_vehicles_rate(models.Model):
     fleet = models.ForeignKey(Fleet, on_delete=models.CASCADE)
