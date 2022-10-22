@@ -977,13 +977,24 @@ class Uklon(SeleniumTools):
         return u.save_report()
 
 def get_report(week_number = None, driver=True, sleep=5, headless=True):
-    totals = []
-    fleets = Fleet.objects.filter(deleted_at=None)
+    owner =   {"Fleet Owner": 0}
+    reports = {}
+    totals =  {}
+    salary =  {}
+    fleets =  Fleet.objects.filter(deleted_at=None)
     for fleet in fleets:
         all_drivers_report = fleet.download_weekly_report(week_number=week_number, driver=driver, sleep=sleep, headless=headless)
         for rate in Fleets_drivers_vehicles_rate.objects.filter(fleet_id=fleet.id):
             r = list((r for r in all_drivers_report if r.driver_id() == rate.driver_external_id))
             if r:
                 r = r[0]
-                totals.append(r.report_text(rate.driver.full_name, float(rate.rate)))
-    return '\n'.join(totals)
+                name = rate.driver.full_name
+                reports[name] = reports.get(name, '') + r.report_text(name, float(rate.rate)) + '\n'
+                totals[name] = totals.get(name, 0) + r.kassa()
+                salary[name] = salary.get(name, 0) + r.total_drivers_amount(float(rate.rate))
+                owner["Fleet Owner"] += r.total_owner_amount(float(rate.rate))
+   
+    totals = {k: f'Общаяя касса {k}: %.2f\n' % v  for k, v in totals.items()}
+    totals = {k: v + reports[k]  for k, v in totals.items()}
+    totals = {k: v + f'Зарплата за неделю {k}: %.2f\n' % salary[k] for k, v in totals.items()}
+    return f'Fleet Owner: {"%.2f" % owner["Fleet Owner"]}\n\n' + '\n'.join(totals.values())
