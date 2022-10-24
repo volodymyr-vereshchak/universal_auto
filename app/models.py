@@ -66,22 +66,6 @@ class UklonPaymentsOrder(models.Model):
     def kassa(self):
         return float(self.total_amount) * 0.81
 
-    @staticmethod
-    def download_weekly_report(week_number=None, driver=True, sleep=5, headless=True):
-        """ The function checks if the file exists in the directory, if not, it downloads it
-                                                                        or downloads file by week_number"""
-        u = Uklon(week_number=week_number, driver=driver, sleep=sleep, headless=headless)
-        if week_number is None:
-            name_file_1, name_file_2 = u.payments_order_file_name(), u.payments_order_file_name2()
-            if (name_file_1 and name_file_2) not in files:
-                u.login()
-                u.download_payments_order()
-        else:
-            ub = Uklon(week_number=week_number, driver=True, sleep=5, headless=headless)
-            ub.login()
-            ub.download_payments_order()
-
-
 
 class BoltPaymentsOrder(models.Model):
     report_from = models.DateTimeField()
@@ -129,21 +113,6 @@ class BoltPaymentsOrder(models.Model):
     def total_owner_amount(self, rate=0.65):
         return self.total_cach_less_drivers_amount() * (1 - rate) - self.total_drivers_amount(rate)
 
-    @staticmethod
-    def download_weekly_report(week_number=None, driver=True, sleep=5, headless=True):
-        """ The function checks if the file exists in the directory, if not, it downloads it
-                                                                            or downloads file by week_number"""
-        b = Bolt(week_number=week_number, driver=driver, sleep=sleep, headless=headless)
-        if week_number is None:
-            name_file_1, name_file_2 = b.payments_order_file_name(), b.payments_order_file_name2()
-            name_file_3 = b.payments_order_file_name3()
-            if (name_file_1 and name_file_2 and name_file_3) not in files:
-                b.login()
-                b.download_payments_order()
-        else:
-            b = Bolt(week_number=week_number, driver=True, sleep=5, headless=True)
-            b.login()
-            b.download_payments_order()
 
 class UberPaymentsOrder(models.Model):
     report_from = models.DateTimeField()
@@ -179,23 +148,6 @@ class UberPaymentsOrder(models.Model):
 
     def kassa(self):
         return float(self.total_amount)
-
-    @staticmethod
-    def download_weekly_report(week_number=None, driver=True, sleep=5, headless=True):
-        """ The function checks if the file exists in the directory, if not, it downloads it
-                                                                           or downloads file by week_number"""
-        files = os.listdir(os.curdir)
-        u = Uber(week_number=week_number, driver=driver, sleep=sleep, headless=headless)
-        if week_number is None:
-            name_file = u.payments_order_file_name()
-            if name_file not in files:
-                u.login_v2()
-                u.download_payments_order()
-                u.quit()
-        else:
-            u = Uber(week_number=week_number, driver=True, sleep=5, headless=headless)
-            u.login_v2()
-            u.download_payments_order()
 
 class FileNameProcessed(models.Model):
     filename_weekly = models.CharField(max_length=150, unique=True)
@@ -814,8 +766,9 @@ class Uber(SeleniumTools):
 
     @staticmethod
     def download_weekly_report(week_number=None, driver=True, sleep=5, headless=True):
-        u = Uber(week_number=week_number, driver=driver, sleep=sleep, headless=headless)
+        u = Uber(week_number=week_number, driver=False, sleep=0, headless=headless)
         if u.payments_order_file_name() not in os.listdir(os.curdir):
+            u = Uber(week_number=week_number, driver=driver, sleep=sleep, headless=headless)
             u.login_v2()
             u.download_payments_order()
             u.quit()
@@ -894,8 +847,9 @@ class Bolt(SeleniumTools):
 
     @staticmethod
     def download_weekly_report(week_number=None, driver=True, sleep=5, headless=True):
-        b = Bolt(week_number=week_number, driver=driver, sleep=sleep, headless=headless)
+        b = Bolt(week_number=week_number, driver=False, sleep=0, headless=headless)
         if b.payments_order_file_name() not in os.listdir(os.curdir):
+            b = Bolt(week_number=week_number, driver=driver, sleep=sleep, headless=headless)
             b.login()
             b.download_payments_order()
         return b.save_report()
@@ -971,8 +925,9 @@ class Uklon(SeleniumTools):
 
     @staticmethod
     def download_weekly_report(week_number=None, driver=True, sleep=5, headless=True):
-        u = Uklon(week_number=week_number, driver=driver, sleep=sleep, headless=headless)
+        u = Uklon(week_number=week_number, driver=False, sleep=0, headless=headless)
         if u.payments_order_file_name() not in os.listdir(os.curdir):
+            u = Uklon(week_number=week_number, driver=driver, sleep=sleep, headless=headless)
             u.login()
             u.download_payments_order()
         return u.save_report()
@@ -985,7 +940,7 @@ def get_report(week_number = None, driver=True, sleep=5, headless=True):
     fleets =  Fleet.objects.filter(deleted_at=None)
     for fleet in fleets:
         all_drivers_report = fleet.download_weekly_report(week_number=week_number, driver=driver, sleep=sleep, headless=headless)
-        for rate in Fleets_drivers_vehicles_rate.objects.filter(fleet_id=fleet.id):
+        for rate in Fleets_drivers_vehicles_rate.objects.filter(fleet_id=fleet.id, deleted_at=None):
             r = list((r for r in all_drivers_report if r.driver_id() == rate.driver_external_id))
             if r:
                 r = r[0]
