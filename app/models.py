@@ -48,19 +48,20 @@ class UklonPaymentsOrder(models.Model):
     bonuses = models.DecimalField(decimal_places=2, max_digits=10)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
     def driver_id(self):
         return self.signal
 
-    def report_text(self, name = None, rate = 0.35):
+    def report_text(self, name=None, rate=0.35):
         return f'Uklon {name} {self.signal}: Касса({"%.2f" % self.kassa()}) * {"%.0f" % (rate*100)}% = {"%.2f" % (self.kassa() * rate)} - Наличные(-{"%.2f" % float(self.total_amount_cach)}) = {"%.2f" % self.total_drivers_amount(rate)}'
 
-    def total_drivers_amount(self, rate = 0.35):
+    def total_drivers_amount(self, rate=0.35):
         return -(self.kassa()) * rate
 
     def vendor(self):
         return 'uklon'
 
-    def total_owner_amount(self, rate = 0.35):
+    def total_owner_amount(self, rate=0.35):
         return -self.total_drivers_amount(rate)
 
     def kassa(self):
@@ -488,6 +489,11 @@ class BoltTransactions(models.Model):
                         transaction.save()
                     except IntegrityError:
                         print(f"Transaction is already in DB")
+
+
+class DriverStatus(User):
+    driver_status = models.CharField(max_length=21)
+
 
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options

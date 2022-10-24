@@ -1,6 +1,6 @@
 from django.contrib import admin
 from .models import Fleet, UberFleet, BoltFleet, UklonFleet
-from .models import Driver, Vehicle, Fleets_drivers_vehicles_rate, User
+from .models import Driver, Vehicle, Fleets_drivers_vehicles_rate, User, DriverStatus
 from polymorphic.admin import PolymorphicParentModelAdmin, PolymorphicChildModelAdmin, PolymorphicChildModelFilter
 
 
@@ -30,6 +30,7 @@ class FleetParentAdmin(PolymorphicParentModelAdmin):
 admin.site.register(User)
 admin.site.register(Driver)
 admin.site.register(Vehicle)
+admin.site.register(DriverStatus)
 admin.site.register(Fleets_drivers_vehicles_rate)
 
     # drivers_maps = {
