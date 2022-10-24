@@ -60,18 +60,19 @@ DRIVERS_MAP = {
             'vehicle': {'licence_plate': 'KA6047EI', 'vin_code': 'VF1RFB00X57177685', 'name': '2016 Renault Megane'},
             'fleets_drivers_vehicles_rate':
                 [
-                    {'fleet': 'Uber', 'driver_external_id': '49dffc54-e8d9-47bd-a1e5-52ce16241cb6', 'rate': 0.60},
-                    {'fleet': 'Bolt', 'driver_external_id': '+380502428878', 'rate': 0.60},
-                    {'fleet': 'Uklon', 'driver_external_id': '357339', 'rate': 0.40},
+                    {'fleet': 'Uber', 'driver_external_id': '49dffc54-e8d9-47bd-a1e5-52ce16241cb6', 'rate': 0.65},
+                    {'fleet': 'Bolt', 'driver_external_id': '+380502428878', 'rate': 0.65},
+                    {'fleet': 'Uklon', 'driver_external_id': '357339', 'rate': 0.35},
                 ]
         },
         {
             'full_name': 'Володимир Золотніков',
             'vehicle': {'licence_plate': 'KA1644CT', 'vin_code': 'VF1RFB00357090131', 'name': '2016 Renault Megane'},
             'fleets_drivers_vehicles_rate':
-                [
-                    {'fleet': 'Bolt', 'driver_external_id': '+380669692591', 'rate': 0.60},
-                    {'fleet': 'Uklon', 'driver_external_id': '368808', 'rate': 0.40},
+                [   
+                    {'fleet': 'Uber', 'driver_external_id': '3b4ff5f9-ae59-465e-8e19-f00970963876', 'rate': 0.65},
+                    {'fleet': 'Bolt', 'driver_external_id': '+380669692591', 'rate': 0.65},
+                    {'fleet': 'Uklon', 'driver_external_id': '368808', 'rate': 0.35},
                 ]
         },
 
