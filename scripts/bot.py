@@ -233,7 +233,7 @@ def status(update, context):
     buttons = [[KeyboardButton('Free')], [KeyboardButton('With client')], [KeyboardButton('Waiting for a client')], [KeyboardButton('Offline')]]
 
     context.bot.send_message(chat_id=update.effective_chat.id, text='Choice your status',
-                                 reply_markup=ReplyKeyboardMarkup(buttons, one_time_keyboard=True))
+                                 reply_markup=ReplyKeyboardMarkup(buttons)
 
 
 def update_driver_status(update, context):
