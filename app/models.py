@@ -582,18 +582,18 @@ class SeleniumTools():
     def remove_session(self):
         os.remove(self.session_file_name)
     
-    def retry(self, fun, headless=False):
-        for i in range(2):
-            try:
-               time.sleep(0.3)
-               return fun(headless)
-            except Exception:
-                try:
-                    self.remove_session()
-                    return fun(headless)
-                except FileNotFoundError:
-                    return fun(headless)
-                continue
+    # def retry(self, fun, headless=False):
+    #     for i in range(2):
+    #         try:
+    #            time.sleep(0.3)
+    #            return fun(headless)
+    #         except Exception:
+    #             try:
+    #                 self.remove_session()
+    #                 return fun(headless)
+    #             except FileNotFoundError:
+    #                 return fun(headless)
+    #             continue
 
     def build_driver(self, headless=False):
         options = Options()
@@ -629,8 +629,9 @@ class Uber(SeleniumTools):
     def __init__(self, week_number=None, driver=True, sleep=3, headless=False, base_url="https://supplier.uber.com"):
         super().__init__('uber', week_number=week_number)
         self.sleep = sleep
+        print(driver)
         if driver:
-            self.driver = self.retry(self.build_driver, headless)
+            self.driver = self.build_driver(headless)
             self.base_url = base_url
 
     def quit(self):
@@ -670,10 +671,10 @@ class Uber(SeleniumTools):
             xpath = '//ul/li/div[text()[contains(.,"Payments driver")]]'
             WebDriverWait(self.driver, 5).until(EC.presence_of_element_located((By.XPATH, xpath)))
             self.driver.find_element(By.XPATH, xpath).click()
-        start = self.driver.find_element(By.XPATH, '//div[@data-testid="start-date-picker"]/div/div/div/input')
+        start = self.driver.find_element(By.XPATH, '(//input[@aria-describedby="datepicker--screenreader--message--input"])[1]')
         start.send_keys(Keys.NULL)
         self.driver.find_element(By.XPATH, f'//div[@aria-roledescription="button"]/div[text()={self.start_of_week().strftime("%-d")}]').click()
-        end = self.driver.find_element(By.XPATH, '//div[@data-testid="end-date-picker"]/div/div/div/input')
+        end = self.driver.find_element(By.XPATH, '(//input[@aria-describedby="datepicker--screenreader--message--input"])[2]')
         end.send_keys(Keys.NULL)
         self.driver.find_element(By.XPATH, f'//div[@aria-roledescription="button"]/div[text()="{self.end_of_week().strftime("%-d")}"]').click()
         self.driver.find_element(By.XPATH, '//button[@data-testid="generate-report-button"]').click()
@@ -685,7 +686,7 @@ class Uber(SeleniumTools):
             print('Report already downloaded')
             return 
         self.generate_payments_order()
-        download_button = '//div[1][@data-testid="payment-reporting-table-row"]/div/div/div/div/button'
+        download_button = '(//div[@data-testid="payment-reporting-table-row"]/div/div/div/div/button)[1]'
         try:
             in_progress_text = '//div[1][@data-testid="payment-reporting-table-row"]/div/div/div/div[text()[contains(.,"In progress")]]'
             WebDriverWait(self.driver, 10).until(EC.presence_of_element_located((By.XPATH, in_progress_text)))
@@ -826,7 +827,7 @@ class Bolt(SeleniumTools):
         super().__init__('bolt', week_number=week_number)
         self.sleep = sleep
         if driver:
-            self.driver = self.retry(self.build_driver, headless)
+            self.driver = self.build_driver(headless)
             self.base_url = base_url
     
     def quit(self):
@@ -905,7 +906,7 @@ class Uklon(SeleniumTools):
         super().__init__('uklon', week_number=week_number)
         self.sleep = sleep
         if driver:
-            self.driver = self.retry(self.build_driver, headless)
+            self.driver = self.build_driver(headless)
             self.base_url = base_url
 
     def quit(self):
