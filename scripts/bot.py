@@ -19,7 +19,6 @@ import traceback
 import hashlib
 
 sys.path.append('app/libs')
-from selenium_tools import get_report, Uber, Uklon, Bolt
 PORT = int(os.environ.get('PORT', '8443'))
 DEVELOPER_CHAT_ID = 803129892
 
@@ -233,19 +232,16 @@ def status(update, context):
     buttons = [[KeyboardButton('Free')], [KeyboardButton('With client')], [KeyboardButton('Waiting for a client')], [KeyboardButton('Offline')]]
 
     context.bot.send_message(chat_id=update.effective_chat.id, text='Choice your status',
-                                 reply_markup=ReplyKeyboardMarkup(buttons)
+                             reply_markup=ReplyKeyboardMarkup(buttons))
 
 
-def update_driver_status(update, context):
-    chat_id = update.message.chat.id
+def get_status_driver(update, context):
     status = update.message.text
-    driver = DriverStatus.get_by_chat_id(chat_id)
-    if driver[type] == 0:
-        driver[driver_status] = status
-        driver.save()
-        update.message.reply_text('Your status has been changed')
-    else:
-        update.message.reply_text("This command is not available to you")
+    try:
+        driver = DriverStatus.objects.get(driver_status=status)
+        return update.message.reply_text(driver)
+    except DriverStatus.DoesNotExist:
+        pass
 
 
 def main():
@@ -262,10 +258,10 @@ def main():
     dp.add_handler(MessageHandler(Filters.text('Get today statistic'), get_driver_today_report))
     dp.add_handler(MessageHandler(Filters.text('Choice week number'), get_driver_week_report))
     dp.add_handler(MessageHandler(Filters.text('Update report'), get_update_report))
-    dp.add_handler(MessageHandler(Filters.text('Free'), update_driver_status))
-    dp.add_handler(MessageHandler(Filters.text('With client'), update_driver_status))
-    dp.add_handler(MessageHandler(Filters.text('Waiting for a client'), update_driver_status))
-    dp.add_handler(MessageHandler(Filters.text('Offline'), update_driver_status))
+    dp.add_handler(MessageHandler(Filters.text('Free'), get_status_driver))
+    dp.add_handler(MessageHandler(Filters.text('With client'), get_status_driver))
+    dp.add_handler(MessageHandler(Filters.text('Waiting for a client'), get_status_driver))
+    dp.add_handler(MessageHandler(Filters.text('Offline'), get_status_driver))
     dp.add_handler(MessageHandler(Filters.contact, get_number))
     dp.add_error_handler(error_handler)
     updater.job_queue.run_daily(drivers_rating, time=datetime.time(6, 0, 0), days=(0,))

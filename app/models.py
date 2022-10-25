@@ -491,8 +491,14 @@ class BoltTransactions(models.Model):
                         print(f"Transaction is already in DB")
 
 
-class DriverStatus(User):
-    driver_status = models.CharField(max_length=21)
+class DriverStatus(models.Model):
+    driver_status = models.CharField(max_length=35)
+    fleet = models.ForeignKey(Fleet, on_delete=models.CASCADE)
+    driver = models.ForeignKey(Driver, on_delete=models.CASCADE)
+
+    def __str__(self):
+        return f'{self.driver.full_name}: {self.fleet.name}'
+
 
 
 from selenium import webdriver
@@ -783,6 +789,9 @@ class Uber(SeleniumTools):
             u.quit()
         return u.save_report()
 
+    def status(self):
+        pass
+
 
 class Bolt(SeleniumTools):    
     def __init__(self, week_number=None, driver=True, sleep=3, headless=False, base_url="https://fleets.bolt.eu"):
@@ -862,6 +871,9 @@ class Bolt(SeleniumTools):
             b.download_payments_order()
         return b.save_report()
 
+    def status(self):
+        pass
+
 
 class Uklon(SeleniumTools):    
     def __init__(self, week_number=None, driver=True, sleep=3, headless=False, base_url="https://partner.uklon.com.ua"):
@@ -938,6 +950,9 @@ class Uklon(SeleniumTools):
             u.login()
             u.download_payments_order()
         return u.save_report()
+
+    def status(self):
+        pass
 
 def get_report(week_number = None, driver=True, sleep=5, headless=True):
     totals = []
