@@ -499,6 +499,9 @@ class DriverStatus(models.Model):
     def __str__(self):
         return f'{self.driver.full_name}: {self.fleet.name}'
 
+    @staticmethod
+    def save_driver_status(status):
+        DriverStatus.objects.create(driver_status=status)
 
 
 from selenium import webdriver
