@@ -501,8 +501,8 @@ class DriverStatus(models.Model):
 
     @staticmethod
     def save_driver_status(status):
-        DriverStatus.objects.create(driver_status=status)
-
+        driver = DriverStatus.objects.create(driver_status=status)
+        driver.save()
 
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
