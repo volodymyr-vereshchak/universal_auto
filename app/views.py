@@ -24,7 +24,7 @@ class DriversRatingView(DriversRatingMixin, TemplateView):
 
 class GpsData(APIView):
     def get(self, request, format=None):
-        return Response({'status': 200 })
+        return Response('OK')
 
     def post(self, request):
-        return Response({'status': 200 })
+        return Response('OK')
