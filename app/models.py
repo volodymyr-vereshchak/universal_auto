@@ -7,7 +7,6 @@ from django.db import models
 from polymorphic.models import PolymorphicModel
 
 
-
 class PaymentsOrder(models.Model):
     transaction_uuid = models.UUIDField()
     driver_uuid = models.UUIDField()
@@ -68,14 +67,13 @@ class UklonPaymentsOrder(models.Model):
         return float(self.total_amount) * 0.81
 
 
-
 class BoltPaymentsOrder(models.Model):
     report_from = models.DateTimeField()
     report_to = models.DateTimeField()
     report_file_name = models.CharField(max_length=255)
     driver_full_name = models.CharField(max_length=24)
     mobile_number = models.CharField(max_length=24)
-    range_string =  models.CharField(max_length=50)
+    range_string = models.CharField(max_length=50)
     total_amount = models.DecimalField(decimal_places=2, max_digits=10)
     cancels_amount = models.DecimalField(decimal_places=2, max_digits=10)
     autorization_payment = models.DecimalField(decimal_places=2, max_digits=10)
@@ -99,8 +97,8 @@ class BoltPaymentsOrder(models.Model):
         name = name or self.driver_full_name
         return f'Bolt {name}: Касса({"%.2f" % self.kassa()}) * {"%.0f" % (rate*100)}% = {"%.2f" % (self.kassa() * rate)} - Наличные({"%.2f" % float(self.total_amount_cach)}) = {"%.2f" % self.total_drivers_amount(rate)}'
 
-    def total_drivers_amount(self, rate = 0.65):
-        res = self.total_cach_less_drivers_amount() * rate  + float(self.total_amount_cach)
+    def total_drivers_amount(self, rate=0.65):
+        res = self.total_cach_less_drivers_amount() * rate + float(self.total_amount_cach)
         return res
 
     def total_cach_less_drivers_amount(self):
@@ -228,6 +226,7 @@ class Driver(models.Model):
     def __str__(self) -> str:
         return f'{self.full_name}'
 
+
 class Fleet(PolymorphicModel):
     name = models.CharField(unique=True, max_length=255)
     fees = models.DecimalField(decimal_places=2, max_digits=3, default=0)
@@ -238,13 +237,16 @@ class Fleet(PolymorphicModel):
     def __str__(self) -> str:
         return f'{self.name}'
 
+
 class UberFleet(Fleet):
     def download_weekly_report(self, week_number=None, driver=True, sleep=5, headless=True):
        return Uber.download_weekly_report(week_number=week_number, driver=driver, sleep=sleep, headless=headless)
 
+
 class BoltFleet(Fleet):
     def download_weekly_report(self, week_number=None, driver=True, sleep=5, headless=True):
         return Bolt.download_weekly_report(week_number=week_number, driver=driver, sleep=sleep, headless=headless)
+
 
 class UklonFleet(Fleet):
     def download_weekly_report(self, week_number=None, driver=True, sleep=5, headless=True):
@@ -262,6 +264,7 @@ class Vehicle(models.Model):
     def __str__(self) -> str:
         return f'{self.name}'
 
+
 class Fleets_drivers_vehicles_rate(models.Model):
     fleet = models.ForeignKey(Fleet, on_delete=models.CASCADE)
     driver = models.ForeignKey(Driver, on_delete=models.CASCADE)
@@ -274,6 +277,7 @@ class Fleets_drivers_vehicles_rate(models.Model):
 
     def __str__(self) -> str:
         return f'{self.driver.full_name} {self.fleet.name} {int(self.rate * 100)}%'
+
 
 class WeeklyReportFile(models.Model):
     organization_name = models.CharField(max_length=20)
@@ -504,6 +508,7 @@ class DriverStatus(models.Model):
         driver = DriverStatus.objects.create(driver_status=status)
         driver.save()
 
+
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.keys import Keys
@@ -597,6 +602,7 @@ class SeleniumTools():
         driver = webdriver.Chrome(options=options, port=9514)
         return driver
 
+
 class Uber(SeleniumTools):    
     def __init__(self, week_number=None, driver=True, sleep=3, headless=False, base_url="https://supplier.uber.com"):
         super().__init__('uber', week_number=week_number)
@@ -608,7 +614,7 @@ class Uber(SeleniumTools):
     def quit(self):
         self.driver.quit()
 
-    def login_v2(self, link = "https://drivers.uber.com/"):
+    def login_v2(self, link="https://drivers.uber.com/"):
         self.driver.get(link)
         self.login_form('PHONE_NUMBER_or_EMAIL_ADDRESS', 'forward-button', By.ID)  
         self.force_opt_form()
@@ -670,7 +676,7 @@ class Uber(SeleniumTools):
 
     def payments_order_file_name(self):
         start = self.start_of_week()
-        end  = self.end_of_week()
+        end = self.end_of_week()
         sd, sy, sm = start.strftime("%d"), start.strftime("%Y"), start.strftime("%m")
         ed, ey, em = end.strftime("%d"), end.strftime("%Y"), end.strftime("%m")
         return f'{sy}{sm}{sd}-{ey}{em}{ed}-payments_driver-___.csv'
@@ -688,18 +694,18 @@ class Uber(SeleniumTools):
                 if row[3] is None:
                     continue    
                 order = UberPaymentsOrder(
-                    report_from = self.start_of_week(),
-                    report_to = self.end_of_week(),
-                    report_file_name = self.payments_order_file_name(),
-                    driver_uuid = row[0],
-                    first_name = row[1],
-                    last_name = row[2],
-                    total_amount = row[3],
-                    total_clean_amout = row[4] or 0,
-                    returns = row[5] or 0,
-                    total_amount_cach = row[6] or 0,
-                    transfered_to_bank = row[7] or 0,
-                    tips = row[8] or 0)
+                    report_from=self.start_of_week(),
+                    report_to=self.end_of_week(),
+                    report_file_name=self.payments_order_file_name(),
+                    driver_uuid=row[0],
+                    first_name=row[1],
+                    last_name=row[2],
+                    total_amount=row[3],
+                    total_clean_amout=row[4] or 0,
+                    returns=row[5] or 0,
+                    total_amount_cach=row[6] or 0,
+                    transfered_to_bank=row[7] or 0,
+                    tips=row[8] or 0)
 
                 order.save()
                 items.append(order)
@@ -716,9 +722,9 @@ class Uber(SeleniumTools):
                 otp = p.get_message()
                 if otp:
                     otpa = list(f'{otp["data"]}')
-                    otpa = list(filter(lambda d: d.isdigit() , otpa))
+                    otpa = list(filter(lambda d: d.isdigit(), otpa))
                     digits = [s.isdigit() for s in otpa]
-                    if not(digits) or (not all(digits)) or len(digits)!=4:
+                    if not(digits) or (not all(digits)) or len(digits) != 4:
                         continue
                     break 
             except redis.ConnectionError as e:
@@ -757,7 +763,7 @@ class Uber(SeleniumTools):
                 break
             otp = self.wait_opt_code()
             self.driver.find_element(By.ID, 'verificationCode').send_keys(otp)
-            self.driver.find_element(By.CLASS_NAME,"next-button-wrapper").click()
+            self.driver.find_element(By.CLASS_NAME, "next-button-wrapper").click()
             break
     
     def force_opt_form(self):
@@ -811,7 +817,7 @@ class Bolt(SeleniumTools):
         self.driver.get(f"{self.base_url}/login")
         if self.sleep:
             time.sleep(self.sleep)
-        element = self.driver.find_element(By.ID,'username')
+        element = self.driver.find_element(By.ID, 'username')
         element.send_keys('')
         element.send_keys(os.environ["BOLT_NAME"])
         self.driver.find_element(By.ID, "password").send_keys(os.environ["BOLT_PASSWORD"])
@@ -843,16 +849,16 @@ class Bolt(SeleniumTools):
                 if row[0] is None:
                     break
                 order = BoltPaymentsOrder(
-                    report_from = self.start_of_week(),
-                    report_to = self.end_of_week(),
-                    report_file_name = file.name,
-                    driver_full_name = row[0],
-                    mobile_number = row[1],
-                    range_string =  row[2],
-                    total_amount = row[3],
-                    cancels_amount = row[4],
-                    autorization_payment = row[5],
-                    autorization_deduction = row[6],
+                    report_from=self.start_of_week(),
+                    report_to=self.end_of_week(),
+                    report_file_name=file.name,
+                    driver_full_name=row[0],
+                    mobile_number=row[1],
+                    range_string=row[2],
+                    total_amount=row[3],
+                    cancels_amount=row[4],
+                    autorization_payment=row[5],
+                    autorization_deduction=row[6],
                     additional_fee=row[7],
                     fee=row[8],
                     total_amount_cach=row[9],
@@ -956,6 +962,7 @@ class Uklon(SeleniumTools):
 
     def status(self):
         pass
+
 
 def get_report(week_number = None, driver=True, sleep=5, headless=True):
     totals = []

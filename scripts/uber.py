@@ -1,6 +1,5 @@
-import sys
-sys.path.append('app/libs')
-from selenium_tools import Uber
+from app.models import Uber
+
 
 def run():
     ub = Uber(driver=True, sleep=5, headless=False)

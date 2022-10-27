@@ -222,7 +222,7 @@ def report(update, context):
     update.message.reply_text(get_report())
 
 
-def get_help(update, context)-> str:
+def get_help(update, context) -> str:
     update.message.reply_text('''For first step make registration by, or autorizate by /start command, if already registered.
     after all you can update your report, or pull statistic for choice''')
 

@@ -1,7 +1,5 @@
-import sys
+from app.models import Uklon
 
-sys.path.append('app/libs')
-from selenium_tools import Uklon
 
 def run():
     b = Uklon(driver=True, sleep=3, headless=True)
