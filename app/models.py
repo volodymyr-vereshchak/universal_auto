@@ -67,7 +67,6 @@ class UklonPaymentsOrder(models.Model):
         return float(self.total_amount) * 0.81
 
 
-
 class BoltPaymentsOrder(models.Model):
     report_from = models.DateTimeField()
     report_to = models.DateTimeField()
@@ -150,7 +149,6 @@ class UberPaymentsOrder(models.Model):
     def kassa(self):
         return float(self.total_amount)
 
-
 class FileNameProcessed(models.Model):
     filename_weekly = models.CharField(max_length=150, unique=True)
 
@@ -163,22 +161,29 @@ class FileNameProcessed(models.Model):
 
             order.save()
 
-
-TYPE_CHOICES = (
-    (0, "driver"),
-    (1, "manager"),
-    (2, "owner"),
-)
-
-
 class User(models.Model):
+    class Role(models.TextChoices):
+        CLIENT = 'CLIENT', 'Client'
+        PARTNER = 'PARTNER', 'Partner'
+        DRIVER = 'DRIVER', 'Driver'
+        DRIVER_MANAGER = 'DRIVER_MANAGER', 'Driver manager'
+        SERVICE_STATION_MANAGER = 'SERVICE_STATION_MANAGER', 'Service station manager'
+        SUPPORT_MANAGER = 'SUPPORT_MANAGER', 'Support manager'
+
     id = models.AutoField(primary_key=True)
+    name = models.CharField(max_length=255, null=True)
+    second_name = models.CharField(max_length=255, null=True)
     email = models.EmailField(blank=True, max_length=254)
     phone_number = models.CharField(blank=True, max_length=13)
     chat_id = models.CharField(blank=True, max_length=9)
-    type = models.IntegerField(choices=TYPE_CHOICES, default=0)
     created_at = models.DateTimeField(editable=False, auto_now=datetime.datetime.now())
-    deleted_at = models.DateTimeField(blank=True, null=True, editable=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    deleted_at = models.DateTimeField(blank=True , editable=True)
+
+    def save(self, *args, **kwargs):
+        if not self.pk:
+            self.role = self.base_role
+            return super().save(*args, **kwargs)
 
     @staticmethod
     def get_by_chat_id(chat_id):
@@ -207,12 +212,14 @@ class User(models.Model):
         return user
         
         
-class Driver(models.Model):
-    full_name = models.CharField(max_length=255)
-    created_at = models.DateTimeField(editable=False, auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    deleted_at = models.DateTimeField(null=True, blank=True)
-    
+class Driver(User):
+    user_id = models.ForeignKey(User, null=True,related_name='user_id_%(class)s_related', on_delete=models.CASCADE)
+    fleet_id = models.ForeignKey('Fleet',  null=True, on_delete=models.SET_NULL)
+    driver_manager_id = models.ManyToManyField('DriverManager', null=True)
+    partner_id = models.ManyToManyField('Partner', null=True)
+    vehicle_id = models.ForeignKey('Vehicle',  null=True, on_delete=models.SET_NULL)
+    role = models.IntegerField(choices=User.Role.choices, default=User.Role.DRIVER)
+
     def get_driver_external_id(self, vendor:str) -> str:
         if Fleets_drivers_vehicles_rate.objects.filter(fleet__name=vendor, driver=self, deleted_at=None).exists():
             driver_external_id = Fleets_drivers_vehicles_rate.objects.get(fleet__name=vendor, driver=self, deleted_at=None).driver_external_id
@@ -228,7 +235,7 @@ class Driver(models.Model):
         return f'{self.full_name}'
 
 class Fleet(PolymorphicModel):
-    name = models.CharField(unique=True, max_length=255)
+    name = models.CharField(max_length=255)
     fees = models.DecimalField(decimal_places=2, max_digits=3, default=0)
     created_at = models.DateTimeField(editable=False, auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -236,6 +243,34 @@ class Fleet(PolymorphicModel):
 
     def __str__(self) -> str:
         return f'{self.name}'
+
+class Client(User):
+    user_id = models.ForeignKey(User, null=True, related_name='user_id_%(class)s_related',on_delete=models.CASCADE)
+    support_manager_id = models.ManyToManyField('SupportManager')
+    role = models.IntegerField(choices=User.Role.choices, default=User.Role.CLIENT)
+
+class Partner(User):
+    user_id = models.ForeignKey(User, null=True, related_name='user_id_%(class)s_related',on_delete=models.CASCADE)
+    fleet_id = models.ForeignKey(Fleet,  null=True, on_delete=models.SET_NULL)
+    driver_id = models.ManyToManyField(Driver)
+    role = models.IntegerField(choices=User.Role.choices, default=User.Role.PARTNER)
+
+class DriverManager(User):
+    user_id = models.ForeignKey(User, null=True, related_name='user_id_%(class)s_related',on_delete=models.CASCADE)
+    driver_id = models.ManyToManyField(Driver)
+    role = models.IntegerField(choices=User.Role.choices, default=User.Role.DRIVER_MANAGER)
+
+class ServiceStationManager(User):
+    user_id = models.ForeignKey(User, null=True, related_name='user_id_%(class)s_related',on_delete=models.CASCADE)
+    driver_id = models.ManyToManyField(Driver)
+    fleet_id = models.ManyToManyField(Fleet)
+    role = models.IntegerField(choices=User.Role.choices, default=User.Role.SERVICE_STATION_MANAGER)
+
+class SupportManager(User):
+    user_id = models.ForeignKey(User, null=True, related_name='user_id_%(class)s_related',on_delete=models.CASCADE )
+    client_id = models.ManyToManyField(Client)
+    driver_id = models.ManyToManyField(Driver)
+    role = models.IntegerField(choices=User.Role.choices, default=User.Role.SUPPORT_MANAGER)
 
 class UberFleet(Fleet):
     def download_weekly_report(self, week_number=None, driver=True, sleep=5, headless=True):
@@ -259,7 +294,7 @@ class Vehicle(models.Model):
     deleted_at = models.DateTimeField(null=True, blank=True)
 
     def __str__(self) -> str:
-        return f'{self.name}'
+        return f'{self.licence_plate} {self.name}'
 
 class Fleets_drivers_vehicles_rate(models.Model):
     fleet = models.ForeignKey(Fleet, on_delete=models.CASCADE)
@@ -311,10 +346,7 @@ class WeeklyReportFile(models.Model):
         return converted_list
 
     def save_weekly_reports_to_db(self):
-        path_to_csv_files = '.'
-        extension = 'csv'
-        os.chdir(path_to_csv_files)
-        csv_list = glob.glob('*.{}'.format(extension))
+        
         for file in csv_list:
             rows = []
             try:
@@ -539,18 +571,18 @@ class SeleniumTools():
     def remove_session(self):
         os.remove(self.session_file_name)
     
-    def retry(self, fun, headless=False):
-        for i in range(2):
-            try:
-               time.sleep(0.3)
-               return fun(headless)
-            except Exception:
-                try:
-                    self.remove_session()
-                    return fun(headless)
-                except FileNotFoundError:
-                    return fun(headless)
-                continue
+    # def retry(self, fun, headless=False):
+    #     for i in range(2):
+    #         try:
+    #            time.sleep(0.3)
+    #            return fun(headless)
+    #         except Exception:
+    #             try:
+    #                 self.remove_session()
+    #                 return fun(headless)
+    #             except FileNotFoundError:
+    #                 return fun(headless)
+    #             continue
 
     def build_driver(self, headless=False):
         options = Options()
@@ -586,8 +618,9 @@ class Uber(SeleniumTools):
     def __init__(self, week_number=None, driver=True, sleep=3, headless=False, base_url="https://supplier.uber.com"):
         super().__init__('uber', week_number=week_number)
         self.sleep = sleep
+        print(driver)
         if driver:
-            self.driver = self.retry(self.build_driver, headless)
+            self.driver = self.build_driver(headless)
             self.base_url = base_url
 
     def quit(self):
@@ -627,10 +660,10 @@ class Uber(SeleniumTools):
             xpath = '//ul/li/div[text()[contains(.,"Payments driver")]]'
             WebDriverWait(self.driver, 5).until(EC.presence_of_element_located((By.XPATH, xpath)))
             self.driver.find_element(By.XPATH, xpath).click()
-        start = self.driver.find_element(By.XPATH, '//div[@data-testid="start-date-picker"]/div/div/div/input')
+        start = self.driver.find_element(By.XPATH, '(//input[@aria-describedby="datepicker--screenreader--message--input"])[1]')
         start.send_keys(Keys.NULL)
         self.driver.find_element(By.XPATH, f'//div[@aria-roledescription="button"]/div[text()={self.start_of_week().strftime("%-d")}]').click()
-        end = self.driver.find_element(By.XPATH, '//div[@data-testid="end-date-picker"]/div/div/div/input')
+        end = self.driver.find_element(By.XPATH, '(//input[@aria-describedby="datepicker--screenreader--message--input"])[2]')
         end.send_keys(Keys.NULL)
         self.driver.find_element(By.XPATH, f'//div[@aria-roledescription="button"]/div[text()="{self.end_of_week().strftime("%-d")}"]').click()
         self.driver.find_element(By.XPATH, '//button[@data-testid="generate-report-button"]').click()
@@ -642,7 +675,7 @@ class Uber(SeleniumTools):
             print('Report already downloaded')
             return 
         self.generate_payments_order()
-        download_button = '//div[1][@data-testid="payment-reporting-table-row"]/div/div/div/div/button'
+        download_button = '(//div[@data-testid="payment-reporting-table-row"]/div/div/div/div/button)[1]'
         try:
             in_progress_text = '//div[1][@data-testid="payment-reporting-table-row"]/div/div/div/div[text()[contains(.,"In progress")]]'
             WebDriverWait(self.driver, 10).until(EC.presence_of_element_located((By.XPATH, in_progress_text)))
@@ -770,8 +803,9 @@ class Uber(SeleniumTools):
 
     @staticmethod
     def download_weekly_report(week_number=None, driver=True, sleep=5, headless=True):
-        u = Uber(week_number=week_number, driver=driver, sleep=sleep, headless=headless)
+        u = Uber(week_number=week_number, driver=False, sleep=0, headless=headless)
         if u.payments_order_file_name() not in os.listdir(os.curdir):
+            u = Uber(week_number=week_number, driver=driver, sleep=sleep, headless=headless)
             u.login_v2()
             u.download_payments_order()
             u.quit()
@@ -783,7 +817,7 @@ class Bolt(SeleniumTools):
         super().__init__('bolt', week_number=week_number)
         self.sleep = sleep
         if driver:
-            self.driver = self.retry(self.build_driver, headless)
+            self.driver = self.build_driver(headless)
             self.base_url = base_url
     
     def quit(self):
@@ -850,8 +884,9 @@ class Bolt(SeleniumTools):
 
     @staticmethod
     def download_weekly_report(week_number=None, driver=True, sleep=5, headless=True):
-        b = Bolt(week_number=week_number, driver=driver, sleep=sleep, headless=headless)
+        b = Bolt(week_number=week_number, driver=False, sleep=0, headless=headless)
         if b.payments_order_file_name() not in os.listdir(os.curdir):
+            b = Bolt(week_number=week_number, driver=driver, sleep=sleep, headless=headless)
             b.login()
             b.download_payments_order()
         return b.save_report()
@@ -862,7 +897,7 @@ class Uklon(SeleniumTools):
         super().__init__('uklon', week_number=week_number)
         self.sleep = sleep
         if driver:
-            self.driver = self.retry(self.build_driver, headless)
+            self.driver = self.build_driver(headless)
             self.base_url = base_url
 
     def quit(self):
@@ -927,20 +962,32 @@ class Uklon(SeleniumTools):
 
     @staticmethod
     def download_weekly_report(week_number=None, driver=True, sleep=5, headless=True):
-        u = Uklon(week_number=week_number, driver=driver, sleep=sleep, headless=headless)
+        u = Uklon(week_number=week_number, driver=False, sleep=0, headless=headless)
         if u.payments_order_file_name() not in os.listdir(os.curdir):
+            u = Uklon(week_number=week_number, driver=driver, sleep=sleep, headless=headless)
             u.login()
             u.download_payments_order()
         return u.save_report()
 
 def get_report(week_number = None, driver=True, sleep=5, headless=True):
-    totals = []
-    fleets = Fleet.objects.filter(deleted_at=None)
+    owner =   {"Fleet Owner": 0}
+    reports = {}
+    totals =  {}
+    salary =  {}
+    fleets =  Fleet.objects.filter(deleted_at=None)
     for fleet in fleets:
         all_drivers_report = fleet.download_weekly_report(week_number=week_number, driver=driver, sleep=sleep, headless=headless)
-        for rate in Fleets_drivers_vehicles_rate.objects.filter(fleet_id=fleet.id):
+        for rate in Fleets_drivers_vehicles_rate.objects.filter(fleet_id=fleet.id, deleted_at=None):
             r = list((r for r in all_drivers_report if r.driver_id() == rate.driver_external_id))
             if r:
                 r = r[0]
-                totals.append(r.report_text(rate.driver.full_name, float(rate.rate)))
-    return '\n'.join(totals)
+                name = rate.driver.full_name
+                reports[name] = reports.get(name, '') + r.report_text(name, float(rate.rate)) + '\n'
+                totals[name] = totals.get(name, 0) + r.kassa()
+                salary[name] = salary.get(name, 0) + r.total_drivers_amount(float(rate.rate))
+                owner["Fleet Owner"] += r.total_owner_amount(float(rate.rate))
+   
+    totals = {k: f'Общаяя касса {k}: %.2f\n' % v  for k, v in totals.items()}
+    totals = {k: v + reports[k]  for k, v in totals.items()}
+    totals = {k: v + f'Зарплата за неделю {k}: %.2f\n' % salary[k] for k, v in totals.items()}
+    return f'Fleet Owner: {"%.2f" % owner["Fleet Owner"]}\n\n' + '\n'.join(totals.values())
