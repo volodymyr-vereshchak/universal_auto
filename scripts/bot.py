@@ -67,18 +67,18 @@ def code(update: Update, context: CallbackContext):
     r.publish('code', update.message.text)
     update.message.reply_text('Generating a report...')
     context.bot.send_chat_action(chat_id=update.effective_message.chat_id, action=ChatAction.TYPING)
-    chat_id = update.message.chat.id
-    user = User.get_by_chat_id(chat_id)
-    if user.email == "null":
-        regex = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'
-        email = update.message.text
-        if re.fullmatch(regex, email):
-            user.email = email
-            user.save()
-        else:
-            update.message.reply_text('Your email is incorrect, please write again')
-    else:
-        aut_handler(update, context)
+    # chat_id = update.message.chat.id
+    # user = User.get_by_chat_id(chat_id)
+    # if user.email == "null":
+    #     regex = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'
+    #     email = update.message.text
+    #     if re.fullmatch(regex, email):
+    #         user.email = email
+    #         user.save()
+    #     else:
+    #         update.message.reply_text('Your email is incorrect, please write again')
+    # else:
+    #     aut_handler(update, context)
 
 
 def save_reports(update, context):
@@ -252,7 +252,7 @@ def main():
     dp.add_handler(CommandHandler('update', update_db, run_async=True))
     dp.add_handler(CommandHandler("status", status))
     dp.add_handler(CommandHandler("save_reports", save_reports))
-    dp.add_handler(MessageHandler(Filters.text('code'), code))
+    dp.add_handler(MessageHandler(Filters.text, code))
     dp.add_handler(MessageHandler(Filters.text('Get all today statistic'), get_manager_today_report))
     dp.add_handler(MessageHandler(Filters.text('Get today statistic'), get_driver_today_report))
     dp.add_handler(MessageHandler(Filters.text('Choice week number'), get_driver_week_report))
