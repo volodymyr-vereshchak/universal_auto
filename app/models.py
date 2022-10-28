@@ -149,6 +149,7 @@ class UberPaymentsOrder(models.Model):
     def kassa(self):
         return float(self.total_amount)
 
+
 class FileNameProcessed(models.Model):
     filename_weekly = models.CharField(max_length=150, unique=True)
 
@@ -160,6 +161,7 @@ class FileNameProcessed(models.Model):
                 filename_weekly=name)
 
             order.save()
+
 
 class User(models.Model):
     class Role(models.TextChoices):
@@ -178,7 +180,7 @@ class User(models.Model):
     chat_id = models.CharField(blank=True, max_length=9)
     created_at = models.DateTimeField(editable=False, auto_now=datetime.datetime.now())
     updated_at = models.DateTimeField(auto_now=True)
-    deleted_at = models.DateTimeField(blank=True , editable=True)
+    deleted_at = models.DateTimeField(blank=True, editable=True)
 
     def save(self, *args, **kwargs):
         if not self.pk:
@@ -213,12 +215,14 @@ class User(models.Model):
         
         
 class Driver(User):
-    user_id = models.ForeignKey(User, null=True,related_name='user_id_%(class)s_related', on_delete=models.CASCADE)
-    fleet_id = models.ForeignKey('Fleet',  null=True, on_delete=models.SET_NULL)
+    user_id = models.ForeignKey(User, null=True, related_name='user_id_%(class)s_related', on_delete=models.CASCADE)
+    fleet_id = models.ForeignKey('Fleet', null=True, on_delete=models.SET_NULL)
     driver_manager_id = models.ManyToManyField('DriverManager', null=True)
     partner_id = models.ManyToManyField('Partner', null=True)
-    vehicle_id = models.ForeignKey('Vehicle',  null=True, on_delete=models.SET_NULL)
-    role = models.IntegerField(choices=User.Role.choices, default=User.Role.DRIVER)
+    vehicle_id = models.ForeignKey('Vehicle', null=True, on_delete=models.SET_NULL)
+    role = models.CharField(choices=User.Role.choices, default=User.Role.DRIVER, max_length=40)
+    driver_status = models.CharField(max_length=35, null=False, default='Offline')
+
 
     def get_driver_external_id(self, vendor:str) -> str:
         if Fleets_drivers_vehicles_rate.objects.filter(fleet__name=vendor, driver=self, deleted_at=None).exists():
@@ -232,7 +236,26 @@ class Driver(User):
         return rate
 
     def __str__(self) -> str:
-        return f'{self.full_name}'
+        return f'{self.name} {self.second_name}: {self.fleet.name}'
+
+    @staticmethod
+    def save_driver_status(status):
+        driver = Driver.objects.create(driver_status=status)
+        driver.save()
+
+    @staticmethod
+    def get_by_chat_id(chat_id):
+        """
+        Returns user by chat_id
+        :param chat_id: chat_id by which we need to find the driver
+        :type chat_id: str
+        :return: driver object or None if a user with such ID does not exist
+        """
+        try:
+            driver = Driver.objects.get(chat_id=chat_id)
+            return driver
+        except Driver.DoesNotExist:
+            pass
 
 
 class Fleet(PolymorphicModel):
@@ -247,36 +270,36 @@ class Fleet(PolymorphicModel):
 
 
 class Client(User):
-    user_id = models.ForeignKey(User, null=True, related_name='user_id_%(class)s_related',on_delete=models.CASCADE)
+    user_id = models.ForeignKey(User, null=True, related_name='user_id_%(class)s_related', on_delete=models.CASCADE)
     support_manager_id = models.ManyToManyField('SupportManager')
-    role = models.IntegerField(choices=User.Role.choices, default=User.Role.CLIENT)
+    role = models.CharField(choices=User.Role.choices, default=User.Role.CLIENT, max_length=40)
 
 
 class Partner(User):
-    user_id = models.ForeignKey(User, null=True, related_name='user_id_%(class)s_related',on_delete=models.CASCADE)
+    user_id = models.ForeignKey(User, null=True, related_name='user_id_%(class)s_related', on_delete=models.CASCADE)
     fleet_id = models.ForeignKey(Fleet,  null=True, on_delete=models.SET_NULL)
     driver_id = models.ManyToManyField(Driver)
-    role = models.IntegerField(choices=User.Role.choices, default=User.Role.PARTNER)
+    role = models.CharField(choices=User.Role.choices, default=User.Role.PARTNER, max_length=40)
 
 
 class DriverManager(User):
-    user_id = models.ForeignKey(User, null=True, related_name='user_id_%(class)s_related',on_delete=models.CASCADE)
+    user_id = models.ForeignKey(User, null=True, related_name='user_id_%(class)s_related', on_delete=models.CASCADE)
     driver_id = models.ManyToManyField(Driver)
-    role = models.IntegerField(choices=User.Role.choices, default=User.Role.DRIVER_MANAGER)
+    role = models.CharField(choices=User.Role.choices, default=User.Role.DRIVER_MANAGER, max_length=40)
 
 
 class ServiceStationManager(User):
-    user_id = models.ForeignKey(User, null=True, related_name='user_id_%(class)s_related',on_delete=models.CASCADE)
+    user_id = models.ForeignKey(User, null=True, related_name='user_id_%(class)s_related', on_delete=models.CASCADE)
     driver_id = models.ManyToManyField(Driver)
     fleet_id = models.ManyToManyField(Fleet)
-    role = models.IntegerField(choices=User.Role.choices, default=User.Role.SERVICE_STATION_MANAGER)
+    role = models.CharField(choices=User.Role.choices, default=User.Role.SERVICE_STATION_MANAGER, max_length=40)
 
 
 class SupportManager(User):
     user_id = models.ForeignKey(User, null=True, related_name='user_id_%(class)s_related',on_delete=models.CASCADE )
     client_id = models.ManyToManyField(Client)
     driver_id = models.ManyToManyField(Driver)
-    role = models.IntegerField(choices=User.Role.choices, default=User.Role.SUPPORT_MANAGER)
+    role = models.CharField(choices=User.Role.choices, default=User.Role.SUPPORT_MANAGER, max_length=40)
 
 
 class UberFleet(Fleet):
@@ -531,20 +554,6 @@ class BoltTransactions(models.Model):
                         transaction.save()
                     except IntegrityError:
                         print(f"Transaction is already in DB")
-
-
-class DriverStatus(models.Model):
-    driver_status = models.CharField(max_length=35)
-    fleet = models.ForeignKey(Fleet, on_delete=models.CASCADE)
-    driver = models.ForeignKey(Driver, on_delete=models.CASCADE)
-
-    def __str__(self):
-        return f'{self.driver.full_name}: {self.fleet.name}'
-
-    @staticmethod
-    def save_driver_status(status):
-        driver = DriverStatus.objects.create(driver_status=status)
-        driver.save()
 
 
 from selenium import webdriver

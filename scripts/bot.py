@@ -140,7 +140,7 @@ def choice_driver_option(update, context) -> list:
 def get_manager_today_report(update, context) -> str:
     if user.type == 1:
         data = PaymentsOrder.objects.filter(transaction_time = date.today())
-        update.message.reply_text(text = data)
+        update.message.reply_text(text=data)
     else:
         error_handler()
 
@@ -231,16 +231,23 @@ def status(update, context):
     buttons = [[KeyboardButton('Free')], [KeyboardButton('With client')], [KeyboardButton('Waiting for a client')], [KeyboardButton('Offline')]]
 
     context.bot.send_message(chat_id=update.effective_chat.id, text='Choice your status',
-                             reply_markup=ReplyKeyboardMarkup(buttons))
+                             reply_markup=ReplyKeyboardMarkup(buttons, one_time_keyboard=True))
 
 
-def get_status_driver(update, context):
+def get_status_driver_and_change(update, context):
     status = update.message.text
-    try:
-        driver = DriverStatus.objects.get(driver_status=status)
-        return update.message.reply_text(driver)
-    except DriverStatus.DoesNotExist:
-        pass
+    chat_id = update.message.chat.id
+    Driver.get_by_chat_id(chat_id=chat_id)
+    if driver.role == 'Driver':
+        driver[driver_status] = status
+        driver.save()
+        update.message.reply_text('Your status has been changed')
+    else:
+        try:
+            driver = Driver.objects.get(driver_status=status)
+            return update.message.reply_text(driver)
+        except Driver.DoesNotExist:
+            return update.message.reply_text('There are currently no drivers with this status')
 
 
 def main():
@@ -257,10 +264,10 @@ def main():
     dp.add_handler(MessageHandler(Filters.text('Get today statistic'), get_driver_today_report))
     dp.add_handler(MessageHandler(Filters.text('Choice week number'), get_driver_week_report))
     dp.add_handler(MessageHandler(Filters.text('Update report'), get_update_report))
-    dp.add_handler(MessageHandler(Filters.text('Free'), get_status_driver))
-    dp.add_handler(MessageHandler(Filters.text('With client'), get_status_driver))
-    dp.add_handler(MessageHandler(Filters.text('Waiting for a client'), get_status_driver))
-    dp.add_handler(MessageHandler(Filters.text('Offline'), get_status_driver))
+    dp.add_handler(MessageHandler(Filters.text('Free'), get_status_driver_and_change))
+    dp.add_handler(MessageHandler(Filters.text('With client'), get_status_driver_and_change))
+    dp.add_handler(MessageHandler(Filters.text('Waiting for a client'), get_status_driver_and_change))
+    dp.add_handler(MessageHandler(Filters.text('Offline'), get_status_driver_and_change))
     dp.add_handler(MessageHandler(Filters.contact, get_number))
     dp.add_error_handler(error_handler)
     updater.job_queue.run_daily(drivers_rating, time=datetime.time(6, 0, 0), days=(0,))
