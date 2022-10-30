@@ -7,7 +7,6 @@ from django.db import models
 from polymorphic.models import PolymorphicModel
 
 
-
 class PaymentsOrder(models.Model):
     transaction_uuid = models.UUIDField()
     driver_uuid = models.UUIDField()
@@ -48,19 +47,20 @@ class UklonPaymentsOrder(models.Model):
     bonuses = models.DecimalField(decimal_places=2, max_digits=10)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
     def driver_id(self):
         return self.signal
 
-    def report_text(self, name = None, rate = 0.35):
+    def report_text(self, name=None, rate=0.35):
         return f'Uklon {name} {self.signal}: Касса({"%.2f" % self.kassa()}) * {"%.0f" % (rate*100)}% = {"%.2f" % (self.kassa() * rate)} - Наличные(-{"%.2f" % float(self.total_amount_cach)}) = {"%.2f" % self.total_drivers_amount(rate)}'
 
-    def total_drivers_amount(self, rate = 0.35):
+    def total_drivers_amount(self, rate=0.35):
         return -(self.kassa()) * rate
 
     def vendor(self):
         return 'uklon'
 
-    def total_owner_amount(self, rate = 0.35):
+    def total_owner_amount(self, rate=0.35):
         return -self.total_drivers_amount(rate)
 
     def kassa(self):
@@ -73,7 +73,7 @@ class BoltPaymentsOrder(models.Model):
     report_file_name = models.CharField(max_length=255)
     driver_full_name = models.CharField(max_length=24)
     mobile_number = models.CharField(max_length=24)
-    range_string =  models.CharField(max_length=50)
+    range_string = models.CharField(max_length=50)
     total_amount = models.DecimalField(decimal_places=2, max_digits=10)
     cancels_amount = models.DecimalField(decimal_places=2, max_digits=10)
     autorization_payment = models.DecimalField(decimal_places=2, max_digits=10)
@@ -97,8 +97,8 @@ class BoltPaymentsOrder(models.Model):
         name = name or self.driver_full_name
         return f'Bolt {name}: Касса({"%.2f" % self.kassa()}) * {"%.0f" % (rate*100)}% = {"%.2f" % (self.kassa() * rate)} - Наличные({"%.2f" % float(self.total_amount_cach)}) = {"%.2f" % self.total_drivers_amount(rate)}'
 
-    def total_drivers_amount(self, rate = 0.65):
-        res = self.total_cach_less_drivers_amount() * rate  + float(self.total_amount_cach)
+    def total_drivers_amount(self, rate=0.65):
+        res = self.total_cach_less_drivers_amount() * rate + float(self.total_amount_cach)
         return res
 
     def total_cach_less_drivers_amount(self):
@@ -149,6 +149,7 @@ class UberPaymentsOrder(models.Model):
     def kassa(self):
         return float(self.total_amount)
 
+
 class FileNameProcessed(models.Model):
     filename_weekly = models.CharField(max_length=150, unique=True)
 
@@ -160,6 +161,7 @@ class FileNameProcessed(models.Model):
                 filename_weekly=name)
 
             order.save()
+
 
 class User(models.Model):
     class Role(models.TextChoices):
@@ -182,6 +184,7 @@ class User(models.Model):
 
     def __str__(self) -> str:
         return f'{self.name} {self.second_name}'
+
 
     @staticmethod
     def get_by_chat_id(chat_id):
@@ -211,11 +214,13 @@ class User(models.Model):
         
         
 class Driver(User):
-    fleet_id = models.ForeignKey('Fleet',  blank=True, null=True, on_delete=models.SET_NULL)
-    driver_manager_id = models.ManyToManyField('DriverManager',  blank=True)
-    partner_id = models.ManyToManyField('Partner',  blank=True)
-    vehicle_id = models.ForeignKey('Vehicle',  blank=True, null=True, on_delete=models.SET_NULL)
+    fleet_id = models.ForeignKey('Fleet', blank=True, null=True, on_delete=models.SET_NULL)
+    driver_manager_id = models.ManyToManyField('DriverManager', blank=True)
+    partner_id = models.ManyToManyField('Partner', blank=True)
+    vehicle_id = models.ForeignKey('Vehicle', blank=True, null=True, on_delete=models.SET_NULL)
     role = models.CharField(max_length=50, choices=User.Role.choices, default=User.Role.DRIVER)
+    driver_status = models.CharField(max_length=35, null=False, default='Offline')
+
 
     def get_driver_external_id(self, vendor:str) -> str:
         if Fleets_drivers_vehicles_rate.objects.filter(fleet__name=vendor, driver=self, deleted_at=None).exists():
@@ -228,6 +233,30 @@ class Driver(User):
             rate = float(Fleets_drivers_vehicles_rate.objects.get(fleet__name=vendor, driver=self, deleted_at=None).rate)
         return rate
 
+
+    def __str__(self) -> str:
+        return f'{self.name} {self.second_name}: {self.fleet.name}'
+
+    @staticmethod
+    def save_driver_status(status):
+        driver = Driver.objects.create(driver_status=status)
+        driver.save()
+
+    @staticmethod
+    def get_by_chat_id(chat_id):
+        """
+        Returns user by chat_id
+        :param chat_id: chat_id by which we need to find the driver
+        :type chat_id: str
+        :return: driver object or None if a user with such ID does not exist
+        """
+        try:
+            driver = Driver.objects.get(chat_id=chat_id)
+            return driver
+        except Driver.DoesNotExist:
+            pass
+
+
 class Fleet(PolymorphicModel):
     name = models.CharField(max_length=255)
     fees = models.DecimalField(decimal_places=2, max_digits=3, default=0)
@@ -238,36 +267,44 @@ class Fleet(PolymorphicModel):
     def __str__(self) -> str:
         return f'{self.name}'
 
+
 class Client(User):
     support_manager_id = models.ManyToManyField('SupportManager',  blank=True)
     role = models.CharField(max_length=50, choices=User.Role.choices, default=User.Role.CLIENT)
+
 
 class Partner(User):
     fleet_id = models.ForeignKey(Fleet,  blank=True, null=True, on_delete=models.SET_NULL)
     driver_id = models.ManyToManyField(Driver,  blank=True)
     role = models.CharField(max_length=50, choices=User.Role.choices, default=User.Role.PARTNER)
 
+
 class DriverManager(User):
     driver_id = models.ManyToManyField(Driver,  blank=True)
     role = models.CharField(max_length=50, choices=User.Role.choices, default=User.Role.DRIVER_MANAGER)
+
 
 class ServiceStationManager(User):
     driver_id = models.ManyToManyField(Driver,  blank=True)
     fleet_id = models.ManyToManyField(Fleet,  blank=True)
     role = models.CharField(max_length=50, choices=User.Role.choices, default=User.Role.SERVICE_STATION_MANAGER)
 
+
 class SupportManager(User):
     client_id = models.ManyToManyField(Client,  blank=True)
     driver_id = models.ManyToManyField(Driver,  blank=True)
     role = models.CharField(max_length=50, choices=User.Role.choices, default=User.Role.SUPPORT_MANAGER)
 
+
 class UberFleet(Fleet):
     def download_weekly_report(self, week_number=None, driver=True, sleep=5, headless=True):
        return Uber.download_weekly_report(week_number=week_number, driver=driver, sleep=sleep, headless=headless)
 
+
 class BoltFleet(Fleet):
     def download_weekly_report(self, week_number=None, driver=True, sleep=5, headless=True):
         return Bolt.download_weekly_report(week_number=week_number, driver=driver, sleep=sleep, headless=headless)
+
 
 class UklonFleet(Fleet):
     def download_weekly_report(self, week_number=None, driver=True, sleep=5, headless=True):
@@ -285,6 +322,7 @@ class Vehicle(models.Model):
     def __str__(self) -> str:
         return f'{self.licence_plate} {self.name}'
 
+
 class Fleets_drivers_vehicles_rate(models.Model):
     fleet = models.ForeignKey(Fleet, on_delete=models.CASCADE)
     driver = models.ForeignKey(Driver, on_delete=models.CASCADE)
@@ -297,6 +335,7 @@ class Fleets_drivers_vehicles_rate(models.Model):
 
     def __str__(self) -> str:
         return f'{self.driver.full_name} {self.fleet.name} {int(self.rate * 100)}%'
+
 
 class WeeklyReportFile(models.Model):
     organization_name = models.CharField(max_length=20)
@@ -510,6 +549,7 @@ class BoltTransactions(models.Model):
                     except IntegrityError:
                         print(f"Transaction is already in DB")
 
+
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.keys import Keys
@@ -603,6 +643,7 @@ class SeleniumTools():
         driver = webdriver.Chrome(options=options, port=9514)
         return driver
 
+
 class Uber(SeleniumTools):    
     def __init__(self, week_number=None, driver=True, sleep=3, headless=False, base_url="https://supplier.uber.com"):
         super().__init__('uber', week_number=week_number)
@@ -615,7 +656,7 @@ class Uber(SeleniumTools):
     def quit(self):
         self.driver.quit()
 
-    def login_v2(self, link = "https://drivers.uber.com/"):
+    def login_v2(self, link="https://drivers.uber.com/"):
         self.driver.get(link)
         self.login_form('PHONE_NUMBER_or_EMAIL_ADDRESS', 'forward-button', By.ID)  
         self.force_opt_form()
@@ -677,7 +718,7 @@ class Uber(SeleniumTools):
 
     def payments_order_file_name(self):
         start = self.start_of_week()
-        end  = self.end_of_week()
+        end = self.end_of_week()
         sd, sy, sm = start.strftime("%d"), start.strftime("%Y"), start.strftime("%m")
         ed, ey, em = end.strftime("%d"), end.strftime("%Y"), end.strftime("%m")
         return f'{sy}{sm}{sd}-{ey}{em}{ed}-payments_driver-___.csv'
@@ -695,18 +736,18 @@ class Uber(SeleniumTools):
                 if row[3] is None:
                     continue    
                 order = UberPaymentsOrder(
-                    report_from = self.start_of_week(),
-                    report_to = self.end_of_week(),
-                    report_file_name = self.payments_order_file_name(),
-                    driver_uuid = row[0],
-                    first_name = row[1],
-                    last_name = row[2],
-                    total_amount = row[3],
-                    total_clean_amout = row[4] or 0,
-                    returns = row[5] or 0,
-                    total_amount_cach = row[6] or 0,
-                    transfered_to_bank = row[7] or 0,
-                    tips = row[8] or 0)
+                    report_from=self.start_of_week(),
+                    report_to=self.end_of_week(),
+                    report_file_name=self.payments_order_file_name(),
+                    driver_uuid=row[0],
+                    first_name=row[1],
+                    last_name=row[2],
+                    total_amount=row[3],
+                    total_clean_amout=row[4] or 0,
+                    returns=row[5] or 0,
+                    total_amount_cach=row[6] or 0,
+                    transfered_to_bank=row[7] or 0,
+                    tips=row[8] or 0)
 
                 order.save()
                 items.append(order)
@@ -723,9 +764,9 @@ class Uber(SeleniumTools):
                 otp = p.get_message()
                 if otp:
                     otpa = list(f'{otp["data"]}')
-                    otpa = list(filter(lambda d: d.isdigit() , otpa))
+                    otpa = list(filter(lambda d: d.isdigit(), otpa))
                     digits = [s.isdigit() for s in otpa]
-                    if not(digits) or (not all(digits)) or len(digits)!=4:
+                    if not(digits) or (not all(digits)) or len(digits) != 4:
                         continue
                     break 
             except redis.ConnectionError as e:
@@ -764,7 +805,7 @@ class Uber(SeleniumTools):
                 break
             otp = self.wait_opt_code()
             self.driver.find_element(By.ID, 'verificationCode').send_keys(otp)
-            self.driver.find_element(By.CLASS_NAME,"next-button-wrapper").click()
+            self.driver.find_element(By.CLASS_NAME, "next-button-wrapper").click()
             break
     
     def force_opt_form(self):
@@ -800,6 +841,9 @@ class Uber(SeleniumTools):
             u.quit()
         return u.save_report()
 
+    def status(self):
+        pass
+
 
 class Bolt(SeleniumTools):    
     def __init__(self, week_number=None, driver=True, sleep=3, headless=False, base_url="https://fleets.bolt.eu"):
@@ -816,7 +860,7 @@ class Bolt(SeleniumTools):
         self.driver.get(f"{self.base_url}/login")
         if self.sleep:
             time.sleep(self.sleep)
-        element = self.driver.find_element(By.ID,'username')
+        element = self.driver.find_element(By.ID, 'username')
         element.send_keys('')
         element.send_keys(os.environ["BOLT_NAME"])
         self.driver.find_element(By.ID, "password").send_keys(os.environ["BOLT_PASSWORD"])
@@ -848,16 +892,16 @@ class Bolt(SeleniumTools):
                 if row[0] is None:
                     break
                 order = BoltPaymentsOrder(
-                    report_from = self.start_of_week(),
-                    report_to = self.end_of_week(),
-                    report_file_name = file.name,
-                    driver_full_name = row[0],
-                    mobile_number = row[1],
-                    range_string =  row[2],
-                    total_amount = row[3],
-                    cancels_amount = row[4],
-                    autorization_payment = row[5],
-                    autorization_deduction = row[6],
+                    report_from=self.start_of_week(),
+                    report_to=self.end_of_week(),
+                    report_file_name=file.name,
+                    driver_full_name=row[0],
+                    mobile_number=row[1],
+                    range_string=row[2],
+                    total_amount=row[3],
+                    cancels_amount=row[4],
+                    autorization_payment=row[5],
+                    autorization_deduction=row[6],
                     additional_fee=row[7],
                     fee=row[8],
                     total_amount_cach=row[9],
@@ -879,6 +923,9 @@ class Bolt(SeleniumTools):
             b.login()
             b.download_payments_order()
         return b.save_report()
+
+    def status(self):
+        pass
 
 
 class Uklon(SeleniumTools):    
@@ -957,6 +1004,10 @@ class Uklon(SeleniumTools):
             u.login()
             u.download_payments_order()
         return u.save_report()
+
+    def status(self):
+        pass
+
 
 def get_report(week_number = None, driver=True, sleep=5, headless=True):
     owner =   {"Fleet Owner": 0}
