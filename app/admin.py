@@ -6,18 +6,25 @@ from polymorphic.admin import PolymorphicParentModelAdmin, PolymorphicChildModel
 class FleetChildAdmin(PolymorphicChildModelAdmin):
     base_model = Fleet 
     show_in_index = False
+
+
 @admin.register(UberFleet)
 class UberFleetAdmin(FleetChildAdmin):
     base_model = UberFleet
     show_in_index = False
+
+
 @admin.register(BoltFleet)
 class BoltFleetAdmin(FleetChildAdmin):
     base_model = BoltFleet
     show_in_index = False
+
+
 @admin.register(UklonFleet)
 class UklonFleetAdmin(FleetChildAdmin):
     base_model = UklonFleet
     show_in_index = False
+
 
 @admin.register(Fleet)
 class FleetParentAdmin(PolymorphicParentModelAdmin):
@@ -29,7 +36,7 @@ class FleetParentAdmin(PolymorphicParentModelAdmin):
 admin.site.register(User)
 admin.site.register(Driver)
 admin.site.register(Client)
-admin.site.register(Partner)
+#admin.site.register(Partner)
 admin.site.register(DriverManager)
 admin.site.register(ServiceStationManager)
 admin.site.register(SupportManager)

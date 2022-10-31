@@ -22,6 +22,7 @@ class DriversRatingView(DriversRatingMixin, TemplateView):
         context['rating'] = self.get_rating(start, end)
         return context
 
+
 class GpsData(APIView):
     def get(self, request, format=None):
         return Response('OK')
