@@ -185,7 +185,6 @@ class User(models.Model):
     def __str__(self) -> str:
         return f'{self.name} {self.second_name}'
 
-
     @staticmethod
     def get_by_chat_id(chat_id):
         """
@@ -334,7 +333,7 @@ class Fleets_drivers_vehicles_rate(models.Model):
     deleted_at = models.DateTimeField(null=True, blank=True)
 
     def __str__(self) -> str:
-        return f'{self.driver.name}{self.driver.second_name} {self.fleet.name} {int(self.rate * 100)}%'
+        return f'{self.driver.name} {self.driver.second_name} {self.fleet.name} {int(self.rate * 100)}%'
 
 
 class WeeklyReportFile(models.Model):
