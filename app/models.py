@@ -180,9 +180,12 @@ class User(models.Model):
     chat_id = models.CharField(blank=True, max_length=9)
     created_at = models.DateTimeField(editable=False, auto_now=datetime.datetime.now())
     updated_at = models.DateTimeField(auto_now=True)
-    deleted_at = models.DateTimeField(blank=True, editable=True)
+    deleted_at = models.DateTimeField(null=True, blank=True)
 
-    def __str__(self) -> str:
+    def __str__(self)-> str:
+        return self.full_name()
+
+    def full_name(self):
         return f'{self.name} {self.second_name}'
 
     @staticmethod
@@ -213,10 +216,10 @@ class User(models.Model):
         
         
 class Driver(User):
-    fleet_id = models.ForeignKey('Fleet', blank=True, null=True, on_delete=models.SET_NULL)
+    fleet = models.OneToOneField('Fleet', blank=True, null=True, on_delete=models.SET_NULL)
     driver_manager_id = models.ManyToManyField('DriverManager', blank=True)
-    partner_id = models.ManyToManyField('Partner', blank=True)
-    vehicle_id = models.ForeignKey('Vehicle', blank=True, null=True, on_delete=models.SET_NULL)
+    #partner = models.ManyToManyField('Partner', blank=True)
+    vehicle = models.OneToOneField('Vehicle', blank=True, null=True, on_delete=models.SET_NULL)
     role = models.CharField(max_length=50, choices=User.Role.choices, default=User.Role.DRIVER)
     driver_status = models.CharField(max_length=35, null=False, default='Offline')
 
@@ -232,9 +235,9 @@ class Driver(User):
             rate = float(Fleets_drivers_vehicles_rate.objects.get(fleet__name=vendor, driver=self, deleted_at=None).rate)
         return rate
 
-
     def __str__(self) -> str:
-        return f'{self.name} {self.second_name}: {self.fleet_id.name}'
+        return f'{self.name} {self.second_name}: {self.fleet.name}'
+
 
     @staticmethod
     def save_driver_status(status):
@@ -261,7 +264,7 @@ class Fleet(PolymorphicModel):
     fees = models.DecimalField(decimal_places=2, max_digits=3, default=0)
     created_at = models.DateTimeField(editable=False, auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    deleted_at = models.DateTimeField(blank=True, null=True)
+    deleted_at = models.DateTimeField(null=True, blank=True)
 
     def __str__(self) -> str:
         return f'{self.name}'
@@ -272,10 +275,11 @@ class Client(User):
     role = models.CharField(max_length=50, choices=User.Role.choices, default=User.Role.CLIENT)
 
 
-class Partner(User):
-    fleet_id = models.ForeignKey(Fleet,  blank=True, null=True, on_delete=models.SET_NULL)
-    driver_id = models.ManyToManyField(Driver,  blank=True)
-    role = models.CharField(max_length=50, choices=User.Role.choices, default=User.Role.PARTNER)
+
+# class Partner(User):
+#     fleet = models.OneToOneField(Fleet,  blank=True, null=True, on_delete=models.SET_NULL)
+#     driver = models.ManyToManyField(Driver,  blank=True)
+#     role = models.CharField(max_length=50, choices=User.Role.choices, default=User.Role.PARTNER)
 
 
 class DriverManager(User):
