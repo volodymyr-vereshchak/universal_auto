@@ -7,6 +7,7 @@ logger = logging.getLogger(__name__)
 UDP_IP = os.environ['UDP_IP']
 UDP_PORT = 44300
 
+
 def run():
     sockfd = socket(AF_INET, SOCK_STREAM)
     sockfd.bind(("0.0.0.0", UDP_PORT))
@@ -22,4 +23,3 @@ def run():
         
         newsockfd.send(message)
         newsockfd.close()
-    
