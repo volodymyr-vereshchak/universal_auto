@@ -9,11 +9,7 @@ DRIVERS_MAP = {
     ],
     'drivers': [
         {
-<<<<<<< HEAD
-            'full_name': 'Олександр',
-=======
             'name': 'Олександр',
->>>>>>> develop
             'second_name': 'Холін',
             'vehicle': {'licence_plate': 'AA3108YA', 'vin_code': 'LS6A2E0F1NA003113', 'name': '2022 Chang\'an Eado'},
             'fleets_drivers_vehicles_rate':
@@ -25,11 +21,7 @@ DRIVERS_MAP = {
                 ]
         },
         {
-<<<<<<< HEAD
-            'full_name': 'Анатолій',
-=======
             'name': 'Анатолій',
->>>>>>> develop
             'second_name': 'Мухін',
             'vehicle': {'licence_plate': 'KA4897BM', 'vin_code': 'VF1KZ140652639946', 'name': '2015 Renault Megane'},
             'fleets_drivers_vehicles_rate':
@@ -110,11 +102,7 @@ def init_models():
         fleets[item['name']] = fleet
 
     for item in DRIVERS_MAP['drivers']:
-<<<<<<< HEAD
-        driver = get_or_create_object(Driver, ['full_name'], name=item['name'], second_name=item['second_name'])
-=======
         driver = get_or_create_object(Driver, ['name', 'second_name'], name=item['name'], second_name=item['second_name'])
->>>>>>> develop
         vehicle = get_or_create_object(Vehicle, ['licence_plate', 'vin_code'],
                                        licence_plate=item['vehicle']['licence_plate'],
                                        vin_code=item['vehicle']['vin_code'],
