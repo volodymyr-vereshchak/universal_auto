@@ -647,8 +647,8 @@ class Car(models.Model):
 class RepairReport(models.Model):
     repair = models.CharField(max_length=255)
     numberplate = models.CharField(max_length=12, unique=True)
-    start_of_repair = models.DateTimeField(null=False)
-    end_of_repair = models.DateTimeField(null=False)
+    start_of_repair = models.DateTimeField(blank=True, null=False)
+    end_of_repair = models.DateTimeField(blank=True, null=False)
     status_of_payment_repair = models.CharField(max_length=6, default="Unpaid")  # Paid, Unpaid
     driver = models.ForeignKey(Driver, null=True, blank=True, on_delete=models.CASCADE)
 
