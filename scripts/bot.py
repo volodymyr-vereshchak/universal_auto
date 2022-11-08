@@ -259,14 +259,13 @@ def get_help(update, context) -> str:
 
 
 def status(update, context):
-    buttons = [[KeyboardButton('Free')], [KeyboardButton('With client')], [KeyboardButton('Waiting for a client')], [KeyboardButton('Offline')],
-               [KeyboardButton('Repair')]]
+    buttons = [[KeyboardButton('Free')], [KeyboardButton('With client')], [KeyboardButton('Waiting for a client')], [KeyboardButton('Offline')]]
 
     context.bot.send_message(chat_id=update.effective_chat.id, text='Choice your status',
                              reply_markup=ReplyKeyboardMarkup(buttons, one_time_keyboard=True))
 
 
-STATUS, NUMBERPLATE = range(2)
+STATUS, LICENCE_PLACE = range(2)
 
 
 def status_car(update, context):
@@ -279,23 +278,23 @@ def status_car(update, context):
 def numberplate(update, context):
     context.user_data[STATUS] = update.message.text
     update.message.reply_text('Please, enter the number of your car that broke down', reply_markup=ReplyKeyboardRemove())
-    return NUMBERPLATE
+    return LICENCE_PLACE
 
 
 def change_status_car(update, context):
     """This func change status_car and only for the role of drivers"""
     chat_id = update.message.chat.id
-    context.user_data[NUMBERPLATE] = update.message.text.upper()
-    number_car = context.user_data[NUMBERPLATE]
+    context.user_data[LICENCE_PLACE] = update.message.text.upper()
+    number_car = context.user_data[LICENCE_PLACE]
     status_car = context.user_data[STATUS]
-    queryset = Car.objects.all()
-    numberplates = [i.numberplate for i in queryset]
+    queryset = Vehicle.objects.all()
+    numberplates = [i.licence_plate for i in queryset]
     if number_car in numberplates:
         driver = Driver.get_by_chat_id(chat_id)
         if driver.role == 'DRIVER':
-            car = Car.get_by_numberplate(number_car)
-            car.car_status = status_car
-            car.save()
+            vehicle = Vehicle.get_by_numberplate(number_car)
+            vehicle.car_status = status_car
+            vehicle.save()
             numberplates.clear()
             update.message.reply_text('Your status of car has been changed')
     else:
@@ -347,8 +346,8 @@ def numberplate_car(update, context):
 
 def photo(update, context):
     context.user_data[NUMBERPLATE] = update.message.text.upper()
-    queryset = Car.objects.all()
-    numberplates = [i.numberplate for i in queryset]
+    queryset = Vehicle.objects.all()
+    numberplates = [i.licence_plate for i in queryset]
     if context.user_data[NUMBERPLATE] not in numberplates:
         update.message.reply_text('The number you wrote is not in the database, contact the park manager')
         cancel_send_report(update, context)
@@ -386,8 +385,8 @@ def send_report_to_db_and_driver(update, context):
                     start_of_repair=context.user_data[START_OF_REPAIR],
                     end_of_repair=context.user_data[END_OF_REPAIR])
     order.save()
-    car = Car.get_by_numberplate(context.user_data[NUMBERPLATE])
-    chat_id_driver = car.driver.chat_id
+    vehicle = Vehicle.get_by_numberplate(context.user_data[NUMBERPLATE])
+    chat_id_driver = vehicle.driver.chat_id
     context.bot.send_message(chat_id=chat_id_driver, text=f'Your car {context.user_data[NUMBERPLATE]} renovated')
     return ConversationHandler.END
 
@@ -409,7 +408,7 @@ def main():
             STATUS: [
                 MessageHandler(Filters.all, numberplate, pass_user_data=True),
             ],
-            NUMBERPLATE: [
+            LICENCE_PLACE: [
                 MessageHandler(Filters.all, change_status_car, pass_user_data=True),
                 CommandHandler('cancel', cancel_status_car)
             ],
