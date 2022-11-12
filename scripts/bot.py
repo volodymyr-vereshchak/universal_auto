@@ -340,7 +340,7 @@ def numberplate_car(update, context):
         update.message.reply_text('Please enter numberplate car ')
     else:
         update.message.reply_text('This commands only for service station manager')
-        cancel_send_report(update, context)
+        return ConversationHandler.END
     return NUMBERPLATE
 
 
@@ -350,7 +350,7 @@ def photo(update, context):
     numberplates = [i.licence_plate for i in queryset]
     if context.user_data[NUMBERPLATE] not in numberplates:
         update.message.reply_text('The number you wrote is not in the database, contact the park manager')
-        cancel_send_report(update, context)
+        return ConversationHandler.END
     update.message.reply_text('Please, send me report  photo on repair (One photo)')
     return PHOTO
 
@@ -367,7 +367,7 @@ def end_of_repair(update, context):
         time.strptime(context.user_data[START_OF_REPAIR], "%Y-%m-%d %H:%M:%S+00")
     except ValueError:
         update.message.reply_text('Invalid date')
-        cancel_send_report(update, context)
+        return ConversationHandler.END
     update.message.reply_text("Please, enter date and time end of repair in format: %Y-%m-%d %H:%M:%S")
     return END_OF_REPAIR
 
@@ -378,7 +378,7 @@ def send_report_to_db_and_driver(update, context):
         time.strptime(context.user_data[END_OF_REPAIR], "%Y-%m-%d %H:%M:%S+00")
     except ValueError:
         update.message.reply_text('Invalid date')
-        cancel_send_report(update, context)
+        return ConversationHandler.END
     order = RepairReport(
                     repair=context.user_data[PHOTO]["file_path"],
                     numberplate=context.user_data[NUMBERPLATE],
@@ -425,19 +425,15 @@ def main():
         states={
             NUMBERPLATE: [
                 MessageHandler(Filters.all, photo, pass_user_data=True),
-                CommandHandler('cancel', cancel_send_report)
             ],
             PHOTO: [
                 MessageHandler(Filters.all, start_of_repair, pass_user_data=True),
-                CommandHandler('cancel', cancel_send_report)
             ],
             START_OF_REPAIR: [
                 MessageHandler(Filters.all, end_of_repair, pass_user_data=True),
-                CommandHandler('cancel', cancel_send_report)
             ],
             END_OF_REPAIR: [
                 MessageHandler(Filters.all, send_report_to_db_and_driver, pass_user_data=True),
-                CommandHandler('cancel', cancel_send_report)
             ],
         },
         fallbacks=[
