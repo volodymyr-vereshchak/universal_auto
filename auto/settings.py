@@ -45,7 +45,8 @@ INSTALLED_APPS = [
     'django_extensions',
     'app.apps.AppConfig',
     'fake_uklon',
-    'polymorphic'
+    'polymorphic',
+    'fake_uber'
 ]
 
 MIDDLEWARE = [
