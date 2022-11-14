@@ -329,7 +329,6 @@ class Driver(User):
     fleet = models.OneToOneField('Fleet', blank=True, null=True, on_delete=models.SET_NULL)
     driver_manager_id = models.ManyToManyField('DriverManager', blank=True)
     #partner = models.ManyToManyField('Partner', blank=True)
-    vehicle = models.OneToOneField('Vehicle', blank=True, null=True, on_delete=models.SET_NULL)
     role = models.CharField(max_length=50, choices=User.Role.choices, default=User.Role.DRIVER)
     driver_status = models.CharField(max_length=35, null=False, default='Offline')
 
@@ -375,6 +374,9 @@ class Driver(User):
     def __str__(self) -> str:
         return f'{self.name} {self.second_name}'
 
+    def __str__(self) -> str:
+        return f'{self.name} {self.second_name}: {self.fleet.name}'
+
     @staticmethod
     def save_driver_status(status):
         driver = Driver.objects.create(driver_status=status)
@@ -386,7 +388,7 @@ class Driver(User):
         Returns user by chat_id
         :param chat_id: chat_id by which we need to find the driver
         :type chat_id: str
-        :return: driver object or None if a user with such ID does not exist
+        :return: driver object or None if a driver with such ID does not exist
         """
         try:
             driver = Driver.objects.get(chat_id=chat_id)
@@ -424,9 +426,27 @@ class DriverManager(User):
 
 
 class ServiceStationManager(User):
-    driver_id = models.ManyToManyField(Driver,  blank=True)
-    fleet_id = models.ManyToManyField(Fleet,  blank=True)
+    car_id = models.ManyToManyField('Vehicle', blank=True)
+    fleet_id = models.ManyToManyField(Fleet, blank=True)
     role = models.CharField(max_length=50, choices=User.Role.choices, default=User.Role.SERVICE_STATION_MANAGER)
+    service_station = models.OneToOneField('ServiceStation', on_delete=models.RESTRICT)
+
+    def __str__(self):
+        return f'{self.service_station.name}'
+
+
+    @staticmethod
+    def save_name_of_service_station(name_of_service_station):
+        service = ServiceStationManager.objects.create(name_of_service_station=name_of_service_station)
+        service.save()
+
+    @staticmethod
+    def get_by_chat_id(chat_id):
+        try:
+            manager = ServiceStationManager.objects.get(chat_id=chat_id)
+            return manager
+        except ServiceStationManager.DoesNotExist:
+            pass
 
 
 class SupportManager(User):
@@ -437,7 +457,7 @@ class SupportManager(User):
 
 class UberFleet(Fleet):
     def download_weekly_report(self, week_number=None, driver=True, sleep=5, headless=True):
-       return Uber.download_weekly_report(week_number=week_number, driver=driver, sleep=sleep, headless=headless)
+        return Uber.download_weekly_report(week_number=week_number, driver=driver, sleep=sleep, headless=headless)
 
 
 class BoltFleet(Fleet):
@@ -449,6 +469,7 @@ class UklonFleet(Fleet):
     def download_weekly_report(self, week_number=None, driver=True, sleep=5, headless=True):
         return Uklon.download_weekly_report(week_number=week_number, driver=driver, sleep=sleep, headless=headless)
 
+
 class NewUklonFleet(Fleet):
     def download_weekly_report(self, week_number=None, driver=True, sleep=5, headless=True):
         return NewUklon.download_weekly_report(week_number=week_number, driver=driver, sleep=sleep, headless=headless)
@@ -457,14 +478,26 @@ class NewUklonFleet(Fleet):
 
 class Vehicle(models.Model):
     name = models.CharField(max_length=255)
-    licence_plate = models.CharField(max_length=24)
+    model = models.CharField(max_length=50)
+    type = models.CharField(max_length=20)
+    licence_plate = models.CharField(max_length=24, unique=True)
     vin_code = models.CharField(max_length=17)
+    car_status = models.CharField(max_length=18, null=False, default="Serviceable")
+    driver = models.ForeignKey(Driver, on_delete=models.RESTRICT)
     created_at = models.DateTimeField(editable=False, auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     deleted_at = models.DateTimeField(null=True, blank=True)
 
     def __str__(self) -> str:
-        return f'{self.licence_plate} {self.name}'
+        return f'{self.licence_plate}'
+
+    @staticmethod
+    def get_by_numberplate(licence_plate):
+        try:
+            vehicle = Vehicle.objects.get(licence_plate=licence_plate)
+            return vehicle
+        except Vehicle.DoesNotExist:
+            pass
 
 
 class Fleets_drivers_vehicles_rate(models.Model):
@@ -723,6 +756,32 @@ class BoltTransactions(models.Model):
                         transaction.save()
                     except IntegrityError:
                         print(f"Transaction is already in DB")
+
+
+class RepairReport(models.Model):
+    repair = models.CharField(max_length=255)
+    numberplate = models.CharField(max_length=12, unique=True)
+    start_of_repair = models.DateTimeField(blank=True, null=False)
+    end_of_repair = models.DateTimeField(blank=True, null=False)
+    status_of_payment_repair = models.CharField(max_length=6, default="Unpaid")  # Paid, Unpaid
+    driver = models.ForeignKey(Driver, null=True, blank=True, on_delete=models.CASCADE)
+
+    def __str__(self):
+        return f'{self.numberplate}'
+
+
+class ServiceStation(models.Model):
+    name = models.CharField(max_length=120)
+    owner = models.CharField(max_length=150)
+    lat = models.DecimalField(decimal_places=4, max_digits=10, default=0)
+    lat_zone = models.CharField(max_length=1)
+    lon = models.DecimalField(decimal_places=4, max_digits=10, default=0)
+    lon_zone = models.CharField(max_length=1)
+    description = models.CharField(max_length=255)
+
+    def __str__(self):
+        return f'{self.name}'
+
 
 
 from selenium import webdriver
@@ -1182,6 +1241,7 @@ class Uklon(SeleniumTools):
 
     def status(self):
         pass
+
 
 class NewUklon(SeleniumTools):    
     def __init__(self, week_number=None, driver=True, sleep=3, headless=False, base_url="https://fleets.uklon.com.ua"):
