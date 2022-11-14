@@ -4,6 +4,8 @@ import glob
 import os
 import sys
 from django.db import models
+from django.db.models import Sum, QuerySet
+from django.db.models.base import ModelBase
 from polymorphic.models import PolymorphicModel
 
 
@@ -32,7 +34,52 @@ class PaymentsOrder(models.Model):
     cancel_payment = models.DecimalField(decimal_places=2, max_digits=10)
 
 
-class UklonPaymentsOrder(models.Model):
+class GenericPaymentsOrder(ModelBase):
+
+    _registry = {}
+
+    def __new__(cls, name, bases, attrs):
+
+        if attrs.get('vendor_name') is None:
+            raise NotImplementedError(f'vendor_name must be implemented in {name}')
+        try:
+            if not callable(getattr(attrs.get('Scopes'), 'filter_by_driver_external_id')):
+                raise NotImplementedError(f'{name}.Scopes.filter_by_driver_external_id() must be callable')
+        except AttributeError:
+            raise NotImplementedError(f'{name}.Scopes.filter_by_driver_external_id() must be implemented')
+
+        scopes_bases = filter(None, [attrs.get('Scopes')] +
+                              [getattr(b, 'Scopes', None) for b in bases])
+
+        attrs['Scopes'] = type('ScopesFor' + name, tuple(scopes_bases), {})
+
+        ScopedQuerySet = type('ScopedQuerySetFor' + name, (QuerySet, attrs['Scopes']), {})
+        ScopedManager = type('ScopedManagerFor' + name, (models.Manager, attrs['Scopes']), {
+            'use_for_related_fields': True,
+            'get_query_set': lambda self: ScopedQuerySet(self.model, using=self._db)
+        })
+
+        attrs['objects'] = ScopedManager()
+
+        vendor_name_ = attrs.get('vendor_name')
+        if vendor_name_ in cls._registry:
+            raise ValueError(f'{vendor_name_} is already registered for {name}')
+
+        new_cls = ModelBase.__new__(cls, name, bases, attrs)
+        cls._registry[vendor_name_] = new_cls
+
+        return new_cls
+
+    @classmethod
+    def filter_by_driver(cls, vendor, driver_external_id):
+        if vendor in cls._registry:
+            return cls._registry[vendor].objects.filter_by_driver_external_id(driver_external_id)
+        else:
+            raise NotImplementedError(f'{vendor} is not registered in {cls}')
+
+
+class UklonPaymentsOrder(models.Model, metaclass=GenericPaymentsOrder):
+
     report_from = models.DateTimeField()
     report_to = models.DateTimeField()
     report_file_name = models.CharField(max_length=255)
@@ -47,6 +94,12 @@ class UklonPaymentsOrder(models.Model):
     bonuses = models.DecimalField(decimal_places=2, max_digits=10)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    vendor_name = 'Uklon'
+
+    class Scopes:
+        def filter_by_driver_external_id(self, driver_external_id):
+            return self.filter(signal=driver_external_id)
 
     def driver_id(self):
         return self.signal
@@ -66,7 +119,7 @@ class UklonPaymentsOrder(models.Model):
     def kassa(self):
         return float(self.total_amount) * 0.81
 
-class NewUklonPaymentsOrder(models.Model):
+class NewUklonPaymentsOrder(models.Model, metaclass=GenericPaymentsOrder):
     report_from = models.DateTimeField()
     report_to = models.DateTimeField()
     report_file_name = models.CharField(max_length=255)
@@ -87,6 +140,12 @@ class NewUklonPaymentsOrder(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    vendor_name = 'NewUklon'
+
+    class Scopes:
+        def filter_by_driver_external_id(self, driver_external_id):
+            return self.filter(signal=driver_external_id)
+
     def driver_id(self):
         return self.signal
 
@@ -106,7 +165,7 @@ class NewUklonPaymentsOrder(models.Model):
         return float(self.total_amount) * 0.81
 
 
-class BoltPaymentsOrder(models.Model):
+class BoltPaymentsOrder(models.Model, metaclass=GenericPaymentsOrder):
     report_from = models.DateTimeField()
     report_to = models.DateTimeField()
     report_file_name = models.CharField(max_length=255)
@@ -128,6 +187,12 @@ class BoltPaymentsOrder(models.Model):
     weekly_balance = models.DecimalField(decimal_places=2, max_digits=10)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    vendor_name = 'Bolt'
+
+    class Scopes:
+        def filter_by_driver_external_id(self, driver_external_id):
+            return self.filter(mobile_number=driver_external_id)
 
     def driver_id(self):
         return self.mobile_number
@@ -153,7 +218,7 @@ class BoltPaymentsOrder(models.Model):
         return self.total_cach_less_drivers_amount() * (1 - rate) - self.total_drivers_amount(rate)
 
 
-class UberPaymentsOrder(models.Model):
+class UberPaymentsOrder(models.Model, metaclass=GenericPaymentsOrder):
     report_from = models.DateTimeField()
     report_to = models.DateTimeField()
     report_file_name = models.CharField(max_length=255)
@@ -168,6 +233,12 @@ class UberPaymentsOrder(models.Model):
     tips = models.DecimalField(decimal_places=2, max_digits=10)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    vendor_name = 'Uber'
+
+    class Scopes:
+        def filter_by_driver_external_id(self, driver_external_id):
+            return self.filter(driver_uuid=driver_external_id)
 
     def driver_id(self):
         return self.driver_uuid
@@ -263,16 +334,46 @@ class Driver(User):
     driver_status = models.CharField(max_length=35, null=False, default='Offline')
 
 
-    def get_driver_external_id(self, vendor:str) -> str:
-        if Fleets_drivers_vehicles_rate.objects.filter(fleet__name=vendor, driver=self, deleted_at=None).exists():
-            driver_external_id = Fleets_drivers_vehicles_rate.objects.get(fleet__name=vendor, driver=self, deleted_at=None).driver_external_id
-        return driver_external_id
-    
-    def get_rate(self, verndor_rate:str) -> float:
-        vendor = verndor_rate.vendor().capitalize()
-        if Fleets_drivers_vehicles_rate.objects.filter(fleet__name=vendor, driver=self, deleted_at=None).exists():
-            rate = float(Fleets_drivers_vehicles_rate.objects.get(fleet__name=vendor, driver=self, deleted_at=None).rate)
-        return rate
+    def get_driver_external_id(self, vendor: str) -> str:
+        try:
+            return Fleets_drivers_vehicles_rate.objects.get(fleet__name=vendor, driver=self, deleted_at=None).driver_external_id
+        except Fleets_drivers_vehicles_rate.DoesNotExist:
+            return ''
+
+    def get_rate(self, vendor: str) -> float:
+        try:
+            return float(Fleets_drivers_vehicles_rate.objects.get(fleet__name=vendor.capitalize(), driver=self, deleted_at=None).rate)
+        except Fleets_drivers_vehicles_rate.DoesNotExist:
+            return 0
+
+    def get_kassa(self, vendor: str, week_number: [str, None] = None) -> float:
+        driver_external_id = self.get_driver_external_id(vendor)
+        st = SeleniumTools(session='', week_number=week_number)
+        qset = GenericPaymentsOrder.filter_by_driver(vendor, driver_external_id)\
+            .filter(report_from__lte=st.end_of_week(), report_to__gte=st.start_of_week())
+        return sum(map(lambda x: x.kassa(), qset))
+
+    def get_dynamic_rate(self, vendor: str, week_number: [str, None] = None, kassa: float = None) -> float:
+        if kassa is None:
+            kassa = self.get_kassa(vendor, week_number)
+        dct = DriverRateLevels.objects.filter(fleet__name=vendor, threshold_value__gte=kassa,
+                                              deleted_at=None).aggregate(Sum('rate_delta'))
+        rate = self.get_rate(vendor) + float(dct['rate_delta__sum'] if dct['rate_delta__sum'] is not None else 0)
+        return max(rate, 0)
+
+    def get_salary(self, vendor: str, week_number: [str, None] = None) -> float:
+        try:
+            min_fee = float(Fleet.objects.get(name=vendor).min_fee)
+        except Fleet.DoesNotExist:
+            min_fee = 0
+        kassa = self.get_kassa(vendor, week_number)
+        rate = self.get_dynamic_rate(vendor, week_number, kassa)
+        salary = kassa * rate
+        print(kassa, rate, salary, min(salary, max(kassa - min_fee, 0)))
+        return min(salary, max(kassa - min_fee, 0))
+
+    def __str__(self) -> str:
+        return f'{self.name} {self.second_name}'
 
     @staticmethod
     def save_driver_status(status):
@@ -300,6 +401,7 @@ class Fleet(PolymorphicModel):
     created_at = models.DateTimeField(editable=False, auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     deleted_at = models.DateTimeField(null=True, blank=True)
+    min_fee = models.DecimalField(decimal_places=2, max_digits=15, default=0)
 
     def __str__(self) -> str:
         return f'{self.name}'
@@ -376,7 +478,38 @@ class Fleets_drivers_vehicles_rate(models.Model):
     deleted_at = models.DateTimeField(null=True, blank=True)
 
     def __str__(self) -> str:
-        return f'{self.driver.full_name()} {self.fleet.name} {int(self.rate * 100)}%'
+        return f'{self.driver.name} {self.fleet.name} {int(self.rate * 100)}%'
+
+
+class DriverRateLevels(models.Model):
+    fleet = models.ForeignKey(Fleet, on_delete=models.CASCADE)
+    threshold_value = models.DecimalField(decimal_places=2, max_digits=15, default=0)
+    rate_delta = models.DecimalField(decimal_places=2, max_digits=3, default=0)
+    created_at = models.DateTimeField(editable=False, auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    deleted_at = models.DateTimeField(null=True, blank=True)
+
+
+class RawGPS(models.Model):
+    imei = models.CharField(max_length=100)
+    client_ip = models.CharField(max_length=100)
+    client_port = models.IntegerField()
+    data = models.CharField(max_length=1024)
+    created_at = models.DateTimeField(editable=False, auto_now_add=True)
+
+
+class GPS(models.Model):
+    date_time = models.DateTimeField(null=False)
+    vehicle = models.ForeignKey(Vehicle, on_delete=models.CASCADE)
+    lat = models.DecimalField(decimal_places=4, max_digits=10, default=0)
+    lat_zone = models.CharField(max_length=1)
+    lon = models.DecimalField(decimal_places=4, max_digits=10, default=0)
+    lon_zone = models.CharField(max_length=1)
+    speed = models.IntegerField(default=0)
+    course = models.IntegerField(default=0)
+    height = models.IntegerField(default=0)
+    raw_data = models.OneToOneField(RawGPS, on_delete=models.CASCADE)
+    created_at = models.DateTimeField(editable=False, auto_now_add=True)
 
 
 class WeeklyReportFile(models.Model):
@@ -686,7 +819,7 @@ class SeleniumTools():
         return driver
 
 
-class Uber(SeleniumTools):    
+class Uber(SeleniumTools):
     def __init__(self, week_number=None, driver=True, sleep=3, headless=False, base_url="https://supplier.uber.com"):
         super().__init__('uber', week_number=week_number)
         self.sleep = sleep
