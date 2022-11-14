@@ -45,7 +45,8 @@ INSTALLED_APPS = [
     'django_extensions',
     'app.apps.AppConfig',
     'fake_uklon',
-    'polymorphic'
+    'taxi_service',
+    'polymorphic',
 ]
 
 MIDDLEWARE = [
