@@ -46,7 +46,8 @@ INSTALLED_APPS = [
     'app.apps.AppConfig',
     'fake_uklon',
     'polymorphic',
-    'fake_uber'
+    'fake_uber',
+    'taxi_service',
 ]
 
 MIDDLEWARE = [
