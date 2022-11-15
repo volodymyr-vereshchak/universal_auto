@@ -99,11 +99,18 @@ class NewUklonPaymentsOrder(models.Model):
     def vendor(self):
         return 'new_uklon'
 
+    def total_drivers_amount(self, rate=0.35):
+        if self.signal == '512329':
+           return self.kassa() * (1 - rate) - float(self.total_amount_cach)
+        else:
+          return -(self.kassa()) * rate
+
+
     def total_owner_amount(self, rate=0.35):
         return -self.total_drivers_amount(rate)
 
     def kassa(self, fleet_rate=0.81):
-        return float(self.total_amount) * fleet_rate
+        return float(self.total_amount) * fleet_rate + self.tips + self.bonuses
 
 
 class BoltPaymentsOrder(models.Model):
