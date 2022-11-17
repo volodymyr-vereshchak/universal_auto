@@ -32,3 +32,13 @@ def test_field_length(test_service_station):
     assert len(test_service_station.description) <= 255
 
 
+def test_type(test_service_station):
+    assert isinstance(test_service_station.name, str)
+    assert isinstance(test_service_station.owner, str)
+    assert isinstance(test_service_station.lat, float)
+    assert isinstance(test_service_station.lat_zone, str)
+    assert isinstance(test_service_station.lon, float)
+    assert isinstance(test_service_station.lon_zone, str)
+    assert isinstance(test_service_station.description, str)
+
+

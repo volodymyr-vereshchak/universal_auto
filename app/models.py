@@ -469,10 +469,10 @@ class UberFleet(Fleet):
         pass
 
 
-
 class BoltFleet(Fleet):
     def download_weekly_report(self, week_number=None, driver=True, sleep=5, headless=True):
         return Bolt.download_weekly_report(week_number=week_number, driver=driver, sleep=sleep, headless=headless)
+
     def download_daily_report(self, day=None, driver=True, sleep=5, headless=True):
         """the same method as weekly report. it gets daily report if day is non None"""
         return Bolt.download_weekly_report(day=day, driver=driver, sleep=sleep, headless=headless)
@@ -485,6 +485,7 @@ class UklonFleet(Fleet):
     def download_daily_report(self, day=None, driver=True, sleep=5, headless=True):
         """the same method as weekly report. it gets daily report if day is non None"""
         return Uklon.download_weekly_report(day=day, driver=driver, sleep=sleep, headless=headless)
+
 
 class NewUklonFleet(Fleet):
     def download_weekly_report(self, week_number=None, driver=True, sleep=5, headless=True):
@@ -548,7 +549,6 @@ class RawGPS(models.Model):
     client_port = models.IntegerField()
     data = models.CharField(max_length=1024)
     created_at = models.DateTimeField(editable=False, auto_now_add=True)
-
 
 
 class GPS(PolymorphicModel):
@@ -843,7 +843,6 @@ class SeleniumTools():
             self.current_date = pendulum.parse(week_number, tz="Europe/Kiev")
         else:
             self.current_date = pendulum.now().start_of('week').subtract(days=3)
-
 
 
     def report_file_name(self, patern):
@@ -1334,6 +1333,7 @@ class Uklon(SeleniumTools):
 
     def status(self):
         pass
+
 
 class NewUklon(SeleniumTools):
     def __init__(self, week_number=None, day=None, driver=True, sleep=3, headless=False, base_url="https://fleets.uklon.com.ua"):
