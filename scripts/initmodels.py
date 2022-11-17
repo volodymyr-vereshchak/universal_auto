@@ -103,9 +103,13 @@ DRIVERS_MAP = {
 
 def get_or_create_object(model, search_fields, **kwargs):
     try:
+        print('+++++++++++++++++++++++++++++++++++++')
+        print(kwargs)
         search_kwargs = {key: val for key, val in kwargs.items() if key in search_fields}
         obj = model.objects.get(**search_kwargs)
     except model.DoesNotExist:
+        print('+++++++++++++++++++++++++++++++++++++')
+        print(kwargs)
         obj = model.objects.create(**kwargs)
         print(f"--{model.__name__}--> {obj}")
     return obj
@@ -122,9 +126,12 @@ def init_models():
         vehicle = get_or_create_object(Vehicle, ['licence_plate', 'vin_code'],
                                        licence_plate=item['vehicle']['licence_plate'],
                                        vin_code=item['vehicle']['vin_code'],
-                                       name=item['vehicle']['name']
+                                       name=item['vehicle']['name'],
+                                       driver=driver
                                        )
         for rate in item['fleets_drivers_vehicles_rate']:
+            print('+++++++++++++++++++++++++++++++++++++')
+            print(driver)
             get_or_create_object(Fleets_drivers_vehicles_rate,
                                  ['fleet', 'driver', 'vehicle'],
                                  fleet=fleets[rate['fleet']],
