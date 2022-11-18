@@ -26,4 +26,4 @@ urlpatterns = [
     path('fake_uber/', include('fake_uber.urls')),
     path('', include('taxi_service.urls')),
     path('cars/', gps_cars, name='map'),
-
+]
