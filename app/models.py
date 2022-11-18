@@ -475,6 +475,12 @@ class BoltFleet(Fleet):
 
     def download_daily_report(self, day=None, driver=True, sleep=5, headless=True):
         """the same method as weekly report. it gets daily report if day is non None"""
+        if day == pendulum.now().start_of('day'):
+            return None  # do if you need to get today report
+        period = pendulum.now() - day
+        if period.in_days() > 30:
+            return None  # do if you need to get report elder then 30 days
+
         return Bolt.download_weekly_report(day=day, driver=driver, sleep=sleep, headless=headless)
 
 
@@ -1168,7 +1174,12 @@ class Bolt(SeleniumTools):
 
     def download_payments_order(self):
         if self.day:
-            self.driver.get(f"{self.base_url}/company/58225/reports/dayly/{self.day.format('DD%2eMM%2eYYYY')}")
+            self.driver.get(f"{self.base_url}/company/58225/reports/dayly/")
+            if self.sleep:
+                time.sleep(self.sleep)
+            xpath = f'//table/tbody/tr/td[text()="{self.file_patern()}"]'
+            element_date = self.driver.find_element(By.XPATH, xpath)
+            element_date.find_element(By.XPATH, "./../td/a").click()
         else:
             self.driver.get(f"{self.base_url}/company/58225/reports/weekly/{self.file_patern()}")
     
@@ -1509,4 +1520,5 @@ def download_and_save_daily_report(driver=True, sleep=5, headless=True, day=None
     fleets = Fleet.objects.filter(deleted_at=None)
     for fleet in fleets:
         fleet.download_daily_report(day=day, driver=driver, sleep=sleep, headless=headless)
+
 
