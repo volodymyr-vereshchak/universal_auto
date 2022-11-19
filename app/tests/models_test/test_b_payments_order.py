@@ -74,3 +74,26 @@ def test_field_length(test_bolt_payments_order):
     assert len(test_bolt_payments_order.driver_full_name) <= 24
     assert len(test_bolt_payments_order.mobile_number) <= 24
     assert len(test_bolt_payments_order.range_string) <= 50
+
+
+def test_type(test_bolt_payments_order):
+    assert isinstance(test_bolt_payments_order.report_from, str)
+    assert isinstance(test_bolt_payments_order.report_to, str)
+    assert isinstance(test_bolt_payments_order.report_file_name, str)
+    assert isinstance(test_bolt_payments_order.driver_full_name, str)
+    assert isinstance(test_bolt_payments_order.mobile_number, str)
+    assert isinstance(test_bolt_payments_order.range_string, str)
+    assert isinstance(test_bolt_payments_order.total_amount, float)
+    assert isinstance(test_bolt_payments_order.cancels_amount, float)
+    assert isinstance(test_bolt_payments_order.autorization_payment, float)
+    assert isinstance(test_bolt_payments_order.autorization_deduction, float)
+    assert isinstance(test_bolt_payments_order.additional_fee, float)
+    assert isinstance(test_bolt_payments_order.fee, float)
+    assert isinstance(test_bolt_payments_order.total_amount_cach, float)
+    assert isinstance(test_bolt_payments_order.discount_cash_trips, float)
+    assert isinstance(test_bolt_payments_order.driver_bonus, float)
+    assert isinstance(test_bolt_payments_order.compensation, float)
+    assert isinstance(test_bolt_payments_order.refunds, float)
+    assert isinstance(test_bolt_payments_order.tips, float)
+    assert isinstance(test_bolt_payments_order.weekly_balance, float)
+

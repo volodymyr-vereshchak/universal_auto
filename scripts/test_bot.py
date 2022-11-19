@@ -32,38 +32,20 @@ class TestBot(unittest.TestCase):
     def test_save_reports_2(self):
         self.assertTrue('/save_reports')
 
-    def test_update_db(self):
-        self.assertTrue('/update_db')
-
-    def test_update_db_2(self):
-        self.assertIsNotNone('/update_db')
-
     def test_status(self):
         self.assertTrue('/status')
 
-    def test_status(self):
+    def test_status_2(self):
         self.assertIsNotNone('/status')
 
-    def test_update_driver_status_1(self):
-        self.assertIsNotNone('Free')
+    def test_status_car(self):
+        self.assertTrue('/status_car')
 
-    def test_update_driver_status_2(self):
-        self.assertIsNotNone('Free')
+    def test_status_car_2(self):
+        self.assertIsNotNone('/status_car')
 
-    def test_update_driver_status_3(self):
-        self.assertIsNotNone('With client')
+    def test_send_report(self):
+        self.self.assertTrue('/send_report')
 
-    def test_update_driver_status_4(self):
-        self.assertIsNotNone('With client')
-
-    def test_update_driver_status_5(self):
-        self.assertIsNotNone('Waiting for a client')
-
-    def test_update_driver_status_6(self):
-        self.assertIsNotNone('Waiting for a client')
-
-    def test_update_driver_status_7(self):
-        self.assertIsNotNone('Offline')
-
-    def test_update_driver_status_8(self):
-        self.assertIsNotNone('Offline')
+    def test_send_report_2(self):
+        self.assertIsNotNone('/send_report')
