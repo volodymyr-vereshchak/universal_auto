@@ -12,7 +12,7 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
                     level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
-HOST, PORT = os.environ['UDP_IP'], 44300
+HOST, PORT = '0.0.0.0', 44300
 
 
 class PackageHandler:

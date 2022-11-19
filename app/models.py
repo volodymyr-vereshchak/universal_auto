@@ -382,8 +382,6 @@ class Driver(User):
     def __str__(self) -> str:
         return f'{self.name} {self.second_name}'
 
-    def __str__(self) -> str:
-        return f'{self.name} {self.second_name}: {self.fleet.name}'
 
     @staticmethod
     def save_driver_status(status):
