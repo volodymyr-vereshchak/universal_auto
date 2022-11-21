@@ -75,11 +75,51 @@ DRIVERS_MAP = {
             'second_name': 'Золотніков',
             'vehicle': {'licence_plate': 'KA1644CT', 'vin_code': 'VF1RFB00357090131', 'name': '2016 Renault Megane'},
             'fleets_drivers_vehicles_rate':
-                [   
+                [
                     {'fleet': 'Uber', 'driver_external_id': '3b4ff5f9-ae59-465e-8e19-f00970963876', 'rate': 0.65},
                     {'fleet': 'Bolt', 'driver_external_id': '+380669692591', 'rate': 0.65},
                     {'fleet': 'Uklon', 'driver_external_id': '368808', 'rate': 0.35},
                     {'fleet': 'NewUklon', 'driver_external_id': '517489', 'rate': 0.35},
+                ]
+        },
+        {
+            'name': 'Денис',
+            'second_name': 'Баринов',
+            'vehicle': {'licence_plate': 'KA1644CT', 'vin_code': 'VF1RFB00357090131', 'name': '2016 Renault Megane'},
+            'fleets_drivers_vehicles_rate':
+                [
+                    {'fleet': 'Uklon', 'driver_external_id': '542114', 'rate': 0.45},
+                    {'fleet': 'NewUklon', 'driver_external_id': '542114', 'rate': 0.45},
+                ]
+        },
+        {
+            'name': 'Віталій',
+            'second_name': 'Левкович',
+            'vehicle': {'licence_plate': 'KA1644CT', 'vin_code': 'VF1RFB00357090131', 'name': '2016 Renault Megane'},
+            'fleets_drivers_vehicles_rate':
+                [
+                    {'fleet': 'Bolt', 'driver_external_id': '+380508757127', 'rate': 0.65},
+                    {'fleet': 'Uklon', 'driver_external_id': '542240', 'rate': 0.35},
+                    {'fleet': 'NewUklon', 'driver_external_id': '542240', 'rate': 0.35},
+                ]
+        },
+        {
+            'name': 'Євген',
+            'second_name': 'Волонкович',
+            'vehicle': {'licence_plate': 'KA1644CT', 'vin_code': 'VF1RFB00357090131', 'name': '2016 Renault Megane'},
+            'fleets_drivers_vehicles_rate':
+                [
+                    {'fleet': 'Bolt', 'driver_external_id': '+380937645871', 'rate': 0.65},
+                ]
+        },
+        {
+            'name': 'Сергій',
+            'second_name': 'Куцко',
+            'vehicle': {'licence_plate': 'KA1644CT', 'vin_code': 'VF1RFB00357090131', 'name': '2016 Renault Megane'},
+            'fleets_drivers_vehicles_rate':
+                [
+                    {'fleet': 'Uber', 'driver_external_id': '49dffc54-e8d9-47bd-a1e5-52ce16241cb6', 'rate': 0.65},
+                    {'fleet': 'Bolt', 'driver_external_id': '+380681373335', 'rate': 0.65},
                 ]
         },
 
