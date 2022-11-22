@@ -119,6 +119,7 @@ class UklonPaymentsOrder(models.Model, metaclass=GenericPaymentsOrder):
     def kassa(self):
         return float(self.total_amount) * 0.81
 
+
 class NewUklonPaymentsOrder(models.Model, metaclass=GenericPaymentsOrder):
     report_from = models.DateTimeField()
     report_to = models.DateTimeField()
@@ -126,12 +127,12 @@ class NewUklonPaymentsOrder(models.Model, metaclass=GenericPaymentsOrder):
     full_name = models.CharField(max_length=255) # "Водій"
     signal = models.CharField(max_length=8) # "Позивний"
     total_rides = models.PositiveIntegerField() # "Кількість поїздок"
-    total_distance =  models.DecimalField(decimal_places=2, max_digits=10) # "Пробіг під замовленнями, км"
+    total_distance = models.DecimalField(decimal_places=2, max_digits=10) # "Пробіг під замовленнями, км"
     total_amount_cach = models.DecimalField(decimal_places=2, max_digits=10) # "Готівкою, грн"
     total_amount_cach_less = models.DecimalField(decimal_places=2, max_digits=10) # "На гаманець, грн"
     total_amount_on_card = models.DecimalField(decimal_places=2, max_digits=10)   # "На картку, грн"
     total_amount = models.DecimalField(decimal_places=2, max_digits=10) # "Всього, грн"
-    tips =  models.DecimalField(decimal_places=2, max_digits=10) # "Чайові, грн"
+    tips = models.DecimalField(decimal_places=2, max_digits=10) # "Чайові, грн"
     bonuses = models.DecimalField(decimal_places=2, max_digits=10) # "Бонуси, грн"
     fares = models.DecimalField(decimal_places=2, max_digits=10) # "Штрафи, грн"
     comission  = models.DecimalField(decimal_places=2, max_digits=10) # "Комісія Уклон, грн"
