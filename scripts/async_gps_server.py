@@ -12,7 +12,8 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
                     level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
-HOST, PORT = '0.0.0.0', 44300
+HOST, PORT = os.environ['UDP_IP'], 44300
+PACKAGE_SIZE = 1024*4
 
 
 class PackageHandler:
@@ -75,7 +76,7 @@ async def handle_connection(reader, writer):
     while True:
         # Receive
         try:
-            data = await reader.read(1024)
+            data = await reader.read(PACKAGE_SIZE)
         except ConnectionError:
             logging.info(msg=f"Client suddenly closed while receiving from {addr}")
             break

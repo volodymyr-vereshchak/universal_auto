@@ -1,3 +1,8 @@
+import zoneinfo
+from datetime import datetime
+
+from django.conf import settings
+
 from app.models import RawGPS, Vehicle, VehicleGPS
 from auto.celery import app
 
@@ -13,9 +18,9 @@ def raw_gps_handler(id):
         vehicle = Vehicle.objects.get(gps_imei=raw.imei)
     except Vehicle.DoesNotExist:
         return f'{Vehicle.DoesNotExist}: gps_imei={raw.imei}'
-    from datetime import datetime
     try:
         date_time = datetime.strptime(data[0] + data[1], '%d%m%y%H%M%S')
+        date_time = date_time.replace(tzinfo=zoneinfo.ZoneInfo(settings.TIME_ZONE))
     except ValueError as err:
         return f'{ValueError} {err}'
     try:
