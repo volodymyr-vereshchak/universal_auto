@@ -259,19 +259,32 @@ def get_help(update, context) -> str:
 
 
 def status(update, context):
-    buttons = [[KeyboardButton('Free')], [KeyboardButton('With client')], [KeyboardButton('Waiting for a client')], [KeyboardButton('Offline')]]
+    chat_id = update.message.chat.id
+    driver = Driver.get_by_chat_id(chat_id)
+    driver_manager = DriverManager.get_by_chat_id(chat_id)
+    if (driver or driver_manager) is not None:
+        buttons = [[KeyboardButton('Free')], [KeyboardButton('With client')], [KeyboardButton('Waiting for a client')], [KeyboardButton('Offline')]]
 
-    context.bot.send_message(chat_id=update.effective_chat.id, text='Choice your status',
-                             reply_markup=ReplyKeyboardMarkup(buttons, one_time_keyboard=True))
+        context.bot.send_message(chat_id=update.effective_chat.id, text='Choice your status',
+                                 reply_markup=ReplyKeyboardMarkup(buttons, one_time_keyboard=True))
+    else:
+        update.message.reply_text('This command only for driver and driver manager')
+        return 0
 
 
 STATUS, LICENCE_PLACE = range(2)
 
 
 def status_car(update, context):
-    buttons = [[KeyboardButton('Serviceable')], [KeyboardButton('Broken')]]
-    context.bot.send_message(chat_id=update.effective_chat.id, text='Choice your status of car',
-                             reply_markup=ReplyKeyboardMarkup(buttons, one_time_keyboard=True))
+    chat_id = update.message.chat.id
+    driver = Driver.get_by_chat_id(chat_id)
+    if driver is not None:
+        buttons = [[KeyboardButton('Serviceable')], [KeyboardButton('Broken')]]
+        context.bot.send_message(chat_id=update.effective_chat.id, text='Choice your status of car',
+                                        reply_markup=ReplyKeyboardMarkup(buttons, one_time_keyboard=True))
+    else:
+        update.message.reply_text('This command only for driver')
+        return 0
     return STATUS
 
 
@@ -291,12 +304,11 @@ def change_status_car(update, context):
     numberplates = [i.licence_plate for i in queryset]
     if number_car in numberplates:
         driver = Driver.get_by_chat_id(chat_id)
-        if driver.role == 'DRIVER':
-            vehicle = Vehicle.get_by_numberplate(number_car)
-            vehicle.car_status = status_car
-            vehicle.save()
-            numberplates.clear()
-            update.message.reply_text('Your status of car has been changed')
+        vehicle = Vehicle.get_by_numberplate(number_car)
+        vehicle.car_status = status_car
+        vehicle.save()
+        numberplates.clear()
+        update.message.reply_text('Your status of car has been changed')
     else:
         update.message.reply_text('This number is not in the database or incorrect data was sent. Contact the manager or repeat the command')
 
@@ -314,7 +326,7 @@ def get_status_driver_and_change(update, context):
     status = update.message.text
     chat_id = update.message.chat.id
     driver = Driver.get_by_chat_id(chat_id)
-    if driver.role == 'DRIVER':
+    if driver is not None:
         driver.driver_status = status
         driver.save()
         update.message.reply_text('Your status has been changed', reply_markup=ReplyKeyboardRemove())
@@ -336,7 +348,7 @@ NUMBERPLATE, PHOTO, START_OF_REPAIR, END_OF_REPAIR = range(4)
 def numberplate_car(update, context):
     chat_id = update.message.chat.id
     manager = ServiceStationManager.get_by_chat_id(chat_id)
-    if manager.role == 'SERVICE_STATION_MANAGER':
+    if manager is not None:
         update.message.reply_text('Please enter numberplate car ')
     else:
         update.message.reply_text('This commands only for service station manager')
