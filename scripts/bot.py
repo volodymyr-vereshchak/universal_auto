@@ -284,7 +284,7 @@ def status_car(update, context):
                                         reply_markup=ReplyKeyboardMarkup(buttons, one_time_keyboard=True))
     else:
         update.message.reply_text('This command only for driver')
-        return 0
+        return ConversationHandler.END
     return STATUS
 
 
