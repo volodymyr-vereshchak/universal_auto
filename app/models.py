@@ -400,7 +400,7 @@ class Driver(User):
             driver = Driver.objects.get(chat_id=chat_id)
             return driver
         except Driver.DoesNotExist:
-            pass
+            return None
 
 
 
@@ -431,6 +431,17 @@ class DriverManager(User):
     driver_id = models.ManyToManyField(Driver,  blank=True)
     role = models.CharField(max_length=50, choices=User.Role.choices, default=User.Role.DRIVER_MANAGER)
 
+    def __str__(self):
+        return f'{self.name} {self.second_name}'
+
+    @staticmethod
+    def get_by_chat_id(chat_id):
+        try:
+            driver_manager = DriverManager.objects.get(chat_id=chat_id)
+            return driver_manager
+        except DriverManager.DoesNotExist:
+            return None
+
 
 class ServiceStationManager(User):
     car_id = models.ManyToManyField('Vehicle', blank=True)
@@ -453,7 +464,7 @@ class ServiceStationManager(User):
             manager = ServiceStationManager.objects.get(chat_id=chat_id)
             return manager
         except ServiceStationManager.DoesNotExist:
-            pass
+            return None
 
 
 class SupportManager(User):
@@ -510,7 +521,7 @@ class Vehicle(models.Model):
     vin_code = models.CharField(max_length=17)
     gps_imei = models.CharField(max_length=100, default='')
     car_status = models.CharField(max_length=18, null=False, default="Serviceable")
-    driver = models.ForeignKey(Driver, null=True, on_delete=models.RESTRICT)
+    #driver = models.ForeignKey(Driver, null=True, on_delete=models.RESTRICT)
     created_at = models.DateTimeField(editable=False, auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     deleted_at = models.DateTimeField(null=True, blank=True)

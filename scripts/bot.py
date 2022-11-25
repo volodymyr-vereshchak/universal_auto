@@ -385,9 +385,10 @@ def send_report_to_db_and_driver(update, context):
                     start_of_repair=context.user_data[START_OF_REPAIR],
                     end_of_repair=context.user_data[END_OF_REPAIR])
     order.save()
-    vehicle = Vehicle.get_by_numberplate(context.user_data[NUMBERPLATE])
-    chat_id_driver = vehicle.driver.chat_id
-    context.bot.send_message(chat_id=chat_id_driver, text=f'Your car {context.user_data[NUMBERPLATE]} renovated')
+    update.message.reply_text('Your report saved to database')
+    #vehicle = Vehicle.get_by_numberplate(context.user_data[NUMBERPLATE])
+    #chat_id_driver = vehicle.driver.chat_id
+    #context.bot.send_message(chat_id=chat_id_driver, text=f'Your car {context.user_data[NUMBERPLATE]} renovated')
     return ConversationHandler.END
 
 
