@@ -54,3 +54,18 @@ def test_field_length(test_uber_payments_order):
     assert len(test_uber_payments_order.report_file_name) <= 255
     assert len(test_uber_payments_order.first_name) <= 24
     assert len(test_uber_payments_order.last_name) <= 24
+
+
+def test_type(test_uber_payments_order):
+    assert isinstance(test_uber_payments_order.report_from, str)
+    assert isinstance(test_uber_payments_order.report_to, str)
+    assert isinstance(test_uber_payments_order.report_file_name, str)
+    assert isinstance(test_uber_payments_order.driver_uuid, str)
+    assert isinstance(test_uber_payments_order.first_name, str)
+    assert isinstance(test_uber_payments_order.last_name, str)
+    assert isinstance(test_uber_payments_order.total_amount, float)
+    assert isinstance(test_uber_payments_order.total_clean_amout, float)
+    assert isinstance(test_uber_payments_order.total_amount_cach, float)
+    assert isinstance(test_uber_payments_order.transfered_to_bank, float)
+    assert isinstance(test_uber_payments_order.returns, float)
+    assert isinstance(test_uber_payments_order.tips, float)

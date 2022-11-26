@@ -119,6 +119,7 @@ class UklonPaymentsOrder(models.Model, metaclass=GenericPaymentsOrder):
     def kassa(self):
         return float(self.total_amount) * 0.81
 
+
 class NewUklonPaymentsOrder(models.Model, metaclass=GenericPaymentsOrder):
     report_from = models.DateTimeField()
     report_to = models.DateTimeField()
@@ -126,12 +127,12 @@ class NewUklonPaymentsOrder(models.Model, metaclass=GenericPaymentsOrder):
     full_name = models.CharField(max_length=255) # "Водій"
     signal = models.CharField(max_length=8) # "Позивний"
     total_rides = models.PositiveIntegerField() # "Кількість поїздок"
-    total_distance =  models.DecimalField(decimal_places=2, max_digits=10) # "Пробіг під замовленнями, км"
+    total_distance = models.DecimalField(decimal_places=2, max_digits=10) # "Пробіг під замовленнями, км"
     total_amount_cach = models.DecimalField(decimal_places=2, max_digits=10) # "Готівкою, грн"
     total_amount_cach_less = models.DecimalField(decimal_places=2, max_digits=10) # "На гаманець, грн"
     total_amount_on_card = models.DecimalField(decimal_places=2, max_digits=10)   # "На картку, грн"
     total_amount = models.DecimalField(decimal_places=2, max_digits=10) # "Всього, грн"
-    tips =  models.DecimalField(decimal_places=2, max_digits=10) # "Чайові, грн"
+    tips = models.DecimalField(decimal_places=2, max_digits=10) # "Чайові, грн"
     bonuses = models.DecimalField(decimal_places=2, max_digits=10) # "Бонуси, грн"
     fares = models.DecimalField(decimal_places=2, max_digits=10) # "Штрафи, грн"
     comission  = models.DecimalField(decimal_places=2, max_digits=10) # "Комісія Уклон, грн"
@@ -399,7 +400,7 @@ class Driver(User):
             driver = Driver.objects.get(chat_id=chat_id)
             return driver
         except Driver.DoesNotExist:
-            pass
+            return None
 
 
 
@@ -430,6 +431,17 @@ class DriverManager(User):
     driver_id = models.ManyToManyField(Driver,  blank=True)
     role = models.CharField(max_length=50, choices=User.Role.choices, default=User.Role.DRIVER_MANAGER)
 
+    def __str__(self):
+        return f'{self.name} {self.second_name}'
+
+    @staticmethod
+    def get_by_chat_id(chat_id):
+        try:
+            driver_manager = DriverManager.objects.get(chat_id=chat_id)
+            return driver_manager
+        except DriverManager.DoesNotExist:
+            return None
+
 
 class ServiceStationManager(User):
     car_id = models.ManyToManyField('Vehicle', blank=True)
@@ -452,7 +464,7 @@ class ServiceStationManager(User):
             manager = ServiceStationManager.objects.get(chat_id=chat_id)
             return manager
         except ServiceStationManager.DoesNotExist:
-            pass
+            return None
 
 
 class SupportManager(User):
@@ -475,6 +487,12 @@ class BoltFleet(Fleet):
 
     def download_daily_report(self, day=None, driver=True, sleep=5, headless=True):
         """the same method as weekly report. it gets daily report if day is non None"""
+        if day == pendulum.now().start_of('day'):
+            return None  # do if you need to get today report
+        period = pendulum.now() - day
+        if period.in_days() > 30:
+            return None  # do if you need to get report elder then 30 days
+
         return Bolt.download_weekly_report(day=day, driver=driver, sleep=sleep, headless=headless)
 
 
@@ -503,7 +521,7 @@ class Vehicle(models.Model):
     vin_code = models.CharField(max_length=17)
     gps_imei = models.CharField(max_length=100, default='')
     car_status = models.CharField(max_length=18, null=False, default="Serviceable")
-    driver = models.ForeignKey(Driver, on_delete=models.RESTRICT)
+    #driver = models.ForeignKey(Driver, null=True, on_delete=models.RESTRICT)
     created_at = models.DateTimeField(editable=False, auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     deleted_at = models.DateTimeField(null=True, blank=True)
@@ -1168,7 +1186,12 @@ class Bolt(SeleniumTools):
 
     def download_payments_order(self):
         if self.day:
-            self.driver.get(f"{self.base_url}/company/58225/reports/dayly/{self.day.format('DD%2eMM%2eYYYY')}")
+            self.driver.get(f"{self.base_url}/company/58225/reports/dayly/")
+            if self.sleep:
+                time.sleep(self.sleep)
+            xpath = f'//table/tbody/tr/td[text()="{self.file_patern()}"]'
+            element_date = self.driver.find_element(By.XPATH, xpath)
+            element_date.find_element(By.XPATH, "./../td/a").click()
         else:
             self.driver.get(f"{self.base_url}/company/58225/reports/weekly/{self.file_patern()}")
     
@@ -1196,22 +1219,22 @@ class Bolt(SeleniumTools):
                     report_from=self.start_report_interval(),
                     report_to=self.end_report_interval(),
                     report_file_name=file.name,
-                    driver_full_name=row[0],
+                    driver_full_name=row[0][:24],
                     mobile_number=row[1],
                     range_string=row[2],
-                    total_amount=row[3],
-                    cancels_amount=row[4],
-                    autorization_payment=row[5],
-                    autorization_deduction=row[6],
-                    additional_fee=row[7],
-                    fee=row[8],
-                    total_amount_cach=row[9],
-                    discount_cash_trips=row[10],
-                    driver_bonus=row[11],
-                    compensation=row[12] or 0,
-                    refunds=row[13],
-                    tips=row[14],
-                    weekly_balance=row[15])
+                    total_amount=float(row[3].replace(',', '.')),
+                    cancels_amount=float(row[4].replace(',', '.')),
+                    autorization_payment=float(row[5].replace(',', '.')),
+                    autorization_deduction=float(row[6].replace(',', '.')),
+                    additional_fee=float(row[7].replace(',', '.')),
+                    fee=float(row[8].replace(',', '.')),
+                    total_amount_cach=float(row[9].replace(',', '.')),
+                    discount_cash_trips=float(row[10].replace(',', '.')),
+                    driver_bonus=float(row[11].replace(',', '.')),
+                    compensation=float(str(row[12] or 0).replace(',', '.')),
+                    refunds=float(row[13].replace(',', '.')),
+                    tips=float(row[14].replace(',', '.')),
+                    weekly_balance=float(row[15].replace(',', '.')))
                 order.save()
                 items.append(order)
         return items
@@ -1509,4 +1532,5 @@ def download_and_save_daily_report(driver=True, sleep=5, headless=True, day=None
     fleets = Fleet.objects.filter(deleted_at=None)
     for fleet in fleets:
         fleet.download_daily_report(day=day, driver=driver, sleep=sleep, headless=headless)
+
 

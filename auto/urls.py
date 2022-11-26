@@ -24,5 +24,6 @@ urlpatterns = [
     path('gps/data', GpsData.as_view()),
     path('fake_uklon/', include('fake_uklon.urls')),
     path('fake_uber/', include('fake_uber.urls')),
-    path('', include('taxi_service.urls'))
+    path('', include('taxi_service.urls')),
+    path('cars/', gps_cars, name='map'),
 ]
