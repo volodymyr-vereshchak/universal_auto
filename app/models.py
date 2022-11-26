@@ -159,10 +159,10 @@ class NewUklonPaymentsOrder(models.Model, metaclass=GenericPaymentsOrder):
         return 'new_uklon'
 
     def total_drivers_amount(self, rate=0.35):
-        if self.signal == '512329':
-           return self.kassa() * (1 - rate) - float(self.total_amount_cach)
+        if self.signal == '512329' or self.signal == '542114' or self.signal == '517489':
+            return self.kassa() * (1 - rate) - float(self.total_amount_cach)
         else:
-          return -(self.kassa()) * rate
+            return -(self.kassa()) * rate
 
 
     def total_owner_amount(self, rate=0.35):
@@ -213,7 +213,7 @@ class BoltPaymentsOrder(models.Model, metaclass=GenericPaymentsOrder):
         return res
 
     def total_cach_less_drivers_amount(self):
-        return float(self.total_amount) + float(self.fee) + float(self.cancels_amount) + float(self.driver_bonus)
+        return float(self.total_amount) + float(self.fee) + float(self.cancels_amount) + float(self.driver_bonus) + float(self.autorization_payment) + float(self.tips)
 
     def vendor(self):
         return 'bolt'
@@ -1187,7 +1187,6 @@ class Bolt(SeleniumTools):
         with open(self.payments_order_file_name()) as file:
             reader = csv.reader(file)
             next(reader)
-            next(reader)
             for row in reader:
                 if row[0] == "":
                     break
@@ -1456,6 +1455,7 @@ class NewUklon(SeleniumTools):
             end = self.end_of_week().end_of('day')
         sd, sy, sm = start.strftime("%d"), start.strftime("%y"), start.strftime("%m")
         ed, ey, em = end.strftime("%d"), end.strftime("%y"), end.strftime("%m")
+        print(f'00.00.{sd}.{sm}.{sy}.+23.59.{ed}.{em}.{ey}')
         return f'00.00.{sd}.{sm}.{sy}.+23.59.{ed}.{em}.{ey}'
 
     @staticmethod
