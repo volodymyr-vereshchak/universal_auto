@@ -1,5 +1,6 @@
 from app.models import UberPaymentsOrder, BoltPaymentsOrder, UklonPaymentsOrder, SeleniumTools
 
+
 class DriversRatingMixin:
 
     def get_rating(self, start=None, end=None):
@@ -20,7 +21,7 @@ class DriversRatingMixin:
         for x in r:
             for period in x['rating']:
                 for detail in period['rating']:
-                    f=1
+                    f = 1
         return [{'fleet': item.fleet_name, 'rating': item.get_rating()} for item in fleets]
 
 

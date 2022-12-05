@@ -14,7 +14,7 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
 logger = logging.getLogger(__name__)
 # UDP_IP = os.environ['UDP_IP']
 # UDP_PORT = 44300
-TCP_IP = os.environ['UDP_IP']
+TCP_IP = '0.0.0.0'
 TCP_PORT = 44300
 
 
