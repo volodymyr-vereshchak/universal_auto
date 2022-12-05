@@ -1024,7 +1024,7 @@ class Uber(SeleniumTools):
         try:
             in_progress_text = '//div[1][@data-testid="payment-reporting-table-row"]/div/div/div/div[text()[contains(.,"In progress")]]'
             WebDriverWait(self.driver, 10).until(EC.presence_of_element_located((By.XPATH, in_progress_text)))
-            WebDriverWait(self.driver, 300).until_not(EC.presence_of_element_located((By.XPATH, in_progress_text)))
+            WebDriverWait(self.driver, 600).until_not(EC.presence_of_element_located((By.XPATH, in_progress_text)))
             WebDriverWait(self.driver, 10).until(EC.presence_of_element_located((By.XPATH, download_button)))
         except Exception as e:
             self.logger.error(str(e))
@@ -1398,9 +1398,9 @@ class NewUklon(SeleniumTools):
         if self.sleep:
             time.sleep(self.sleep)
 
-        self.driver.find_element(By.XPATH, '//upf-order-report-list-filters/form/mat-form-field[1]').click()
+        self.driver.find_element(By.XPATH, '//upf-order-reports/section/flt-filter-group/form/flt-group-filter/flt-date-range-filter/mat-form-field/div/div').click()
         self.driver.get_screenshot_as_file(f'new_uklon6.png')
-        self.driver.find_element(By.XPATH, '//mat-option/span[text()=" Минулий тиждень "]').click()
+        self.driver.find_element(By.XPATH, '//flt-date-range-option/mat-option/span[text()=" Минулий тиждень "]').click()
         self.driver.get_screenshot_as_file(f'new_uklon7.png')
         self.driver.find_element(By.XPATH, '//span[text()="Експорт CSV"]').click()
         self.driver.get_screenshot_as_file(f'new_uklon8.png')

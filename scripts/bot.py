@@ -462,7 +462,7 @@ def main():
     dp.add_handler(CommandHandler('update', update_db, run_async=True))
     dp.add_handler(CommandHandler("status", status))
     dp.add_handler(CommandHandler("save_reports", save_reports))
-    #dp.add_handler(MessageHandler(Filters.text, code))
+    dp.add_handler(MessageHandler(Filters.text, code))
     dp.add_handler(MessageHandler(Filters.text('Get all today statistic'), get_manager_today_report))
     dp.add_handler(MessageHandler(Filters.text('Get today statistic'), get_driver_today_report))
     dp.add_handler(MessageHandler(Filters.text('Choice week number'), get_driver_week_report))
