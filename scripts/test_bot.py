@@ -45,7 +45,19 @@ class TestBot(unittest.TestCase):
         self.assertIsNotNone('/status_car')
 
     def test_send_report(self):
-        self.self.assertTrue('/send_report')
+        self.assertTrue('/send_report')
 
     def test_send_report_2(self):
         self.assertIsNotNone('/send_report')
+
+    def test_broken_car(self):
+        self.assertTrue('/broken_car')
+
+    def test_broken_car_2(self):
+        self.assertIsNotNone('/broken_car')
+
+    def test_get_information(self):
+        self.assertTrue('/get_information')
+
+    def test_get_information_2(self):
+        self.assertIsNotNone('/get_information')

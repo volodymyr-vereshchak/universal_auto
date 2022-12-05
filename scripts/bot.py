@@ -258,20 +258,6 @@ def get_help(update, context) -> str:
     after all you can update your report, or pull statistic for choice''')
 
 
-def status(update, context):
-    chat_id = update.message.chat.id
-    driver = Driver.get_by_chat_id(chat_id)
-    driver_manager = DriverManager.get_by_chat_id(chat_id)
-    if (driver or driver_manager) is not None:
-        buttons = [[KeyboardButton('Free')], [KeyboardButton('With client')], [KeyboardButton('Waiting for a client')], [KeyboardButton('Offline')]]
-
-        context.bot.send_message(chat_id=update.effective_chat.id, text='Choice your status',
-                                 reply_markup=ReplyKeyboardMarkup(buttons, one_time_keyboard=True))
-    else:
-        update.message.reply_text('This command only for driver and driver manager')
-        return 0
-
-
 STATUS, LICENCE_PLACE = range(2)
 
 
@@ -320,6 +306,20 @@ def cancel_status_car(update: Update, context: CallbackContext):
     """
     update.message.reply_text('Cancel. To start from scratch press /status_car')
     return ConversationHandler.END
+
+
+def status(update, context):
+    chat_id = update.message.chat.id
+    driver = Driver.get_by_chat_id(chat_id)
+    driver_manager = DriverManager.get_by_chat_id(chat_id)
+    if (driver or driver_manager) is not None:
+        buttons = [[KeyboardButton('Free')], [KeyboardButton('With client')], [KeyboardButton('Waiting for a client')], [KeyboardButton('Offline')]]
+
+        context.bot.send_message(chat_id=update.effective_chat.id, text='Choice your status',
+                                 reply_markup=ReplyKeyboardMarkup(buttons, one_time_keyboard=True))
+    else:
+        update.message.reply_text('This command only for driver and driver manager')
+        return 0
 
 
 def get_status_driver_and_change(update, context):
@@ -409,6 +409,43 @@ def cancel_send_report(update, context):
     return ConversationHandler.END
 
 
+def broken_car(update, context):
+    chat_id = update.message.chat.id
+    driver_manager = DriverManager.get_by_chat_id(chat_id)
+    if driver_manager is not None:
+        vehicle = Vehicle.objects.filter(car_status='Broken')
+        report = ''
+        result = [f'{i.licence_plate}' for i in vehicle]
+        if len(result) == 0:
+            update.message.reply_text("No broken cars")
+        else:
+            for i in result:
+                report += f'{i}\n'
+            update.message.reply_text(f'{report}')
+    else:
+        update.message.reply_text('This commands only for service station manager')
+
+
+def get_information(update, context):
+    chat_id = update.message.chat.id
+    driver_manager = DriverManager.get_by_chat_id(chat_id)
+    driver = Driver.get_by_chat_id(chat_id)
+    manager = ServiceStationManager.get_by_chat_id(chat_id)
+    if driver is not None:
+        report = '/status - changing status of driver\n' \
+                 '/status_car -changing status of car'
+        update.message.reply_text(f'{report}')
+    elif driver_manager is not None:
+        report = '/broken_car - showing all broken car\n' \
+                 '/status - showing status  of drivers\n'
+        update.message.reply_text(f'{report}')
+    elif manager is not None:
+        report = '/send_report - sending report of repair\n'
+        update.message.reply_text(f'{report}')
+    else:
+        update.message.reply_text('There is no information on commands for your role yet')
+
+
 def main():
     updater = Updater(os.environ['TELEGRAM_TOKEN'], use_context=True)
     dp = updater.dispatcher
@@ -463,6 +500,8 @@ def main():
     dp.add_handler(CommandHandler("status", status))
     dp.add_handler(CommandHandler("save_reports", save_reports))
     #dp.add_handler(MessageHandler(Filters.text, code))
+    dp.add_handler(CommandHandler("broken_car", broken_car))
+    dp.add_handler(CommandHandler("get_information", get_information))
     dp.add_handler(MessageHandler(Filters.text('Get all today statistic'), get_manager_today_report))
     dp.add_handler(MessageHandler(Filters.text('Get today statistic'), get_driver_today_report))
     dp.add_handler(MessageHandler(Filters.text('Choice week number'), get_driver_week_report))
