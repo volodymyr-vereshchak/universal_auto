@@ -152,14 +152,17 @@ def get_stat_for_manager(update, context) -> list:
         reply_markup=ReplyKeyboardMarkup(buttons))
 
 
-def drivers_rating(context):
+def drivers_rating(update, context):
     text = 'Drivers Rating\n\n'
     for fleet in DriversRatingMixin().get_rating():
         text += fleet['fleet'] + '\n'
         for period in fleet['rating']:
             text += f"{period['start']:%d.%m.%Y} - {period['end']:%d.%m.%Y}" + '\n'
-            text += '\n'.join([f"{item['num']} {item['driver']} {item['trips'] if item['trips']>0 else ''}" for item in period['rating']]) + '\n\n'
-
+            if period['rating']:
+                text += '\n'.join([f"{item['num']} {item['driver']} {item['amount']:15.2f} - {item['trips'] if item['trips']>0 else ''}" for item in period['rating']]) + '\n\n'
+            else:
+                text += 'Receiving data...Please try later\n'
+    update.message.reply_text(text)
 
 def get_number(update, context):
     chat_id = update.message.chat.id
@@ -462,7 +465,8 @@ def main():
     dp.add_handler(CommandHandler('update', update_db, run_async=True))
     dp.add_handler(CommandHandler("status", status))
     dp.add_handler(CommandHandler("save_reports", save_reports))
-    #dp.add_handler(MessageHandler(Filters.text, code))
+    dp.add_handler(CommandHandler("rating", drivers_rating))
+    dp.add_handler(MessageHandler(Filters.text, code))
     dp.add_handler(MessageHandler(Filters.text('Get all today statistic'), get_manager_today_report))
     dp.add_handler(MessageHandler(Filters.text('Get today statistic'), get_driver_today_report))
     dp.add_handler(MessageHandler(Filters.text('Choice week number'), get_driver_week_report))
@@ -474,7 +478,7 @@ def main():
     dp.add_handler(MessageHandler(Filters.contact, get_number))
     dp.add_error_handler(error_handler)
     updater.job_queue.run_daily(drivers_rating, time=datetime.time(6, 0, 0), days=(0,))
-    updater.job_queue.run_repeating(drivers_rating, interval=120, first=1)
+    # updater.job_queue.run_repeating(drivers_rating, interval=120, first=1)
     updater.start_polling()
     updater.idle()
 
