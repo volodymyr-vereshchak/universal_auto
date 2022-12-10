@@ -10,6 +10,11 @@ from polymorphic.models import PolymorphicModel
 
 
 class PaymentsOrder(models.Model):
+
+    class Meta:
+        verbose_name = 'Payments order'
+        verbose_name_plural = 'Payments order'
+
     transaction_uuid = models.UUIDField()
     driver_uuid = models.UUIDField()
     driver_name = models.CharField(max_length=30)
@@ -80,6 +85,10 @@ class GenericPaymentsOrder(ModelBase):
 
 class UklonPaymentsOrder(models.Model, metaclass=GenericPaymentsOrder):
 
+    class Meta:
+        verbose_name = 'Payments order: Uklon'
+        verbose_name_plural = 'Payments order: Uklon'
+
     report_from = models.DateTimeField()
     report_to = models.DateTimeField()
     report_file_name = models.CharField(max_length=255)
@@ -124,6 +133,11 @@ class UklonPaymentsOrder(models.Model, metaclass=GenericPaymentsOrder):
 
 
 class NewUklonPaymentsOrder(models.Model, metaclass=GenericPaymentsOrder):
+
+    class Meta:
+        verbose_name = 'Payments order: NewUklon'
+        verbose_name_plural = 'Payments order: NewUklon'
+
     report_from = models.DateTimeField()
     report_to = models.DateTimeField()
     report_file_name = models.CharField(max_length=255)
@@ -180,6 +194,11 @@ class NewUklonPaymentsOrder(models.Model, metaclass=GenericPaymentsOrder):
 
 
 class BoltPaymentsOrder(models.Model, metaclass=GenericPaymentsOrder):
+
+    class Meta:
+        verbose_name = 'Payments order: Bolt'
+        verbose_name_plural = 'Payments order: Bolt'
+
     report_from = models.DateTimeField()
     report_to = models.DateTimeField()
     report_file_name = models.CharField(max_length=255)
@@ -236,6 +255,11 @@ class BoltPaymentsOrder(models.Model, metaclass=GenericPaymentsOrder):
 
 
 class UberPaymentsOrder(models.Model, metaclass=GenericPaymentsOrder):
+
+    class Meta:
+        verbose_name = 'Payments order: Uber'
+        verbose_name_plural = 'Payments order: Uber'
+
     report_from = models.DateTimeField()
     report_to = models.DateTimeField()
     report_file_name = models.CharField(max_length=255)
@@ -347,6 +371,8 @@ class User(models.Model):
         
 class Driver(User):
     fleet = models.OneToOneField('Fleet', blank=True, null=True, on_delete=models.SET_NULL)
+    #driver_manager_id: ManyToManyField already exists in DriverManager
+    #we have to delete this
     driver_manager_id = models.ManyToManyField('DriverManager', blank=True)
     #partner = models.ManyToManyField('Partner', blank=True)
     role = models.CharField(max_length=50, choices=User.Role.choices, default=User.Role.DRIVER)
@@ -429,6 +455,8 @@ class Fleet(PolymorphicModel):
 
 
 class Client(User):
+    #support_manager_id: ManyToManyField already exists in SupportManager
+    #we have to delete this
     support_manager_id = models.ManyToManyField('SupportManager',  blank=True)
     role = models.CharField(max_length=50, choices=User.Role.choices, default=User.Role.CLIENT)
 
@@ -440,7 +468,7 @@ class Client(User):
 
 
 class DriverManager(User):
-    driver_id = models.ManyToManyField(Driver,  blank=True)
+    driver_id = models.ManyToManyField(Driver,  blank=True, verbose_name = 'Driver')
     role = models.CharField(max_length=50, choices=User.Role.choices, default=User.Role.DRIVER_MANAGER)
 
     def __str__(self):
@@ -462,7 +490,7 @@ class ServiceStationManager(User):
     service_station = models.OneToOneField('ServiceStation', on_delete=models.RESTRICT)
 
     def __str__(self):
-        return f'{self.service_station.name}'
+        return self.full_name()
 
 
     @staticmethod
@@ -561,7 +589,7 @@ class Fleets_drivers_vehicles_rate(models.Model):
     deleted_at = models.DateTimeField(null=True, blank=True)
 
     def __str__(self) -> str:
-        return f'{self.driver.name} {self.fleet.name} {int(self.rate * 100)}%'
+        return ''
 
 
 class DriverRateLevels(models.Model):
@@ -574,6 +602,11 @@ class DriverRateLevels(models.Model):
 
 
 class RawGPS(models.Model):
+
+    class Meta:
+        verbose_name = 'GPS Raw'
+        verbose_name_plural = 'GPS Raw'
+
     imei = models.CharField(max_length=100)
     client_ip = models.CharField(max_length=100)
     client_port = models.IntegerField()
@@ -597,6 +630,11 @@ class GPS(PolymorphicModel):
 
 
 class VehicleGPS(GPS):
+
+    class Meta:
+        verbose_name = 'GPS Vehicle'
+        verbose_name_plural = 'GPS Vehicle'
+
     vehicle = models.ForeignKey(Vehicle, on_delete=models.CASCADE)
     raw_data = models.OneToOneField(RawGPS, null=True, on_delete=models.CASCADE)
 
@@ -1097,12 +1135,11 @@ class Uber(SeleniumTools):
             # in_progress_text = '//div[1][@data-testid="payment-reporting-table-row"]/div/div/div/div[text()[contains(.,"In progress")]]'
             in_progress_text = '//i[@class="_css-bvkFtm"]'
             WebDriverWait(self.driver, 10).until(EC.presence_of_element_located((By.XPATH, in_progress_text)))
-            WebDriverWait(self.driver, 300).until_not(EC.presence_of_element_located((By.XPATH, in_progress_text)))
+            WebDriverWait(self.driver, 600).until_not(EC.presence_of_element_located((By.XPATH, in_progress_text)))
             expected_element = WebDriverWait(self.driver, 10).until(EC.presence_of_element_located((By.XPATH, download_button)))
-            if self.sleep:
-                time.sleep(self.sleep)
             WebDriverWait(self.driver, 60).until(EC.element_to_be_clickable((By.XPATH, download_button))).click()
             expected_element.click()
+
         except Exception as e:
             self.logger.error(str(e))
             pass 

@@ -17,6 +17,7 @@ sc = i.scheduled()
 ac = i.active()
 
 
+
 class DriversRatingMixin:
 
     def get_rating(self, start=None, end=None):
@@ -29,6 +30,7 @@ class DriversRatingMixin:
         # st = SeleniumTools(session='', week_number='2022-09-19')
 
         fleets = [fleet(start, end) for fleet in GenericDriversRating.get_fleets()]
+
 
         return [{'fleet': item.fleet_name, 'rating': item.get_rating()} for item in fleets]
 
