@@ -12,3 +12,4 @@ pytest-django==4.5.2
 django-polymorphic
 celery
 folium
+python-gettext
