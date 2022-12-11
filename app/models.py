@@ -370,6 +370,11 @@ class User(models.Model):
         
         
 class Driver(User):
+    ACTIVE = 'Готовий прийняти заказ'
+    WITH_CLIENT = 'В дорозі'
+    WAIT_FOR_CLIENT = 'Очікую клієнта'
+    OFFLINE = 'Не працюю'
+   
     fleet = models.OneToOneField('Fleet', blank=True, null=True, on_delete=models.SET_NULL)
     #driver_manager_id: ManyToManyField already exists in DriverManager
     #we have to delete this
@@ -561,7 +566,7 @@ class Vehicle(models.Model):
     vin_code = models.CharField(max_length=17)
     gps_imei = models.CharField(max_length=100, default='')
     car_status = models.CharField(max_length=18, null=False, default="Serviceable")
-    #driver = models.ForeignKey(Driver, null=True, on_delete=models.RESTRICT)
+    driver = models.ForeignKey(Driver, null=True, on_delete=models.RESTRICT)
     created_at = models.DateTimeField(editable=False, auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     deleted_at = models.DateTimeField(null=True, blank=True)
