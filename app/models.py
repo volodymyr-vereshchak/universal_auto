@@ -1471,7 +1471,7 @@ class NewUklon(SeleniumTools):
         if self.sleep:
             time.sleep(self.sleep)
         items = []
-        print(self.file_patern())
+        self.logger.info(self.file_patern())
         report = open(self.report_file_name(self.file_patern()))
 
         with report as file:
