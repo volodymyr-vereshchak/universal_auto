@@ -7,6 +7,7 @@ from django.db import models, IntegrityError
 from django.db.models import Sum, QuerySet
 from django.db.models.base import ModelBase
 from polymorphic.models import PolymorphicModel
+from selenium.common import TimeoutException
 
 
 class PaymentsOrder(models.Model):
@@ -977,11 +978,13 @@ class SeleniumTools():
             "download.prompt_for_download": False,
             "download.directory_upgrade": True,
             "safebrowsing_for_trusted_sources_enabled": False,
-            "safebrowsing.enabled": False
         })
         options.add_argument("--disable-infobars")
         options.add_argument("--enable-file-cookies")
         options.add_argument('--disable-blink-features=AutomationControlled')
+        options.add_argument('--allow-profiles-outside-user-dir')
+        options.add_argument('--enable-profile-shortcut-manager')
+        options.add_argument(f'user-data-dir={os.getcwd()}\\_ChromeUser_{self.__class__.__name__}')
 
         if headless:
             options.add_argument('--headless')
@@ -1460,11 +1463,53 @@ class Bolt(SeleniumTools):
             b.download_payments_order()
         return b.save_report()
 
-    def status(self):
-        pass
+    def get_driver_status_from_map(self, search_text):
+        raw_data = []
+        xpath = f'//div[contains(@class, "map-overlay")]//div[text()[contains(.,"{search_text}")]]'
+        WebDriverWait(self.driver, self.sleep).until(EC.presence_of_element_located((By.XPATH, xpath))).click()
+        i = 0
+        while True:
+            i += 1
+            try:
+                xpath = f'//div[contains(@class, "map-overlay")]/div/div/div[@role="button"][{i}]/div/div/div[1]/span/span'
+                driver_name = WebDriverWait(self.driver, self.sleep).until(EC.presence_of_element_located((By.XPATH, xpath))).text
+                xpath = f'//div[contains(@class, "map-overlay")]/div/div/div[@role="button"][{i}]/div/div/div[2]/span/span'
+                driver_car = WebDriverWait(self.driver, self.sleep).until(EC.presence_of_element_located((By.XPATH, xpath))).text
+            except TimeoutException:
+                break
+            name_list = [x for x in driver_name.split(' ') if len(x) > 0]
+            name, second_name, car = '', '', ''
+            try:
+                name, second_name, car = name_list[0], name_list[1], driver_car.split(' ')[0]
+            except IndexError:
+                pass
+            raw_data.append((name, second_name))
+        return raw_data
+
+    def get_driver_status(self):
+        try:
+            xpath = f'//div[contains(@class, "map-overlay")]'
+            WebDriverWait(self.driver, self.sleep).until(EC.presence_of_element_located((By.XPATH, xpath)))
+            # self.driver.get_screenshot_as_file('bolt_map_ok.png')
+        except TimeoutException:
+            try:
+                self.driver.get(f"{self.base_url}/v2/58225/liveMap")
+                # time.sleep(self.sleep)
+                # self.driver.get_screenshot_as_file('bolt_map_reloaded.png')
+                xpath = f'//div[contains(@class, "map-overlay")]'
+                WebDriverWait(self.driver, self.sleep).until(EC.presence_of_element_located((By.XPATH, xpath)))
+            except (TimeoutException, FileNotFoundError):
+                self.login()
+                # self.driver.get_screenshot_as_file('bolt_map_login.png')
+                self.driver.get(f"{self.base_url}/v2/58225/liveMap")
+        return {
+            'online': self.get_driver_status_from_map('Онлайн'),
+            'width_client': self.get_driver_status_from_map('У поїздці'),
+            'wait': self.get_driver_status_from_map('Очікування')
+        }
 
 
-class Uklon(SeleniumTools):    
+class Uklon(SeleniumTools):
     def __init__(self, week_number=None, day=None, driver=True, sleep=3, headless=False, base_url="https://partner.uklon.com.ua"):
         super().__init__('uklon', week_number=week_number, day=day)
         self.sleep = sleep

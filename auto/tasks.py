@@ -3,8 +3,10 @@ from datetime import datetime
 
 from django.conf import settings
 
-from app.models import RawGPS, Vehicle, VehicleGPS, Fleet
+from app.models import RawGPS, Vehicle, VehicleGPS, Fleet, Bolt, Driver
 from auto.celery import app
+
+BOLT_CHROME_DRIVER = Bolt(driver=True, sleep=3, headless=True)
 
 
 @app.task
@@ -49,3 +51,32 @@ def download_weekly_report(fleet_name, missing_weeks):
     for fleet in fleets:
         for week_number in weeks:
             fleet.download_weekly_report(week_number=week_number, driver=True, sleep=5, headless=True)
+
+
+@app.task
+def update_driver_status():
+    bolt_status = BOLT_CHROME_DRIVER.get_driver_status()
+    print(f'Bolt {bolt_status}')
+    drivers = Driver.objects.filter(deleted_at=None)
+
+    for driver in drivers:
+
+        current_status = Driver.OFFLINE
+        if (driver.name, driver.second_name) in bolt_status['online']:
+            current_status = Driver.ACTIVE
+        if (driver.name, driver.second_name) in bolt_status['width_client']:
+            current_status = Driver.WITH_CLIENT
+        if (driver.name, driver.second_name) in bolt_status['wait']:
+            current_status = Driver.ACTIVE
+
+        driver.driver_status = current_status
+
+        try:
+            driver.save(update_fields=['driver_status'])
+        except Exception:
+            pass
+
+
+@app.on_after_finalize.connect
+def setup_periodic_tasks(sender, **kwargs):
+    sender.add_periodic_task(60.0, update_driver_status.s())
