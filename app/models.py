@@ -7,7 +7,7 @@ from django.db import models, IntegrityError
 from django.db.models import Sum, QuerySet
 from django.db.models.base import ModelBase
 from polymorphic.models import PolymorphicModel
-from selenium.common import TimeoutException
+from selenium.common import TimeoutException, WebDriverException
 
 
 class PaymentsOrder(models.Model):
@@ -1465,8 +1465,11 @@ class Bolt(SeleniumTools):
 
     def get_driver_status_from_map(self, search_text):
         raw_data = []
-        xpath = f'//div[contains(@class, "map-overlay")]//div[text()[contains(.,"{search_text}")]]'
-        WebDriverWait(self.driver, self.sleep).until(EC.presence_of_element_located((By.XPATH, xpath))).click()
+        try:
+            xpath = f'//div[contains(@class, "map-overlay")]//div[text()[contains(.,"{search_text}")]]'
+            WebDriverWait(self.driver, self.sleep).until(EC.presence_of_element_located((By.XPATH, xpath))).click()
+        except TimeoutException:
+            return raw_data
         i = 0
         while True:
             i += 1
@@ -1488,25 +1491,28 @@ class Bolt(SeleniumTools):
 
     def get_driver_status(self):
         try:
-            xpath = f'//div[contains(@class, "map-overlay")]'
-            WebDriverWait(self.driver, self.sleep).until(EC.presence_of_element_located((By.XPATH, xpath)))
-            # self.driver.get_screenshot_as_file('bolt_map_ok.png')
-        except TimeoutException:
             try:
-                self.driver.get(f"{self.base_url}/v2/58225/liveMap")
-                # time.sleep(self.sleep)
-                # self.driver.get_screenshot_as_file('bolt_map_reloaded.png')
                 xpath = f'//div[contains(@class, "map-overlay")]'
                 WebDriverWait(self.driver, self.sleep).until(EC.presence_of_element_located((By.XPATH, xpath)))
-            except (TimeoutException, FileNotFoundError):
-                self.login()
-                # self.driver.get_screenshot_as_file('bolt_map_login.png')
-                self.driver.get(f"{self.base_url}/v2/58225/liveMap")
-        return {
-            'online': self.get_driver_status_from_map('Онлайн'),
-            'width_client': self.get_driver_status_from_map('У поїздці'),
-            'wait': self.get_driver_status_from_map('Очікування')
-        }
+                # self.driver.get_screenshot_as_file('bolt_map_ok.png')
+            except TimeoutException:
+                try:
+                    self.driver.get(f"{self.base_url}/v2/58225/liveMap")
+                    # time.sleep(self.sleep)
+                    # self.driver.get_screenshot_as_file('bolt_map_reloaded.png')
+                    xpath = f'//div[contains(@class, "map-overlay")]'
+                    WebDriverWait(self.driver, self.sleep).until(EC.presence_of_element_located((By.XPATH, xpath)))
+                except (TimeoutException, FileNotFoundError):
+                    self.login()
+                    # self.driver.get_screenshot_as_file('bolt_map_login.png')
+                    self.driver.get(f"{self.base_url}/v2/58225/liveMap")
+            return {
+                'online': self.get_driver_status_from_map('Онлайн'),
+                'width_client': self.get_driver_status_from_map('У поїздці'),
+                'wait': self.get_driver_status_from_map('Очікування')
+            }
+        except WebDriverException as err:
+            print(err.msg)
 
 
 class Uklon(SeleniumTools):

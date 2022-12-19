@@ -56,25 +56,26 @@ def download_weekly_report(fleet_name, missing_weeks):
 @app.task
 def update_driver_status():
     bolt_status = BOLT_CHROME_DRIVER.get_driver_status()
-    print(f'Bolt {bolt_status}')
-    drivers = Driver.objects.filter(deleted_at=None)
+    if bolt_status is not None:
+        print(f'Bolt {bolt_status}')
+        drivers = Driver.objects.filter(deleted_at=None)
 
-    for driver in drivers:
+        for driver in drivers:
 
-        current_status = Driver.OFFLINE
-        if (driver.name, driver.second_name) in bolt_status['online']:
-            current_status = Driver.ACTIVE
-        if (driver.name, driver.second_name) in bolt_status['width_client']:
-            current_status = Driver.WITH_CLIENT
-        if (driver.name, driver.second_name) in bolt_status['wait']:
-            current_status = Driver.ACTIVE
+            current_status = Driver.OFFLINE
+            if (driver.name, driver.second_name) in bolt_status['online']:
+                current_status = Driver.ACTIVE
+            if (driver.name, driver.second_name) in bolt_status['width_client']:
+                current_status = Driver.WITH_CLIENT
+            if (driver.name, driver.second_name) in bolt_status['wait']:
+                current_status = Driver.ACTIVE
 
-        driver.driver_status = current_status
+            driver.driver_status = current_status
 
-        try:
-            driver.save(update_fields=['driver_status'])
-        except Exception:
-            pass
+            try:
+                driver.save(update_fields=['driver_status'])
+            except Exception:
+                pass
 
 
 @app.on_after_finalize.connect
