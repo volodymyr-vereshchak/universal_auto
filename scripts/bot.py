@@ -18,6 +18,7 @@ from . import bolt, uklon, uber
 from scripts.driversrating import DriversRatingMixin
 import traceback
 import hashlib
+from django.db import IntegrityError
 
 PORT = int(os.environ.get('PORT', '8443'))
 DEVELOPER_CHAT_ID = 803129892
@@ -501,10 +502,7 @@ def main():
     dp.add_handler(MessageHandler(Filters.text('Choice week number'), get_driver_week_report))
     dp.add_handler(MessageHandler(Filters.text('Update report'), get_update_report))
     
-    
-    
-    updater.job_queue.run_daily(drivers_rating, time=datetime.time(6, 0, 0), days=(0,))
-    # updater.job_queue.run_repeating(drivers_rating, interval=120, first=1)
+        
     updater.start_polling()
     updater.idle()
 

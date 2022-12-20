@@ -1003,6 +1003,7 @@ class SeleniumTools():
         return {}
 
     def create_driver(self, **kwargs):
+        return
         try:
             fleet = Fleet.objects.get(name=kwargs['fleet_name'])
         except Driver.DoesNotExist:
@@ -1560,9 +1561,17 @@ class Uklon(SeleniumTools):
         return items
 
     def get_driver_dict(self, **kwargs):
+        name_list = [x for x in  kwargs['driver_full_name'].split(' ') if len(x) > 0]
+        name = ''
+        second_name = ''
+        try:
+            name = name_list[0]
+            second_name = name_list[1]
+        except IndexError:
+            pass
         return {
-            'name': kwargs['driver_full_name'],
-            'second_name': '',
+            'name': name,
+            'second_name': second_name,
             'phone_number': kwargs['mobile_number'],
         }
 
@@ -1794,9 +1803,17 @@ class NewUklon(SeleniumTools):
         return items
 
     def get_driver_dict(self, **kwargs):
+        name_list = [x for x in  kwargs['driver_full_name'].split(' ') if len(x) > 0]
+        name = ''
+        second_name = ''
+        try:
+            name = name_list[1]
+            second_name = name_list[0]
+        except IndexError:
+            pass
         return {
-            'name': kwargs['driver_full_name'],
-            'second_name': '',
+            'name': name,
+            'second_name': second_name,
             'phone_number': kwargs['mobile_number'],
         }
 
