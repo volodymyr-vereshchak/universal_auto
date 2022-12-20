@@ -56,6 +56,7 @@ def download_weekly_report(fleet_name, missing_weeks):
 
 @app.task
 def update_driver_status():
+
     bolt_status = BOLT_CHROME_DRIVER.get_driver_status()
     print(f'Bolt {bolt_status}')
     uklon_status = UKLON_CHROME_DRIVER.get_driver_status()
