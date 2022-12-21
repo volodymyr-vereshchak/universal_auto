@@ -1364,10 +1364,8 @@ class NewUklon(SeleniumTools):
             time.sleep(self.sleep)
         self.driver.get_screenshot_as_file(f'new_uklon1.png')
         element = self.driver.find_element(By.ID,'login')
-        element.send_keys('')
-        for c in os.environ["UKLON_NAME"]:
-            element.send_keys(c)
-            time.sleep(0.1)
+        element.send_keys(os.environ["UKLON_NAME"])
+        time.sleep(0.1)
 
         self.driver.get_screenshot_as_file(f'new_uklon2.png')
 
@@ -1388,7 +1386,7 @@ class NewUklon(SeleniumTools):
         if self.sleep:
             time.sleep(self.sleep)
 
-        self.driver.find_element(By.XPATH, '//upf-order-report-list-filters/form/mat-form-field[1]').click()
+        self.driver.find_element(By.XPATH, '//upf-order-reports/section[1]/flt-filter-group/form/flt-group-filter[1]/flt-date-range-filter/mat-form-field/div').click()
         self.driver.get_screenshot_as_file(f'new_uklon6.png')
         self.driver.find_element(By.XPATH, '//mat-option/span[text()=" Минулий тиждень "]').click()
         self.driver.get_screenshot_as_file(f'new_uklon7.png')
@@ -1404,7 +1402,7 @@ class NewUklon(SeleniumTools):
         self.driver.get(url)
         if self.sleep:
             time.sleep(self.sleep)
-        self.driver.find_element(By.XPATH, '//upf-order-report-list-filters/form/mat-form-field[1]').click()
+        self.driver.find_element(By.XPATH, '//upf-order-reports/section[1]/flt-filter-group/form/flt-group-filter[1]/flt-date-range-filter/mat-form-field/div').click()
         self.driver.find_element(By.XPATH, '//mat-option/span/div[text()=" Вибрати період "]').click()
         e = self.driver.find_element(By.XPATH, '//input')
         e.send_keys(self.day.format("YYYY.MM.DD") + Keys.TAB + self.day.format("YYYY.MM.DD"))
@@ -1418,6 +1416,10 @@ class NewUklon(SeleniumTools):
         if self.sleep:
             time.sleep(self.sleep)
         items = []
+
+        file = self.report_file_name('01.70.csv')
+        os.rename(file, f'Звіт по поїздкам - {self.file_patern()}.csv')
+
         print(self.file_patern())
         report = open(self.report_file_name(self.file_patern()))
 
@@ -1468,7 +1470,7 @@ class NewUklon(SeleniumTools):
             end = self.end_of_week().end_of('day')
         sd, sy, sm = start.strftime("%d"), start.strftime("%y"), start.strftime("%m")
         ed, ey, em = end.strftime("%d"), end.strftime("%y"), end.strftime("%m")
-        return f'00.00.{sd}.{sm}.{sy}.+23.59.{ed}.{em}.{ey}'
+        return f'00.00.{sd}.{sm}.{sy} - 23.59.{ed}.{em}.{ey}'
 
     @staticmethod
     def download_weekly_report(week_number=None, driver=True, sleep=5, headless=True):
