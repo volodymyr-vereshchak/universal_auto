@@ -8,6 +8,7 @@ import redis
 import re
 import html
 import json
+import time
 import logging
 import traceback
 from telegram import * 
@@ -17,6 +18,7 @@ from . import bolt, uklon, uber
 from scripts.driversrating import DriversRatingMixin
 import traceback
 import hashlib
+from django.db import IntegrityError
 
 PORT = int(os.environ.get('PORT', '8443'))
 DEVELOPER_CHAT_ID = 803129892
@@ -27,6 +29,102 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
 logger = logging.getLogger(__name__)
 
 processed_files = []
+
+def start(update, context):
+    update.message.reply_text('Привіт! Тебе вітає Універсальне таксі - викликай кнопкою нижче.')
+    chat_id = update.message.chat.id
+    user = User.get_by_chat_id(chat_id)
+    keyboard = [KeyboardButton(text="Надати номер телефону", request_contact=True),
+                KeyboardButton(text="Викликати Таксі", request_location=True)]
+    if user:
+        user.chat_id = chat_id
+        user.save()
+        if user.phone_number:
+           keyboard = [keyboard[1]]
+        reply_markup = ReplyKeyboardMarkup(
+          keyboard=[keyboard],
+          resize_keyboard=True,
+        )
+    else:
+        User.objects.create(chat_id=chat_id)
+        reply_markup = ReplyKeyboardMarkup(
+          keyboard=[keyboard],
+          resize_keyboard=True,
+        )
+    update.message.reply_text("Будьласка розшарьте номер телефону та геолокацію для виклику таксі", reply_markup=reply_markup,)
+
+def update_phone_number(update, context):
+    chat_id = update.message.chat.id
+    user = User.get_by_chat_id(chat_id)
+    phone_number = update.message.contact.phone_number
+    if (phone_number and user):
+        user.phone_number = phone_number
+        user.chat_id = chat_id 
+        user.save()
+        update.message.reply_text('Дякуємо ми отримали ваш номер телефону для звязку з водієм')
+
+def report(update, context):
+    update.message.reply_text("Enter you Uber OTP code from SMS:")
+    update.message.reply_text(get_report())
+
+def code(update: Update, context: CallbackContext):
+    r = redis.Redis.from_url(os.environ["REDIS_URL"])
+    r.publish('code', update.message.text)
+    update.message.reply_text('Generating a report...')
+    context.bot.send_chat_action(chat_id=update.effective_message.chat_id, action=ChatAction.TYPING)
+
+def status(update, context):
+    chat_id = update.message.chat.id
+    driver = Driver.get_by_chat_id(chat_id)
+    if True:
+        buttons = [ [KeyboardButton(Driver.ACTIVE)], 
+                    [KeyboardButton(Driver.WITH_CLIENT)], 
+                    [KeyboardButton(Driver.WAIT_FOR_CLIENT)], 
+                    [KeyboardButton(Driver.OFFLINE)]
+                ]
+
+        context.bot.send_message(chat_id=update.effective_chat.id, text='Вибери статус',
+                                 reply_markup=ReplyKeyboardMarkup(buttons, one_time_keyboard=True))
+    else:
+        update.message.reply_text('Ви не в списку водіїв автопарку')
+        return 0
+
+def location(update: Update, context: CallbackContext):
+    if update.edited_message:
+        m = update.edited_message
+    else:
+        m = update.message
+    m = context.bot.sendLocation(update.effective_chat.id,latitude=m.location.latitude, longitude=m.location.longitude, live_period=600);
+    
+    
+    for i in range(1, 10):
+        try:
+          logger.error(i)
+          m = context.bot.editMessageLiveLocation(m.chat_id, m.message_id, latitude=i*10, longitude=i*10)
+          print(m)
+        except Exception as e:
+          logger.error(msg=e.message)
+          logger.error(i)
+        time.sleep(5)
+
+def set_status(update, context):
+    status = update.message.text
+    chat_id = update.message.chat.id
+    driver = Driver.get_by_chat_id(chat_id)
+    if driver is not None:
+        driver.driver_status = status
+        driver.save()
+        update.message.reply_text(f'Твій статус: <b>{status}</b>', reply_markup=ReplyKeyboardRemove(), parse_mode=ParseMode.HTML)
+    else:
+        update.message.reply_text(f'Зареєструся як водій', reply_markup=ReplyKeyboardRemove())
+
+
+
+def help(update, context) -> str:
+    update.message.reply_text('''For first step make registration by, or autorizate by /start command, if already registered.
+    after all you can update your report, or pull statistic for choice''')
+
+
 
 
 def update_db(update, context):
@@ -62,23 +160,6 @@ def update_db(update, context):
         update.message.reply_text('Database updated')
 
 
-def code(update: Update, context: CallbackContext):
-    r = redis.Redis.from_url(os.environ["REDIS_URL"])
-    r.publish('code', update.message.text)
-    update.message.reply_text('Generating a report...')
-    context.bot.send_chat_action(chat_id=update.effective_message.chat_id, action=ChatAction.TYPING)
-    # chat_id = update.message.chat.id
-    # user = User.get_by_chat_id(chat_id)
-    # if user.email == "null":
-    #     regex = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'
-    #     email = update.message.text
-    #     if re.fullmatch(regex, email):
-    #         user.email = email
-    #         user.save()
-    #     else:
-    #         update.message.reply_text('Your email is incorrect, please write again')
-    # else:
-    #     aut_handler(update, context)
 
 
 def save_reports(update, context):
@@ -118,7 +199,7 @@ def get_owner_today_report(update, context) -> str:
 
 
 def get_driver_today_report(update, context) -> str:
-    driver_first_name = Users.objects.filter(user_id = {update.message.chat.id})
+    driver_first_name = User.objects.filter(user_id = {update.message.chat.id})
     driver_ident = PaymentsOrder.objects.filter(driver_uuid='')
     if user.type == 0:
         data = PaymentsOrder.objects.filter(transaction_time = date.today(), driver_uuid = {driver_ident} )
@@ -152,23 +233,17 @@ def get_stat_for_manager(update, context) -> list:
         reply_markup=ReplyKeyboardMarkup(buttons))
 
 
-def drivers_rating(context):
+def drivers_rating(update, context):
     text = 'Drivers Rating\n\n'
     for fleet in DriversRatingMixin().get_rating():
         text += fleet['fleet'] + '\n'
         for period in fleet['rating']:
             text += f"{period['start']:%d.%m.%Y} - {period['end']:%d.%m.%Y}" + '\n'
-            text += '\n'.join([f"{item['num']} {item['driver']} {item['trips'] if item['trips']>0 else ''}" for item in period['rating']]) + '\n\n'
-
-
-def get_number(update, context):
-    chat_id = update.message.chat.id
-    user = User.get_by_chat_id(chat_id)
-    if not user:
-        phone_number = update.message.contact.phone_number
-        custom_user = User(email="null", phone_number=phone_number, chat_id=chat_id)
-        custom_user.save()
-        update.message.reply_text("Enter your email:")
+            if period['rating']:
+                text += '\n'.join([f"{item['num']} {item['driver']} {item['amount']:15.2f} - {item['trips'] if item['trips']>0 else ''}" for item in period['rating']]) + '\n\n'
+            else:
+                text += 'Receiving data...Please try later\n'
+    update.message.reply_text(text)
 
 
 def aut_handler(update, context) -> list:
@@ -180,17 +255,15 @@ def aut_handler(update, context) -> list:
         elif user.type == 1:
             get_stat_for_manager(update, context)
         else:
-            get_number()
+            update_phone_number()
 
 
 def get_update_report(update, context):
     user = User.get_by_chat_id(chat_id)
     if user in uklon_drivers_list:
-        update.message.reply_text("Enter you Uklon OTP code from SMS:")
         uklon.run()
         aut_handler(update, context)
     elif username in bolt_drivers_list:
-        update.message.reply_text("Enter you Bolt OTP code from SMS:")
         bolt.run()
         aut_handler(update, context)
     elif username in uber_drivers_list:
@@ -199,79 +272,20 @@ def get_update_report(update, context):
         aut_handler(update, context)
 
 
-def location(update: Update, context: CallbackContext):
-    user = update.effective_user
-    msg_type = 0
-    current_pos = (update.message.location.latitude, update.message.location.longitude)
-    # phone_number = update.message.contact.phone_number
-    context.bot.send_message(user.id, current_pos)
-    # context.bot.send_message(user.id, phone_number)
-    if update.edited_message:
-        message = update.edited_message
-    else:
-        message = update.message
-
-    if message["edit_date"] is not None:
-        msg_type += 1
-    if message["location"]["live_period"] is not None:
-        msg_type += 1 << 1
-
-    if msg_type == 0:
-        context.bot.send_message(user.id, "Single (non-live) location update.")
-    elif msg_type == 1:
-        context.bot.send_message(user.id, "End of live period.")
-    elif msg_type == 2:
-        context.bot.send_message(user.id, "Start of live period")
-    elif msg_type == 3:
-        context.bot.send_message(user.id, "Live location update.")
-
-
-def location1(update,context):
-    location(update, context)
-
-
-def start(update, context):
-    update.message.reply_text('Hi!')
-    chat_id = update.message.chat.id
-    user = User.get_by_chat_id(chat_id)
-    reply_markup = ReplyKeyboardMarkup(
-        keyboard=[
-            [KeyboardButton(text="Give phone number", request_contact=True),
-             ],
-        ],
-        resize_keyboard=True,
-    )
-    if user:
-        update.message.reply_text("You are already started bot")
-        aut_handler(update, context)
-    else:
-        update.message.reply_text("Please give your number to start bot", reply_markup=reply_markup, )
-
-
-def report(update, context):
-    update.message.reply_text("Enter you Uber OTP code from SMS:")
-    update.message.reply_text(get_report())
-
-
-def get_help(update, context) -> str:
-    update.message.reply_text('''For first step make registration by, or autorizate by /start command, if already registered.
-    after all you can update your report, or pull statistic for choice''')
-
-
-def status(update, context):
-    buttons = [[KeyboardButton('Free')], [KeyboardButton('With client')], [KeyboardButton('Waiting for a client')], [KeyboardButton('Offline')]]
-
-    context.bot.send_message(chat_id=update.effective_chat.id, text='Choice your status',
-                             reply_markup=ReplyKeyboardMarkup(buttons, one_time_keyboard=True))
-
 
 STATUS, LICENCE_PLACE = range(2)
 
 
 def status_car(update, context):
-    buttons = [[KeyboardButton('Serviceable')], [KeyboardButton('Broken')]]
-    context.bot.send_message(chat_id=update.effective_chat.id, text='Choice your status of car',
-                             reply_markup=ReplyKeyboardMarkup(buttons, one_time_keyboard=True))
+    chat_id = update.message.chat.id
+    driver = Driver.get_by_chat_id(chat_id)
+    if driver is not None:
+        buttons = [[KeyboardButton('Serviceable')], [KeyboardButton('Broken')]]
+        context.bot.send_message(chat_id=update.effective_chat.id, text='Choice your status of car',
+                                        reply_markup=ReplyKeyboardMarkup(buttons, one_time_keyboard=True))
+    else:
+        update.message.reply_text('This command only for driver')
+        return ConversationHandler.END
     return STATUS
 
 
@@ -291,12 +305,11 @@ def change_status_car(update, context):
     numberplates = [i.licence_plate for i in queryset]
     if number_car in numberplates:
         driver = Driver.get_by_chat_id(chat_id)
-        if driver.role == 'DRIVER':
-            vehicle = Vehicle.get_by_numberplate(number_car)
-            vehicle.car_status = status_car
-            vehicle.save()
-            numberplates.clear()
-            update.message.reply_text('Your status of car has been changed')
+        vehicle = Vehicle.get_by_numberplate(number_car)
+        vehicle.car_status = status_car
+        vehicle.save()
+        numberplates.clear()
+        update.message.reply_text('Your status of car has been changed')
     else:
         update.message.reply_text('This number is not in the database or incorrect data was sent. Contact the manager or repeat the command')
 
@@ -310,25 +323,6 @@ def cancel_status_car(update: Update, context: CallbackContext):
     return ConversationHandler.END
 
 
-def get_status_driver_and_change(update, context):
-    status = update.message.text
-    chat_id = update.message.chat.id
-    driver = Driver.get_by_chat_id(chat_id)
-    if driver.role == 'DRIVER':
-        driver.driver_status = status
-        driver.save()
-        update.message.reply_text('Your status has been changed', reply_markup=ReplyKeyboardRemove())
-    else:
-        driver = Driver.objects.filter(driver_status=status)
-        report = ''
-        result = [f'{i.name} {i.second_name}: {i.fleet}' for i in driver]
-        if len(result) == 0:
-            update.message.reply_text('There are currently no drivers with this status', reply_markup=ReplyKeyboardRemove())
-        else:
-            for i in result:
-                report += f'{i}\n'
-        update.message.reply_text(f'{report}', reply_markup=ReplyKeyboardRemove())
-
 
 NUMBERPLATE, PHOTO, START_OF_REPAIR, END_OF_REPAIR = range(4)
 
@@ -336,7 +330,7 @@ NUMBERPLATE, PHOTO, START_OF_REPAIR, END_OF_REPAIR = range(4)
 def numberplate_car(update, context):
     chat_id = update.message.chat.id
     manager = ServiceStationManager.get_by_chat_id(chat_id)
-    if manager.role == 'SERVICE_STATION_MANAGER':
+    if manager is not None:
         update.message.reply_text('Please enter numberplate car ')
     else:
         update.message.reply_text('This commands only for service station manager')
@@ -385,15 +379,53 @@ def send_report_to_db_and_driver(update, context):
                     start_of_repair=context.user_data[START_OF_REPAIR],
                     end_of_repair=context.user_data[END_OF_REPAIR])
     order.save()
-    vehicle = Vehicle.get_by_numberplate(context.user_data[NUMBERPLATE])
-    chat_id_driver = vehicle.driver.chat_id
-    context.bot.send_message(chat_id=chat_id_driver, text=f'Your car {context.user_data[NUMBERPLATE]} renovated')
+    update.message.reply_text('Your report saved to database')
+    #vehicle = Vehicle.get_by_numberplate(context.user_data[NUMBERPLATE])
+    #chat_id_driver = vehicle.driver.chat_id
+    #context.bot.send_message(chat_id=chat_id_driver, text=f'Your car {context.user_data[NUMBERPLATE]} renovated')
     return ConversationHandler.END
 
 
 def cancel_send_report(update, context):
     update.message.reply_text('/cancel. To start from scratch press /send_report')
     return ConversationHandler.END
+
+
+def broken_car(update, context):
+    chat_id = update.message.chat.id
+    driver_manager = DriverManager.get_by_chat_id(chat_id)
+    if driver_manager is not None:
+        vehicle = Vehicle.objects.filter(car_status='Broken')
+        report = ''
+        result = [f'{i.licence_plate}' for i in vehicle]
+        if len(result) == 0:
+            update.message.reply_text("No broken cars")
+        else:
+            for i in result:
+                report += f'{i}\n'
+            update.message.reply_text(f'{report}')
+    else:
+        update.message.reply_text('This commands only for service station manager')
+
+
+def get_information(update, context):
+    chat_id = update.message.chat.id
+    driver_manager = DriverManager.get_by_chat_id(chat_id)
+    driver = Driver.get_by_chat_id(chat_id)
+    manager = ServiceStationManager.get_by_chat_id(chat_id)
+    if driver is not None:
+        report = '/status - changing status of driver\n' \
+                 '/status_car -changing status of car'
+        update.message.reply_text(f'{report}')
+    elif driver_manager is not None:
+        report = '/broken_car - showing all broken car\n' \
+                 '/status - showing status  of drivers\n'
+        update.message.reply_text(f'{report}')
+    elif manager is not None:
+        report = '/send_report - sending report of repair\n'
+        update.message.reply_text(f'{report}')
+    else:
+        update.message.reply_text('There is no information on commands for your role yet')
 
 
 def main():
@@ -441,27 +473,36 @@ def main():
         ],
     )
 
-    dp.add_handler(conv_handler)
-    dp.add_handler(conv_handler_1)
-    dp.add_handler(CommandHandler("help", get_help))
+    dp.add_handler(CommandHandler("help",   help))
     dp.add_handler(CommandHandler("start",  start))
     dp.add_handler(CommandHandler("report", report, run_async=True))
-    dp.add_handler(CommandHandler('update', update_db, run_async=True))
     dp.add_handler(CommandHandler("status", status))
+    dp.add_handler(MessageHandler(
+          Filters.text(Driver.ACTIVE) |
+          Filters.text(Driver.WITH_CLIENT) |
+          Filters.text(Driver.WAIT_FOR_CLIENT) |
+          Filters.text(Driver.OFFLINE),
+          set_status
+        )
+    )
+    dp.add_handler(MessageHandler(Filters.contact, update_phone_number))
+    dp.add_handler(MessageHandler(Filters.location, location, run_async=True))
+    
+    dp.add_handler(MessageHandler(Filters.regex(r'^\d{4}$'), code))
+    dp.add_error_handler(error_handler)
+
+
+    dp.add_handler(CommandHandler('update', update_db, run_async=True))
     dp.add_handler(CommandHandler("save_reports", save_reports))
-    #dp.add_handler(MessageHandler(Filters.text, code))
+    dp.add_handler(CommandHandler("rating", drivers_rating))
+    dp.add_handler(CommandHandler("broken_car", broken_car))
+    dp.add_handler(CommandHandler("get_information", get_information))
     dp.add_handler(MessageHandler(Filters.text('Get all today statistic'), get_manager_today_report))
     dp.add_handler(MessageHandler(Filters.text('Get today statistic'), get_driver_today_report))
     dp.add_handler(MessageHandler(Filters.text('Choice week number'), get_driver_week_report))
     dp.add_handler(MessageHandler(Filters.text('Update report'), get_update_report))
-    dp.add_handler(MessageHandler(Filters.text('Free'), get_status_driver_and_change))
-    dp.add_handler(MessageHandler(Filters.text('With client'), get_status_driver_and_change))
-    dp.add_handler(MessageHandler(Filters.text('Waiting for a client'), get_status_driver_and_change))
-    dp.add_handler(MessageHandler(Filters.text('Offline'), get_status_driver_and_change))
-    dp.add_handler(MessageHandler(Filters.contact, get_number))
-    dp.add_error_handler(error_handler)
-    updater.job_queue.run_daily(drivers_rating, time=datetime.time(6, 0, 0), days=(0,))
-    updater.job_queue.run_repeating(drivers_rating, interval=120, first=1)
+    
+        
     updater.start_polling()
     updater.idle()
 

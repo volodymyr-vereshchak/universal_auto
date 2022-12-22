@@ -1,4 +1,9 @@
-from app.models import RawGPS, Vehicle, VehicleGPS
+import zoneinfo
+from datetime import datetime
+
+from django.conf import settings
+
+from app.models import RawGPS, Vehicle, VehicleGPS, Fleet
 from auto.celery import app
 
 
@@ -13,9 +18,9 @@ def raw_gps_handler(id):
         vehicle = Vehicle.objects.get(gps_imei=raw.imei)
     except Vehicle.DoesNotExist:
         return f'{Vehicle.DoesNotExist}: gps_imei={raw.imei}'
-    from datetime import datetime
     try:
         date_time = datetime.strptime(data[0] + data[1], '%d%m%y%H%M%S')
+        date_time = date_time.replace(tzinfo=zoneinfo.ZoneInfo(settings.TIME_ZONE))
     except ValueError as err:
         return f'{ValueError} {err}'
     try:
@@ -35,3 +40,12 @@ def raw_gps_handler(id):
         return f'{ValueError} {err}'
     obj = VehicleGPS.objects.create(**kwa)
     return True
+
+
+@app.task
+def download_weekly_report(fleet_name, missing_weeks):
+    weeks = missing_weeks.split(';')
+    fleets = Fleet.objects.filter(name=fleet_name, deleted_at=None)
+    for fleet in fleets:
+        for week_number in weeks:
+            fleet.download_weekly_report(week_number=week_number, driver=True, sleep=5, headless=True)

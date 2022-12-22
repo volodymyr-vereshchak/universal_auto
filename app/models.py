@@ -3,13 +3,18 @@ import datetime
 import glob
 import os
 import sys
-from django.db import models
+from django.db import models, IntegrityError
 from django.db.models import Sum, QuerySet
 from django.db.models.base import ModelBase
 from polymorphic.models import PolymorphicModel
 
 
 class PaymentsOrder(models.Model):
+
+    class Meta:
+        verbose_name = 'Payments order'
+        verbose_name_plural = 'Payments order'
+
     transaction_uuid = models.UUIDField()
     driver_uuid = models.UUIDField()
     driver_name = models.CharField(max_length=30)
@@ -80,6 +85,10 @@ class GenericPaymentsOrder(ModelBase):
 
 class UklonPaymentsOrder(models.Model, metaclass=GenericPaymentsOrder):
 
+    class Meta:
+        verbose_name = 'Payments order: Uklon'
+        verbose_name_plural = 'Payments order: Uklon'
+
     report_from = models.DateTimeField()
     report_to = models.DateTimeField()
     report_file_name = models.CharField(max_length=255)
@@ -101,6 +110,9 @@ class UklonPaymentsOrder(models.Model, metaclass=GenericPaymentsOrder):
         def filter_by_driver_external_id(self, driver_external_id):
             return self.filter(signal=driver_external_id)
 
+    class Meta:
+        unique_together = (('report_from', 'report_to', 'licence_plate', 'signal'))
+
     def driver_id(self):
         return self.signal
 
@@ -121,6 +133,11 @@ class UklonPaymentsOrder(models.Model, metaclass=GenericPaymentsOrder):
 
 
 class NewUklonPaymentsOrder(models.Model, metaclass=GenericPaymentsOrder):
+
+    class Meta:
+        verbose_name = 'Payments order: NewUklon'
+        verbose_name_plural = 'Payments order: NewUklon'
+
     report_from = models.DateTimeField()
     report_to = models.DateTimeField()
     report_file_name = models.CharField(max_length=255)
@@ -147,6 +164,9 @@ class NewUklonPaymentsOrder(models.Model, metaclass=GenericPaymentsOrder):
         def filter_by_driver_external_id(self, driver_external_id):
             return self.filter(signal=driver_external_id)
 
+    class Meta:
+        unique_together = (('report_from', 'report_to', 'full_name', 'signal'))
+
     def driver_id(self):
         return self.signal
 
@@ -160,20 +180,25 @@ class NewUklonPaymentsOrder(models.Model, metaclass=GenericPaymentsOrder):
         return 'new_uklon'
 
     def total_drivers_amount(self, rate=0.35):
-        if self.signal == '512329':
-           return self.kassa() * (1 - rate) - float(self.total_amount_cach)
+        if self.signal == '512329' or self.signal == '542114' or self.signal == '517489':
+            return self.kassa() * (1 - rate) - float(self.total_amount_cach)
         else:
-          return -(self.kassa()) * rate
+            return -(self.kassa()) * rate
 
 
     def total_owner_amount(self, rate=0.35):
         return -self.total_drivers_amount(rate)
 
     def kassa(self, fleet_rate=0.81):
-        return float(self.total_amount) * fleet_rate + self.tips + self.bonuses
+        return float(self.total_amount) * fleet_rate + float(self.tips) + float(self.bonuses)
 
 
 class BoltPaymentsOrder(models.Model, metaclass=GenericPaymentsOrder):
+
+    class Meta:
+        verbose_name = 'Payments order: Bolt'
+        verbose_name_plural = 'Payments order: Bolt'
+
     report_from = models.DateTimeField()
     report_to = models.DateTimeField()
     report_file_name = models.CharField(max_length=255)
@@ -202,6 +227,9 @@ class BoltPaymentsOrder(models.Model, metaclass=GenericPaymentsOrder):
         def filter_by_driver_external_id(self, driver_external_id):
             return self.filter(mobile_number=driver_external_id)
 
+    class Meta:
+        unique_together = (('report_from', 'report_to', 'driver_full_name', 'mobile_number'))
+
     def driver_id(self):
         return self.mobile_number
 
@@ -214,7 +242,7 @@ class BoltPaymentsOrder(models.Model, metaclass=GenericPaymentsOrder):
         return res
 
     def total_cach_less_drivers_amount(self):
-        return float(self.total_amount) + float(self.fee) + float(self.cancels_amount) + float(self.driver_bonus)
+        return float(self.total_amount) + float(self.fee) + float(self.cancels_amount) + float(self.driver_bonus) + float(self.autorization_payment) + float(self.tips)
 
     def vendor(self):
         return 'bolt'
@@ -227,6 +255,11 @@ class BoltPaymentsOrder(models.Model, metaclass=GenericPaymentsOrder):
 
 
 class UberPaymentsOrder(models.Model, metaclass=GenericPaymentsOrder):
+
+    class Meta:
+        verbose_name = 'Payments order: Uber'
+        verbose_name_plural = 'Payments order: Uber'
+
     report_from = models.DateTimeField()
     report_to = models.DateTimeField()
     report_file_name = models.CharField(max_length=255)
@@ -247,6 +280,9 @@ class UberPaymentsOrder(models.Model, metaclass=GenericPaymentsOrder):
     class Scopes:
         def filter_by_driver_external_id(self, driver_external_id):
             return self.filter(driver_uuid=driver_external_id)
+
+    class Meta:
+        unique_together = (('report_from', 'report_to', 'driver_uuid'))
 
     def driver_id(self):
         return self.driver_uuid
@@ -334,7 +370,14 @@ class User(models.Model):
         
         
 class Driver(User):
+    ACTIVE = 'Готовий прийняти заказ'
+    WITH_CLIENT = 'В дорозі'
+    WAIT_FOR_CLIENT = 'Очікую клієнта'
+    OFFLINE = 'Не працюю'
+   
     fleet = models.OneToOneField('Fleet', blank=True, null=True, on_delete=models.SET_NULL)
+    #driver_manager_id: ManyToManyField already exists in DriverManager
+    #we have to delete this
     driver_manager_id = models.ManyToManyField('DriverManager', blank=True)
     #partner = models.ManyToManyField('Partner', blank=True)
     role = models.CharField(max_length=50, choices=User.Role.choices, default=User.Role.DRIVER)
@@ -400,7 +443,7 @@ class Driver(User):
             driver = Driver.objects.get(chat_id=chat_id)
             return driver
         except Driver.DoesNotExist:
-            pass
+            return None
 
 
 
@@ -417,6 +460,8 @@ class Fleet(PolymorphicModel):
 
 
 class Client(User):
+    #support_manager_id: ManyToManyField already exists in SupportManager
+    #we have to delete this
     support_manager_id = models.ManyToManyField('SupportManager',  blank=True)
     role = models.CharField(max_length=50, choices=User.Role.choices, default=User.Role.CLIENT)
 
@@ -428,8 +473,19 @@ class Client(User):
 
 
 class DriverManager(User):
-    driver_id = models.ManyToManyField(Driver,  blank=True)
+    driver_id = models.ManyToManyField(Driver,  blank=True, verbose_name = 'Driver')
     role = models.CharField(max_length=50, choices=User.Role.choices, default=User.Role.DRIVER_MANAGER)
+
+    def __str__(self):
+        return f'{self.name} {self.second_name}'
+
+    @staticmethod
+    def get_by_chat_id(chat_id):
+        try:
+            driver_manager = DriverManager.objects.get(chat_id=chat_id)
+            return driver_manager
+        except DriverManager.DoesNotExist:
+            return None
 
 
 class ServiceStationManager(User):
@@ -439,7 +495,7 @@ class ServiceStationManager(User):
     service_station = models.OneToOneField('ServiceStation', on_delete=models.RESTRICT)
 
     def __str__(self):
-        return f'{self.service_station.name}'
+        return self.full_name()
 
 
     @staticmethod
@@ -453,7 +509,7 @@ class ServiceStationManager(User):
             manager = ServiceStationManager.objects.get(chat_id=chat_id)
             return manager
         except ServiceStationManager.DoesNotExist:
-            pass
+            return None
 
 
 class SupportManager(User):
@@ -538,7 +594,7 @@ class Fleets_drivers_vehicles_rate(models.Model):
     deleted_at = models.DateTimeField(null=True, blank=True)
 
     def __str__(self) -> str:
-        return f'{self.driver.name} {self.fleet.name} {int(self.rate * 100)}%'
+        return ''
 
 
 class DriverRateLevels(models.Model):
@@ -551,6 +607,11 @@ class DriverRateLevels(models.Model):
 
 
 class RawGPS(models.Model):
+
+    class Meta:
+        verbose_name = 'GPS Raw'
+        verbose_name_plural = 'GPS Raw'
+
     imei = models.CharField(max_length=100)
     client_ip = models.CharField(max_length=100)
     client_port = models.IntegerField()
@@ -574,6 +635,11 @@ class GPS(PolymorphicModel):
 
 
 class VehicleGPS(GPS):
+
+    class Meta:
+        verbose_name = 'GPS Vehicle'
+        verbose_name_plural = 'GPS Vehicle'
+
     vehicle = models.ForeignKey(Vehicle, on_delete=models.CASCADE)
     raw_data = models.OneToOneField(RawGPS, null=True, on_delete=models.CASCADE)
 
@@ -933,6 +999,53 @@ class SeleniumTools():
         driver = webdriver.Chrome(options=options, port=9514)
         return driver
 
+    def get_driver_dict(self, **kwargs):
+        return {}
+
+    def create_driver(self, **kwargs):
+        return
+        try:
+            fleet = Fleet.objects.get(name=kwargs['fleet_name'])
+        except Driver.DoesNotExist:
+            return
+        drivers = Fleets_drivers_vehicles_rate.objects.filter(fleet=fleet, driver_external_id=kwargs['driver_external_id'])
+        if len(drivers) == 0:
+            dct = self.get_driver_dict(**kwargs)
+            fleets_drivers_vehicles_rate = Fleets_drivers_vehicles_rate.objects.create(
+                fleet=fleet,
+                driver=self._get_or_create_driver(**dct),
+                vehicle=self._get_or_create_vehicle(**kwargs),
+                driver_external_id=kwargs['driver_external_id'],
+            )
+            fleets_drivers_vehicles_rate.save()
+
+    def _get_or_create_vehicle(self, **kwargs):
+        licence_plate = kwargs['licence_plate']
+        if len(licence_plate) == 0:
+            licence_plate = 'Unknown car'
+        try:
+            vehicle = Vehicle.objects.get(licence_plate=licence_plate)
+        except Vehicle.MultipleObjectsReturned:
+            vehicle = Vehicle.objects.filter(licence_plate=licence_plate)[0]
+        except Vehicle.DoesNotExist:
+            vehicle = Vehicle.objects.create(name=licence_plate, model='',  type='', licence_plate=licence_plate, vin_code='')
+            vehicle.save()
+        return vehicle
+
+    def _get_or_create_driver(self, **kwargs):
+        try:
+            driver = Driver.objects.get(name=kwargs['name'], second_name=kwargs['second_name'])
+        except Driver.MultipleObjectsReturned:
+            driver = Driver.objects.filter(name=kwargs['name'], second_name=kwargs['second_name'])[0]
+        except Driver.DoesNotExist:
+            driver = Driver.objects.create(
+                name=kwargs['name'],
+                second_name=kwargs['second_name'],
+                phone_number=kwargs['phone_number']
+            )
+            driver.save()
+        return driver
+
 
 class Uber(SeleniumTools):
     def __init__(self, week_number=None, day=None, driver=True, sleep=3, headless=False, base_url="https://supplier.uber.com"):
@@ -951,7 +1064,7 @@ class Uber(SeleniumTools):
         self.login_form('PHONE_NUMBER_or_EMAIL_ADDRESS', 'forward-button', By.ID)  
         self.force_opt_form()
         self.otp_code_v2()
-        self.otp_code_v1()
+        # self.otp_code_v1()
         self.password_form('PASSWORD', 'forward-button', By.ID)
         if self.sleep:
             time.sleep(self.sleep)
@@ -977,9 +1090,15 @@ class Uber(SeleniumTools):
             WebDriverWait(self.driver, 5).until(EC.presence_of_element_located((By.XPATH, xpath)))
             self.driver.find_element(By.XPATH, xpath).click()
         except Exception:
-            xpath = '//ul/li/div[text()[contains(.,"Payments driver")]]'
-            WebDriverWait(self.driver, 5).until(EC.presence_of_element_located((By.XPATH, xpath)))
-            self.driver.find_element(By.XPATH, xpath).click()
+            try:
+                xpath = '//ul/li/div[text()[contains(.,"Payments driver")]]'
+                WebDriverWait(self.driver, 5).until(EC.presence_of_element_located((By.XPATH, xpath)))
+                self.driver.find_element(By.XPATH, xpath).click()
+            except Exception:
+                xpath = '//ul/li/div[text()[contains(.,"Платежи (водитель)")]]'
+                WebDriverWait(self.driver, 5).until(EC.presence_of_element_located((By.XPATH, xpath)))
+                self.driver.find_element(By.XPATH, xpath).click()
+
         if self.day:
             start = self.driver.find_element(By.XPATH,'(//input[@aria-describedby="datepicker--screenreader--message--input"])[1]')
             start.send_keys(Keys.NULL)
@@ -996,10 +1115,18 @@ class Uber(SeleniumTools):
         else:
             start = self.driver.find_element(By.XPATH, '(//input[@aria-describedby="datepicker--screenreader--message--input"])[1]')
             start.send_keys(Keys.NULL)
-            self.driver.find_element(By.XPATH, f'//div[@aria-roledescription="button"]/div[text()={self.start_of_week().strftime("%-d")}]').click()
+            self.driver.find_element(By.XPATH, '(//button[@aria-live="polite"])[1]').click()
+            self.driver.find_element(By.XPATH, f'(//li[@role="option" and text()[contains(.,"{self.start_of_week().strftime("%B")}")]])').click()
+            self.driver.find_element(By.XPATH, '(//button[@aria-live="polite"])[2]').click()
+            self.driver.find_element(By.XPATH, f'(//li[@role="option" and text()[contains(.,"{self.start_of_week().strftime("%Y")}")]])').click()
+            self.driver.find_element(By.XPATH, f'//div[@aria-roledescription="button"]/div[text()={self.start_of_week().day}]').click()
             end = self.driver.find_element(By.XPATH, '(//input[@aria-describedby="datepicker--screenreader--message--input"])[2]')
             end.send_keys(Keys.NULL)
-            self.driver.find_element(By.XPATH, f'//div[@aria-roledescription="button"]/div[text()="{self.end_of_week().strftime("%-d")}"]').click()
+            self.driver.find_element(By.XPATH, '(//button[@aria-live="polite"])[1]').click()
+            self.driver.find_element(By.XPATH, f'(//li[@role="option" and text()[contains(.,"{self.end_of_week().strftime("%B")}")]])').click()
+            self.driver.find_element(By.XPATH, '(//button[@aria-live="polite"])[2]').click()
+            self.driver.find_element(By.XPATH, f'(//li[@role="option" and text()[contains(.,"{self.end_of_week().strftime("%Y")}")]])').click()
+            self.driver.find_element(By.XPATH, f'//div[@aria-roledescription="button"]/div[text()={self.end_of_week().day}]').click()
         self.driver.find_element(By.XPATH, '//button[@data-testid="generate-report-button"]').click()
 
         return f'{self.payments_order_file_name()}'
@@ -1009,16 +1136,19 @@ class Uber(SeleniumTools):
             print('Report already downloaded')
             return 
         self.generate_payments_order()
-        download_button = '(//div[@data-testid="payment-reporting-table-row"]/div/div/div/div/button)[1]'
+        download_button = '(//div[@data-testid="paginated-table"]//button)[1]'
         try:
-            in_progress_text = '//div[1][@data-testid="payment-reporting-table-row"]/div/div/div/div[text()[contains(.,"In progress")]]'
+            # in_progress_text = '//div[1][@data-testid="payment-reporting-table-row"]/div/div/div/div[text()[contains(.,"In progress")]]'
+            in_progress_text = '//i[@class="_css-bvkFtm"]'
             WebDriverWait(self.driver, 10).until(EC.presence_of_element_located((By.XPATH, in_progress_text)))
-            WebDriverWait(self.driver, 300).until_not(EC.presence_of_element_located((By.XPATH, in_progress_text)))
-            WebDriverWait(self.driver, 10).until(EC.presence_of_element_located((By.XPATH, download_button)))
+            WebDriverWait(self.driver, 600).until_not(EC.presence_of_element_located((By.XPATH, in_progress_text)))
+            expected_element = WebDriverWait(self.driver, 10).until(EC.presence_of_element_located((By.XPATH, download_button)))
+            WebDriverWait(self.driver, 60).until(EC.element_to_be_clickable((By.XPATH, download_button))).click()
+            expected_element.click()
+
         except Exception as e:
             self.logger.error(str(e))
             pass 
-        self.driver.execute_script("arguments[0].click();", self.driver.find_element(By.XPATH, download_button))
 
     def payments_order_file_name(self):
         if self.day:
@@ -1035,31 +1165,70 @@ class Uber(SeleniumTools):
         if self.sleep:
             time.sleep(self.sleep)
         items = []
-        with open(self.payments_order_file_name()) as file:
-            reader = csv.reader(file)
-            next(reader)  # Advance past the header
-            for row in reader:
-                if row[3] == "":
-                    continue
-                if row[3] is None:
-                    continue    
-                order = UberPaymentsOrder(
-                    report_from=self.start_of_week(),
-                    report_to=self.end_of_week(),
-                    report_file_name=self.payments_order_file_name(),
-                    driver_uuid=row[0],
-                    first_name=row[1],
-                    last_name=row[2],
-                    total_amount=row[3],
-                    total_clean_amout=row[4] or 0,
-                    returns=row[5] or 0,
-                    total_amount_cach=row[6] or 0,
-                    transfered_to_bank=row[7] or 0,
-                    tips=row[8] or 0)
+        try:
+            with open(self.payments_order_file_name(), encoding="utf-8") as file:
+                reader = csv.reader(file)
+                next(reader)  # Advance past the header
+                for row in reader:
+                    if row[3] == "":
+                        continue
+                    if row[3] is None:
+                        continue
+                    order = UberPaymentsOrder(
+                        report_from=self.start_of_week(),
+                        report_to=self.end_of_week(),
+                        report_file_name=self.payments_order_file_name(),
+                        driver_uuid=row[0],
+                        first_name=row[1],
+                        last_name=row[2],
+                        total_amount=row[3],
+                        total_clean_amout=row[4] or 0,
+                        returns=row[5] or 0,
+                        total_amount_cach=row[6] or 0,
+                        transfered_to_bank=row[7] or 0,
+                        tips=row[8] or 0)
+                    try:
+                        order.save()
+                    except IntegrityError:
+                        pass
+                    items.append(order)
+                    self.create_driver(
+                        first_name=row[1],
+                        last_name=row[2],
+                        mobile_number='',
+                        fleet_name='Uber',
+                        driver_external_id=row[0],
+                        licence_plate='',
+                    )
 
-                order.save()
-                items.append(order)
+                if not items:
+                    order = UberPaymentsOrder(
+                        report_from=self.start_of_week(),
+                        report_to=self.end_of_week(),
+                        report_file_name=self.payments_order_file_name(),
+                        driver_uuid='00000000-0000-0000-0000-000000000000',
+                        first_name='',
+                        last_name='',
+                        total_amount=0,
+                        total_clean_amout=0,
+                        returns=0,
+                        total_amount_cach=0,
+                        transfered_to_bank=0,
+                        tips=0)
+                    try:
+                        order.save()
+                    except IntegrityError:
+                        pass
+        except FileNotFoundError:
+            pass
         return items
+
+    def get_driver_dict(self, **kwargs):
+        return {
+            'name': kwargs['first_name'],
+            'second_name': kwargs['last_name'],
+            'phone_number': kwargs['mobile_number'],
+        }
 
     def wait_opt_code(self):
         r = redis.Redis.from_url(os.environ["REDIS_URL"])
@@ -1093,7 +1262,7 @@ class Uber(SeleniumTools):
             self.driver.find_element(By.ID, 'PHONE_SMS_OTP-1').send_keys(otp[1])
             self.driver.find_element(By.ID, 'PHONE_SMS_OTP-2').send_keys(otp[2])
             self.driver.find_element(By.ID, 'PHONE_SMS_OTP-3').send_keys(otp[3])
-            self.driver.find_element(By.ID, "forward-button").click() 
+            # self.driver.find_element(By.ID, "forward-button").click()
             break
     
     def wait_code_form(self, id):
@@ -1196,38 +1365,91 @@ class Bolt(SeleniumTools):
         if self.sleep:
             time.sleep(self.sleep)
         items = []
-        with open(self.payments_order_file_name()) as file:
-            reader = csv.reader(file)
-            next(reader)
-            next(reader)
-            for row in reader:
-                if row[0] == "":
-                    break
-                if row[0] is None:
-                    break
-                order = BoltPaymentsOrder(
-                    report_from=self.start_report_interval(),
-                    report_to=self.end_report_interval(),
-                    report_file_name=file.name,
-                    driver_full_name=row[0],
-                    mobile_number=row[1],
-                    range_string=row[2],
-                    total_amount=row[3],
-                    cancels_amount=row[4],
-                    autorization_payment=row[5],
-                    autorization_deduction=row[6],
-                    additional_fee=row[7],
-                    fee=row[8],
-                    total_amount_cach=row[9],
-                    discount_cash_trips=row[10],
-                    driver_bonus=row[11],
-                    compensation=row[12] or 0,
-                    refunds=row[13],
-                    tips=row[14],
-                    weekly_balance=row[15])
+        if self.payments_order_file_name() is not None:
+            with open(self.payments_order_file_name(), encoding="utf-8") as file:
+                reader = csv.reader(file)
+                next(reader)
+                for row in reader:
+                    if row[0] == "":
+                        break
+                    if row[0] is None:
+                        break
+                    if row[1] == "":
+                        continue
+                    order = BoltPaymentsOrder(
+                        report_from=self.start_report_interval(),
+                        report_to=self.end_report_interval(),
+                        report_file_name=file.name,
+                        driver_full_name=row[0][:24],
+                        mobile_number=row[1],
+                        range_string=row[2],
+                        total_amount=float(row[3].replace(',', '.')),
+                        cancels_amount=float(row[4].replace(',', '.')),
+                        autorization_payment=float(row[5].replace(',', '.')),
+                        autorization_deduction=float(row[6].replace(',', '.')),
+                        additional_fee=float(row[7].replace(',', '.')),
+                        fee=float(row[8].replace(',', '.')),
+                        total_amount_cach=float(row[9].replace(',', '.')),
+                        discount_cash_trips=float(row[10].replace(',', '.')),
+                        driver_bonus=float(row[11].replace(',', '.')),
+                        compensation=float(str(row[12] or 0).replace(',', '.')),
+                        refunds=float(row[13].replace(',', '.')),
+                        tips=float(row[14].replace(',', '.')),
+                        weekly_balance=float(row[15].replace(',', '.')))
+                    try:
+                        order.save()
+                    except IntegrityError:
+                        pass
+                    items.append(order)
+                    self.create_driver(
+                        driver_full_name=row[0][:24],
+                        mobile_number=row[1],
+                        fleet_name='Bolt',
+                        driver_external_id=row[1],
+                        licence_plate='',
+                    )
+        else:
+            order = BoltPaymentsOrder(
+                report_from=self.start_report_interval(),
+                report_to=self.end_report_interval(),
+                report_file_name='',
+                driver_full_name='',
+                mobile_number='',
+                range_string='',
+                total_amount=0,
+                cancels_amount=0,
+                autorization_payment=0,
+                autorization_deduction=0,
+                additional_fee=0,
+                fee=0,
+                total_amount_cach=0,
+                discount_cash_trips=0,
+                driver_bonus=0,
+                compensation=0,
+                refunds=0,
+                tips=0,
+                weekly_balance=0)
+            try:
                 order.save()
-                items.append(order)
+            except IntegrityError:
+                pass
+
         return items
+
+    def get_driver_dict(self, **kwargs):
+        name_list = [x for x in  kwargs['driver_full_name'].split(' ') if len(x) > 0]
+        name = ''
+        second_name = ''
+        try:
+            name = name_list[0]
+            second_name = name_list[1]
+        except IndexError:
+            pass
+        return {
+            'name': name,
+            'second_name': second_name,
+            'phone_number': kwargs['mobile_number'],
+        }
 
     @staticmethod
     def download_weekly_report(week_number=None, day=None,  driver=True, sleep=5, headless=True):
@@ -1282,30 +1504,76 @@ class Uklon(SeleniumTools):
         if self.sleep:
             time.sleep(self.sleep)
         items = []
-        report = open(self.report_file_name(self.file_patern()))
+        report_file = self.report_file_name(self.file_patern())
+        if report_file is not None:
+            report = open(report_file)
 
-        with report as file:
-            reader = csv.reader(file)
-            next(reader)
-            for row in reader:
-                row = row[0].split('||')
-                order = UklonPaymentsOrder(
-                                           report_from=self.start_of_week(),
-                                           report_to=self.end_of_week(),
-                                           report_file_name=file.name,
-                                           signal=row[0],
-                                           licence_plate=row[1],
-                                           total_rides=row[2],
-                                           total_distance = int(row[3]),
-                                           total_amount_cach=row[4],
-                                           total_amount_cach_less=row[5],
-                                           total_amount=row[6],
-                                           total_amount_without_comission=row[7],
-                                           bonuses=row[8])
+            with report as file:
+                reader = csv.reader(file)
+                next(reader)
+                for row in reader:
+                    row = row[0].split('||')
+                    order = UklonPaymentsOrder(
+                                               report_from=self.start_of_week(),
+                                               report_to=self.end_of_week(),
+                                               report_file_name=file.name,
+                                               signal=row[0],
+                                               licence_plate=row[1],
+                                               total_rides=row[2],
+                                               total_distance = int(row[3]),
+                                               total_amount_cach=row[4],
+                                               total_amount_cach_less=row[5],
+                                               total_amount=row[6],
+                                               total_amount_without_comission=row[7],
+                                               bonuses=row[8])
+                    try:
+                        order.save()
+                    except IntegrityError:
+                        pass
+                    items.append(order)
+                    self.create_driver(
+                        driver_full_name=row[0],
+                        mobile_number='',
+                        fleet_name='Uklon',
+                        driver_external_id=row[0],
+                        licence_plate=row[1],
+                    )
+
+        else:
+            # create an empty record to avoid reloading
+            order = UklonPaymentsOrder(
+                report_from=self.start_of_week(),
+                report_to=self.end_of_week(),
+                report_file_name='',
+                signal='',
+                licence_plate='',
+                total_rides=0,
+                total_distance=0,
+                total_amount_cach=0,
+                total_amount_cach_less=0,
+                total_amount=0,
+                total_amount_without_comission=0,
+                bonuses=0)
+            try:
                 order.save()
-                items.append(order)
-
+            except IntegrityError:
+                pass
         return items
+
+    def get_driver_dict(self, **kwargs):
+        name_list = [x for x in  kwargs['driver_full_name'].split(' ') if len(x) > 0]
+        name = ''
+        second_name = ''
+        try:
+            name = name_list[0]
+            second_name = name_list[1]
+        except IndexError:
+            pass
+        return {
+            'name': name,
+            'second_name': second_name,
+            'phone_number': kwargs['mobile_number'],
+        }
 
     def start_of_day_timestamp(self):
         return round(self.start_of_day().timestamp())
@@ -1331,7 +1599,7 @@ class Uklon(SeleniumTools):
             end = self.end_of_week().end_of('day').add(hours=4)
         sd, sy, sm = start.strftime("%d"), start.strftime("%Y"), start.strftime("%m")
         ed, ey, em = end.strftime("%d"), end.strftime("%Y"), end.strftime("%m")
-        return f'{sd}.{sm}.{sy}.+{ed}.{em}.{ey}|{start.strftime("%-m")}_{start.strftime("%-d")}_{sy}.+{end.strftime("%-m")}_{end.strftime("%-d")}_{ey}'
+        return f'{start.strftime("%m")}_{start.strftime("%d")}_{sy}-{end.strftime("%m")}_{end.strftime("%d")}_{ey}'
 
     @staticmethod
     def download_weekly_report(week_number=None, day=None, driver=True, sleep=5, headless=True):
@@ -1402,11 +1670,12 @@ class NewUklon(SeleniumTools):
         self.driver.get(url)
         if self.sleep:
             time.sleep(self.sleep)
-        self.driver.find_element(By.XPATH, '//upf-order-reports/section[1]/flt-filter-group/form/flt-group-filter[1]/flt-date-range-filter/mat-form-field/div').click()
+        self.driver.find_element(By.XPATH,
+                                 '//upf-order-reports/section[1]/flt-filter-group/form/flt-group-filter[1]/flt-date-range-filter/mat-form-field/div').click()
         self.driver.find_element(By.XPATH, '//mat-option/span/div[text()=" Вибрати період "]').click()
         e = self.driver.find_element(By.XPATH, '//input').click()
 
-        sh, sm, eh, em  = '00', '00', '23', '59' # s - start/e - end/h - hours/m - minutes
+        sh, sm, eh, em = '00', '00', '23', '59'  # s - start/e - end/h - hours/m - minutes
         e.send_keys(self.day.format("DD.MM.YYYY") + Keys.TAB + self.day.format("DD.MM.YYYY") + Keys.TAB + Keys.TAB + f'{sh}' + Keys.SPACE + f'{sm}' + Keys.TAB + f'{eh}' + Keys.SPACE + f'{em}')
 
         self.driver.find_element(By.XPATH, '//span[text()= " Застосувати "]').click()
@@ -1423,7 +1692,7 @@ class NewUklon(SeleniumTools):
         file = self.report_file_name('01.70.csv')
         os.rename(file, f'Звіт по поїздкам - {self.file_patern()}.csv')
 
-        print(self.file_patern())
+        self.logger.info(self.file_patern())
         report = open(self.report_file_name(self.file_patern()))
 
         with report as file:
@@ -1455,6 +1724,95 @@ class NewUklon(SeleniumTools):
 
         return items
 
+    def save_report_v2(self):
+        if self.sleep:
+            time.sleep(self.sleep)
+        items = []
+        print(self.file_patern())
+        files = os.listdir(os.curdir)
+        report_file = ''
+        if files:
+            files = [os.path.join(os.curdir, file) for file in files]
+            files = [file for file in files if os.path.isfile(file) and re.search('Звіт по поїздкам', file)]
+            report_file = max(files, key=os.path.getctime)
+
+        with open(report_file, encoding="utf-8") as file:
+            reader = csv.reader(file)
+            next(reader)
+            for row in reader:
+                print(row)
+
+                order = NewUklonPaymentsOrder(
+                    report_from=self.start_of_week(),
+                    report_to=self.end_of_week(),
+                    report_file_name=file.name,
+                    full_name=row[0],
+                    signal=row[1],
+                    total_rides=float((row[2] or '0').replace(',','')),
+                    total_distance=float((row[3] or '0').replace(',','')),
+                    total_amount_cach=float((row[4] or '0').replace(',','')),
+                    total_amount_cach_less=float((row[5] or '0').replace(',','')),
+                    total_amount_on_card=float((row[6] or '0').replace(',','')),
+                    total_amount=float((row[7] or '0').replace(',','')),
+                    tips=float((row[8] or '0').replace(',','') ),
+                    bonuses=float((row[9] or '0').replace(',','')),
+                    fares=float((row[10] or '0').replace(',','')),
+                    comission=float((row[11] or '0').replace(',','')),
+                    total_amount_without_comission=float((row[12] or '0').replace(',','')))
+                try:
+                    order.save()
+                except IntegrityError:
+                    pass
+                print(vars(order))
+                items.append(order)
+                self.create_driver(
+                    driver_full_name=row[0],
+                    mobile_number='',
+                    fleet_name='NewUklon',
+                    driver_external_id=row[1],
+                    licence_plate='',
+                )
+
+            if not items:
+                order = NewUklonPaymentsOrder(
+                    report_from=self.start_of_week(),
+                    report_to=self.end_of_week(),
+                    report_file_name=file.name,
+                    full_name='',
+                    signal='',
+                    total_rides=0,
+                    total_distance=0,
+                    total_amount_cach=0,
+                    total_amount_cach_less=0,
+                    total_amount_on_card=0,
+                    total_amount=0,
+                    tips=0,
+                    bonuses=0,
+                    fares=0,
+                    comission=0,
+                    total_amount_without_comission=0)
+                try:
+                    order.save()
+                except IntegrityError:
+                    pass
+
+        return items
+
+    def get_driver_dict(self, **kwargs):
+        name_list = [x for x in  kwargs['driver_full_name'].split(' ') if len(x) > 0]
+        name = ''
+        second_name = ''
+        try:
+            name = name_list[1]
+            second_name = name_list[0]
+        except IndexError:
+            pass
+        return {
+            'name': name,
+            'second_name': second_name,
+            'phone_number': kwargs['mobile_number'],
+        }
+
     def start_of_week_timestamp(self):
         return round(self.start_of_week().timestamp())
 
@@ -1475,6 +1833,7 @@ class NewUklon(SeleniumTools):
         ed, ey, em = end.strftime("%d"), end.strftime("%y"), end.strftime("%m")
         return f'00.00.{sd}.{sm}.{sy} - 23.59.{ed}.{em}.{ey}'
 
+
     @staticmethod
     def download_weekly_report(week_number=None, driver=True, sleep=5, headless=True):
         u = NewUklon(week_number=week_number, driver=False, sleep=0, headless=headless)
@@ -1482,7 +1841,8 @@ class NewUklon(SeleniumTools):
             u = NewUklon(week_number=week_number, driver=driver, sleep=sleep, headless=headless)
             u.login()
             u.download_payments_order()
-        return u.save_report()
+        # return u.save_report()
+        return u.save_report_v2()
 
     @staticmethod
     def download_daily_report(day=None, driver=True, sleep=5, headless=True):

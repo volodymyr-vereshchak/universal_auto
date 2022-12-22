@@ -26,12 +26,9 @@ SECRET_KEY = os.environ['SECRET_KEY']
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-
-
 CSRF_TRUSTED_ORIGINS = ['https://snowy-wood-371.fly.dev','http://*.127.0.0.1', 'http://localhost']
 
 ALLOWED_HOSTS = ['snowy-wood-371.fly.dev', '127.0.0.1', '168.220.93.200', 'localhost']
-
 
 # Application definition
 
@@ -126,7 +123,7 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/4.0/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
+LANGUAGE_CODE = 'uk-ua'
 
 TIME_ZONE = "Europe/Kiev"
 
