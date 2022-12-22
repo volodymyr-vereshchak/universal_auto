@@ -1404,8 +1404,11 @@ class NewUklon(SeleniumTools):
             time.sleep(self.sleep)
         self.driver.find_element(By.XPATH, '//upf-order-reports/section[1]/flt-filter-group/form/flt-group-filter[1]/flt-date-range-filter/mat-form-field/div').click()
         self.driver.find_element(By.XPATH, '//mat-option/span/div[text()=" Вибрати період "]').click()
-        e = self.driver.find_element(By.XPATH, '//input')
-        e.send_keys(self.day.format("YYYY.MM.DD") + Keys.TAB + self.day.format("YYYY.MM.DD"))
+        e = self.driver.find_element(By.XPATH, '//input').click()
+
+        sh, sm, eh, em  = '00', '00', '23', '59' # s - start/e - end/h - hours/m - minutes
+        e.send_keys(self.day.format("DD.MM.YYYY") + Keys.TAB + self.day.format("DD.MM.YYYY") + Keys.TAB + Keys.TAB + f'{sh}' + Keys.SPACE + f'{sm}' + Keys.TAB + f'{eh}' + Keys.SPACE + f'{em}')
+
         self.driver.find_element(By.XPATH, '//span[text()= " Застосувати "]').click()
         if self.sleep:
             time.sleep(self.sleep)
