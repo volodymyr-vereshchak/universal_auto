@@ -981,7 +981,6 @@ class SeleniumTools():
         })
         options.add_argument("--disable-infobars")
         options.add_argument("--enable-file-cookies")
-        options.add_argument('--disable-blink-features=AutomationControlled')
         options.add_argument('--allow-profiles-outside-user-dir')
         options.add_argument('--enable-profile-shortcut-manager')
         options.add_argument(f'user-data-dir={os.getcwd()}\\_ChromeUser_{self.__class__.__name__}')
@@ -994,10 +993,9 @@ class SeleniumTools():
             options.add_argument("--window-size=1920,1080")
             options.add_argument("--start-maximized")
             options.add_argument("--disable-extensions")
-            options.add_argument('--disable-dev-shm-usage')    
-            options.add_argument('--disable-software-rasterizer')
+            options.add_argument('--disable-dev-shm-usage')
+            # options.add_argument('--disable-software-rasterizer')
             options.add_argument("user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/104.0.0.0 Safari/537.36")
-            options.add_argument("--disable-notifications")
 
         driver = webdriver.Chrome(options=options, port=9514)
         return driver
@@ -1325,6 +1323,33 @@ class Uber(SeleniumTools):
             u.download_payments_order()
             u.quit()
         return u.save_report()
+
+    def get_driver_status_from_map(self, search_text):
+        return []
+        # Need to implement
+
+    def get_driver_status(self):
+        livemap = f"{self.base_url}/orgs/2c5515cd-a4ed-4136-905f-99504677a324/livemap"
+        # livemap = f"https://supplier.uber.com/orgs/49dffc54-e8d9-47bd-a1e5-52ce16241cb6/livemap"
+        try:
+            try:
+                xpath = f'//div[@data-tracking-name="livemap"]'
+                WebDriverWait(self.driver, self.sleep).until(EC.presence_of_element_located((By.XPATH, xpath)))
+            except TimeoutException:
+                try:
+                    self.driver.get(livemap)
+                    xpath = f'//div[@data-tracking-name="livemap"]'
+                    WebDriverWait(self.driver, self.sleep).until(EC.presence_of_element_located((By.XPATH, xpath)))
+                except (TimeoutException, FileNotFoundError):
+                    self.login_v2()
+                    self.driver.get(livemap)
+            return {
+                'online': self.get_driver_status_from_map('Онлайн'),
+                'width_client': self.get_driver_status_from_map('У поїздці'),
+                'wait': self.get_driver_status_from_map('Очікування')
+            }
+        except WebDriverException as err:
+            print(err.msg)
 
 
 class Bolt(SeleniumTools):    

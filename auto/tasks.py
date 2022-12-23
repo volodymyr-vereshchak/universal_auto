@@ -1,13 +1,23 @@
+import time
 import zoneinfo
+from contextlib import contextmanager
 from datetime import datetime
 
+from celery.utils.log import get_task_logger
 from django.conf import settings
+from django.core.cache import cache
 
 from app.models import RawGPS, Vehicle, VehicleGPS, Fleet, Bolt, Driver, NewUklon
 from auto.celery import app
 
-BOLT_CHROME_DRIVER = Bolt(driver=True, sleep=3, headless=True)
-UKLON_CHROME_DRIVER = NewUklon(driver=True, sleep=3, headless=True)
+BOLT_CHROME_DRIVER = None
+UKLON_CHROME_DRIVER = None
+
+UPDATE_DRIVER_STATUS_FREQUENCY = 60
+MEMCASH_LOCK_EXPIRE = 60 * 10
+MEMCASH_LOCK_AFTER_FINISHING = 10
+
+logger = get_task_logger(__name__)
 
 
 @app.task
@@ -54,47 +64,58 @@ def download_weekly_report(fleet_name, missing_weeks):
             fleet.download_weekly_report(week_number=week_number, driver=True, sleep=5, headless=True)
 
 
-@app.task
-def update_driver_status():
+@contextmanager
+def memcache_lock(lock_id, oid):
+    timeout_at = time.monotonic() + MEMCASH_LOCK_EXPIRE - 3
+    status = cache.add(lock_id, oid, MEMCASH_LOCK_EXPIRE)
+    try:
+        yield status
+    finally:
+        if time.monotonic() < timeout_at and status:
+            cache.set(lock_id, oid, MEMCASH_LOCK_AFTER_FINISHING)
 
-    bolt_status = BOLT_CHROME_DRIVER.get_driver_status()
-    print(f'Bolt {bolt_status}')
-    uklon_status = UKLON_CHROME_DRIVER.get_driver_status()
-    print(f'Uklon {uklon_status}')
 
-    status_online = set()
-    status_width_client = set()
-
-    if bolt_status is not None:
-        status_online = status_online.union(set(bolt_status['online']))
-        status_width_client = status_width_client.union(set(bolt_status['width_client']))
-    if uklon_status is not None:
-        status_online = status_online.union(set(uklon_status['online']))
-        status_width_client = status_width_client.union(set(uklon_status['width_client']))
-
-    drivers = Driver.objects.filter(deleted_at=None)
-
-    for driver in drivers:
-
-        current_status = Driver.OFFLINE
-        if (driver.name, driver.second_name) in status_online:
-            current_status = Driver.ACTIVE
-        if (driver.name, driver.second_name) in status_width_client:
-            current_status = Driver.WITH_CLIENT
-        # if (driver.name, driver.second_name) in status['wait']:
-        #     current_status = Driver.ACTIVE
-
-        driver.driver_status = current_status
-
-        if current_status != Driver.OFFLINE:
-            print(f'{driver}: {current_status}')
-
-        try:
-            driver.save(update_fields=['driver_status'])
-        except Exception:
-            pass
+@app.task(bind=True)
+def update_driver_status(self):
+    with memcache_lock(self.name, self.app.oid) as acquired:
+        if acquired:
+            bolt_status = BOLT_CHROME_DRIVER.get_driver_status()
+            logger.info(f'Bolt {bolt_status}')
+            uklon_status = UKLON_CHROME_DRIVER.get_driver_status()
+            logger.info(f'Uklon {uklon_status}')
+            status_online = set()
+            status_width_client = set()
+            if bolt_status is not None:
+                status_online = status_online.union(set(bolt_status['online']))
+                status_width_client = status_width_client.union(set(bolt_status['width_client']))
+            if uklon_status is not None:
+                status_online = status_online.union(set(uklon_status['online']))
+                status_width_client = status_width_client.union(set(uklon_status['width_client']))
+            drivers = Driver.objects.filter(deleted_at=None)
+            for driver in drivers:
+                current_status = Driver.OFFLINE
+                if (driver.name, driver.second_name) in status_online:
+                    current_status = Driver.ACTIVE
+                if (driver.name, driver.second_name) in status_width_client:
+                    current_status = Driver.WITH_CLIENT
+                # if (driver.name, driver.second_name) in status['wait']:
+                #     current_status = Driver.ACTIVE
+                driver.driver_status = current_status
+                if current_status != Driver.OFFLINE:
+                    logger.info(f'{driver}: {current_status}')
+                try:
+                    driver.save(update_fields=['driver_status'])
+                except Exception:
+                    pass
+        else:
+            logger.info('passed')
 
 
 @app.on_after_finalize.connect
 def setup_periodic_tasks(sender, **kwargs):
-    sender.add_periodic_task(60.0, update_driver_status.s())
+    global BOLT_CHROME_DRIVER
+    global UKLON_CHROME_DRIVER
+    BOLT_CHROME_DRIVER = Bolt(driver=True, sleep=3, headless=True)
+    UKLON_CHROME_DRIVER = NewUklon(driver=True, sleep=3, headless=True)
+    sender.add_periodic_task(UPDATE_DRIVER_STATUS_FREQUENCY, update_driver_status.s())
+
