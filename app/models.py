@@ -1632,10 +1632,8 @@ class NewUklon(SeleniumTools):
             time.sleep(self.sleep)
         self.driver.get_screenshot_as_file(f'new_uklon1.png')
         element = self.driver.find_element(By.ID,'login')
-        element.send_keys('')
-        for c in os.environ["UKLON_NAME"]:
-            element.send_keys(c)
-            time.sleep(0.1)
+        element.send_keys(os.environ["UKLON_NAME"])
+        time.sleep(0.1)
 
         self.driver.get_screenshot_as_file(f'new_uklon2.png')
 
@@ -1656,22 +1654,12 @@ class NewUklon(SeleniumTools):
         if self.sleep:
             time.sleep(self.sleep)
 
-        self.driver.find_element(By.XPATH, '//flt-date-range-filter/mat-form-field').click()
+        self.driver.find_element(By.XPATH, '//upf-order-reports/section[1]/flt-filter-group/form/flt-group-filter[1]/flt-date-range-filter/mat-form-field/div').click()
         self.driver.get_screenshot_as_file(f'new_uklon6.png')
-        self.driver.find_element(By.XPATH, '//mat-option/span/div[text()=" Вибрати період "]').click()
+        self.driver.find_element(By.XPATH, '//mat-option/span[text()=" Минулий тиждень "]').click()
         self.driver.get_screenshot_as_file(f'new_uklon7.png')
-        e = self.driver.find_element(By.XPATH, '//input')
-        e.send_keys(self.start_of_week().format("DD.MM.YYYY") + Keys.TAB + self.end_of_week().format("DD.MM.YYYY"))
-        e = self.driver.find_element(By.XPATH, '//input[@formcontrolname="from"]')
-        e.send_keys('00:00')
-        e = self.driver.find_element(By.XPATH, '//input[@formcontrolname="to"]')
-        e.send_keys('23:59')
-        self.driver.find_element(By.XPATH, '//span[text()= " Застосувати "]').click()
-        if self.sleep:
-            time.sleep(self.sleep)
-        self.driver.get_screenshot_as_file(f'new_uklon8.png')
         self.driver.find_element(By.XPATH, '//span[text()="Експорт CSV"]').click()
-        self.driver.get_screenshot_as_file(f'new_uklon9.png')
+        self.driver.get_screenshot_as_file(f'new_uklon8.png')
 
     def download_payments_day_order(self):
         actions = ActionChains(self.driver)
@@ -1682,10 +1670,14 @@ class NewUklon(SeleniumTools):
         self.driver.get(url)
         if self.sleep:
             time.sleep(self.sleep)
-        self.driver.find_element(By.XPATH, '//upf-order-report-list-filters/form/mat-form-field[1]').click()
+        self.driver.find_element(By.XPATH,
+                                 '//upf-order-reports/section[1]/flt-filter-group/form/flt-group-filter[1]/flt-date-range-filter/mat-form-field/div').click()
         self.driver.find_element(By.XPATH, '//mat-option/span/div[text()=" Вибрати період "]').click()
-        e = self.driver.find_element(By.XPATH, '//input')
-        e.send_keys(self.day.format("YYYY.MM.DD") + Keys.TAB + self.day.format("YYYY.MM.DD"))
+        e = self.driver.find_element(By.XPATH, '//input').click()
+
+        sh, sm, eh, em = '00', '00', '23', '59'  # s - start/e - end/h - hours/m - minutes
+        e.send_keys(self.day.format("DD.MM.YYYY") + Keys.TAB + self.day.format("DD.MM.YYYY") + Keys.TAB + Keys.TAB + f'{sh}' + Keys.SPACE + f'{sm}' + Keys.TAB + f'{eh}' + Keys.SPACE + f'{em}')
+
         self.driver.find_element(By.XPATH, '//span[text()= " Застосувати "]').click()
         if self.sleep:
             time.sleep(self.sleep)
@@ -1696,6 +1688,10 @@ class NewUklon(SeleniumTools):
         if self.sleep:
             time.sleep(self.sleep)
         items = []
+
+        file = self.report_file_name('01.70.csv')
+        os.rename(file, f'Звіт по поїздкам - {self.file_patern()}.csv')
+
         self.logger.info(self.file_patern())
         report = open(self.report_file_name(self.file_patern()))
 
@@ -1835,8 +1831,8 @@ class NewUklon(SeleniumTools):
             end = self.end_of_week().end_of('day')
         sd, sy, sm = start.strftime("%d"), start.strftime("%y"), start.strftime("%m")
         ed, ey, em = end.strftime("%d"), end.strftime("%y"), end.strftime("%m")
-        print(f'00.00.{sd}.{sm}.{sy}.+23.59.{ed}.{em}.{ey}')
-        return f'00.00.{sd}.{sm}.{sy}.+23.59.{ed}.{em}.{ey}'
+        return f'00.00.{sd}.{sm}.{sy} - 23.59.{ed}.{em}.{ey}'
+
 
     @staticmethod
     def download_weekly_report(week_number=None, driver=True, sleep=5, headless=True):
