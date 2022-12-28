@@ -30,17 +30,21 @@ logger = logging.getLogger(__name__)
 
 processed_files = []
 
+#Ordering taxi
+
 def start(update, context):
     update.message.reply_text('Привіт! Тебе вітає Універсальне таксі - викликай кнопкою нижче.')
     chat_id = update.message.chat.id
     user = User.get_by_chat_id(chat_id)
-    keyboard = [KeyboardButton(text="Надати номер телефону", request_contact=True),
-                KeyboardButton(text="Викликати Таксі", request_location=True)]
+    keyboard = [KeyboardButton(text="\U0001f4f2 Надати номер телефону", request_contact=True),
+                KeyboardButton(text="\U0001f696 Викликати Таксі", request_location=True),
+                KeyboardButton(text="\U0001f465 Надати повну інформацію"),
+                KeyboardButton(text="\U0001f4e2 Залишити відгук")]
     if user:
         user.chat_id = chat_id
         user.save()
         if user.phone_number:
-           keyboard = [keyboard[1]]
+           keyboard = [keyboard[1], keyboard[2], keyboard[3]]
         reply_markup = ReplyKeyboardMarkup(
           keyboard=[keyboard],
           resize_keyboard=True,
@@ -51,7 +55,7 @@ def start(update, context):
           keyboard=[keyboard],
           resize_keyboard=True,
         )
-    update.message.reply_text("Будьласка розшарьте номер телефону та геолокацію для виклику таксі", reply_markup=reply_markup,)
+    update.message.reply_text("Будь ласка розшарьте номер телефону та геолокацію для виклику таксі", reply_markup=reply_markup,)
 
 def update_phone_number(update, context):
     chat_id = update.message.chat.id
@@ -59,53 +63,124 @@ def update_phone_number(update, context):
     phone_number = update.message.contact.phone_number
     if (phone_number and user):
         user.phone_number = phone_number
-        user.chat_id = chat_id 
+        user.chat_id = chat_id
         user.save()
         update.message.reply_text('Дякуємо ми отримали ваш номер телефону для звязку з водієм')
 
-def report(update, context):
-    update.message.reply_text("Enter you Uber OTP code from SMS:")
-    update.message.reply_text(get_report())
+LOCATION_WRONG = "Місце посадки - невірне"
+LOCATION_CORRECT = "Місце посадки - вірне"
 
-def code(update: Update, context: CallbackContext):
-    r = redis.Redis.from_url(os.environ["REDIS_URL"])
-    r.publish('code', update.message.text)
-    update.message.reply_text('Generating a report...')
-    context.bot.send_chat_action(chat_id=update.effective_message.chat_id, action=ChatAction.TYPING)
+def location(update: Update, context: CallbackContext):
+    active_drivers = [i.chat_id for i in Driver.objects.all() if i.driver_status == f'{Driver.ACTIVE}']
+
+    if len(active_drivers) == 0:
+        report = update.message.reply_text('Вибачте, але зараз немає вільний водіїв. Скористайтеся послугою пізніше')
+        return report
+    else:
+        if update.edited_message:
+            m = update.edited_message
+        else:
+            m = update.message
+        m = context.bot.sendLocation(update.effective_chat.id, latitude=m.location.latitude,
+                                     longitude=m.location.longitude, live_period=600)
+
+
+        context.user_data['latitude'], context.user_data['longitude'] = m.location.latitude, m.location.longitude
+        context.user_data['from_address'] = 'Null'
+        the_confirmation_of_location(update, context)
+
+        for i in range(1, 10):
+            try:
+                logger.error(i)
+                m = context.bot.editMessageLiveLocation(m.chat_id, m.message_id, latitude=i * 10, longitude=i * 10)
+                print(m)
+            except Exception as e:
+                logger.error(msg=e.message)
+                logger.error(i)
+            time.sleep(5)
+
+STATE = None
+LOCATION, FROM_ADDRESS, TO_THE_ADDRESS, COMMENT, NAME, SECOND_NAME, EMAIL = range(1, 8)
+
+def the_confirmation_of_location(update, context):
+    global STATE
+    STATE = LOCATION
+
+    keyboard = [KeyboardButton(text=f"\u2705 {LOCATION_CORRECT}"),
+                KeyboardButton(text=f"\u274c {LOCATION_WRONG}")]
+
+    reply_markup = ReplyKeyboardMarkup(
+        keyboard=[keyboard],
+        resize_keyboard=True, )
+
+    update.message.reply_text('Виберіть статус вашої геолокації!', reply_markup=reply_markup)
+
+def from_address(update, context):
+    global STATE
+    STATE = FROM_ADDRESS
+    context.user_data['latitude'], context.user_data['longitude'] = 'Null', 'Null'
+    update.message.reply_text('Введіть адресу місця посадки:', reply_markup=ReplyKeyboardRemove())
+
+def to_the_adress(update, context):
+    global STATE
+    if STATE == FROM_ADDRESS:
+        context.user_data['from_address'] = update.message.text
+        STATE = TO_THE_ADDRESS
+    update.message.reply_text('Введіть адресу місця призначення:', reply_markup=ReplyKeyboardRemove())
+    STATE = TO_THE_ADDRESS
+
+def payment_method(update, context):
+    global STATE
+    STATE = None
+    context.user_data['to_the_address'] = update.message.text
+
+    keyboard = [KeyboardButton(text=f"\U0001f4b7 {Order.CASH}"),
+                KeyboardButton(text=f"\U0001f4b8 {Order.CARD}")]
+
+    reply_markup = ReplyKeyboardMarkup(
+        keyboard=[keyboard],
+        resize_keyboard=True, )
+
+    update.message.reply_text('Виберіть спосіб оплати:', reply_markup=reply_markup)
+
+def order_create(update, context):
+    WAITING = 'Очікується'
+
+    payment_method = update.message.text
+    chat_id = update.message.chat.id
+    user = User.get_by_chat_id(chat_id)
+
+    order = Order.objects.create(
+        from_address=context.user_data['from_address'],
+        latitude=context.user_data['latitude'],
+        longitude=context.user_data['longitude'],
+        to_the_address=context.user_data['to_the_address'],
+        phone_number=user.phone_number,
+        chat_id_client=chat_id,
+        sum='',
+        payment_method=payment_method.split()[1],
+        status_order=WAITING)
+
+    order.save()
+    update.message.reply_text('Ваша заявка прийнята')
+
+
+# Changing status of driver
 
 def status(update, context):
     chat_id = update.message.chat.id
     driver = Driver.get_by_chat_id(chat_id)
     if True:
-        buttons = [ [KeyboardButton(Driver.ACTIVE)], 
-                    [KeyboardButton(Driver.WITH_CLIENT)], 
-                    [KeyboardButton(Driver.WAIT_FOR_CLIENT)], 
+        buttons = [ [KeyboardButton(Driver.ACTIVE)],
+                    [KeyboardButton(Driver.WITH_CLIENT)],
+                    [KeyboardButton(Driver.WAIT_FOR_CLIENT)],
                     [KeyboardButton(Driver.OFFLINE)]
                 ]
 
-        context.bot.send_message(chat_id=update.effective_chat.id, text='Вибери статус',
+        context.bot.send_message(chat_id=update.effective_chat.id, text='Оберіть статус',
                                  reply_markup=ReplyKeyboardMarkup(buttons, one_time_keyboard=True))
     else:
-        update.message.reply_text('Ви не в списку водіїв автопарку')
-        return 0
-
-def location(update: Update, context: CallbackContext):
-    if update.edited_message:
-        m = update.edited_message
-    else:
-        m = update.message
-    m = context.bot.sendLocation(update.effective_chat.id,latitude=m.location.latitude, longitude=m.location.longitude, live_period=600);
-    
-    
-    for i in range(1, 10):
-        try:
-          logger.error(i)
-          m = context.bot.editMessageLiveLocation(m.chat_id, m.message_id, latitude=i*10, longitude=i*10)
-          print(m)
-        except Exception as e:
-          logger.error(msg=e.message)
-          logger.error(i)
-        time.sleep(5)
+        update.message.reply_text("Ви не в списку водіїв автопарку")
 
 def set_status(update, context):
     status = update.message.text
@@ -118,13 +193,106 @@ def set_status(update, context):
     else:
         update.message.reply_text(f'Зареєструся як водій', reply_markup=ReplyKeyboardRemove())
 
+# Sending comment
+def comment(update, context):
+    global STATE
+    STATE = COMMENT
+    update.message.reply_text('Залишіть відгук або сповістіть о проблемі', reply_markup=ReplyKeyboardRemove())
 
+def save_comment(update, context):
+    global STATE
+    context.user_data['comment'] = update.message.text
+    chat_id = update.message.chat.id
+
+    order = Comment.objects.create(
+                comment=context.user_data['comment'],
+                chat_id=chat_id)
+    order.save()
+
+    STATE = None
+    update.message.reply_text('Ваш відгук був збережено. Очікуйте, менеджер скоро з вами звяжеться!')
+
+# Getting id for users
+def get_id(update, context):
+    chat_id = update.message.chat.id
+    update.message.reply_text(f"Ваш id: {chat_id}")
+
+# Adding information for Users
+def name(update, context):
+    global STATE
+    STATE = NAME
+    update.message.reply_text("Введіть ваше Ім`я:")
+
+def second_name(update, context):
+    global STATE
+    STATE = SECOND_NAME
+    name = update.message.text
+    name = User.name_and_second_name_validator(name=name)
+    if name is not None:
+        context.user_data['name'] = name
+        update.message.reply_text("Введіть ваше Прізвище:")
+    else:
+        update.message.reply_text('Ваше Ім`я занадто довге. Спробуйте ще раз')
+
+def email(update, context):
+    global STATE
+    STATE = EMAIL
+    second_name = update.message.text
+    second_name = User.name_and_second_name_validator(name=second_name)
+    if second_name is not None:
+        context.user_data['second_name'] = second_name
+        update.message.reply_text("Введіть вашу електронну адресу:")
+    else:
+        update.message.reply_text('Ваше Прізвище занадто довге. Спробуйте ще раз')
+
+def update_data_for_user(update, context):
+    global STATE
+    email = update.message.text
+    chat_id = update.message.chat.id
+    email = User.email_validator(email=email)
+    if email is not None:
+        user = User.get_by_chat_id(chat_id)
+        user.name, user.second_name, user.email = context.user_data['name'], context.user_data['second_name'], email
+        user.save()
+        update.message.reply_text('Ваші дані оновлені')
+        STATE = None
+    else:
+        update.message.reply_text('Ваша електронна адреса некоректна. Спробуйте ще раз')
+
+
+def text(update, context):
+    global STATE
+
+    if STATE is not None:
+        if STATE == FROM_ADDRESS:
+            return to_the_adress(update, context)
+        elif STATE == TO_THE_ADDRESS:
+            return payment_method(update, context)
+        elif STATE == COMMENT:
+            return save_comment(update, context)
+        elif STATE == NAME:
+            return second_name(update, context)
+        elif STATE == SECOND_NAME:
+            return email(update, context)
+        elif STATE == EMAIL:
+            return update_data_for_user(update, context)
+
+
+def report(update, context):
+    update.message.reply_text("Введіть ваш Uber OTP код з SMS:")
+    update.message.reply_text(get_report())
+
+
+#Need fix
+def code(update: Update, context: CallbackContext):
+    r = redis.Redis.from_url(os.environ["REDIS_URL"])
+    r.publish('code', update.message.text)
+    update.message.reply_text('Generating a report...')
+    context.bot.send_chat_action(chat_id=update.effective_message.chat_id, action=ChatAction.TYPING)
 
 def help(update, context) -> str:
     update.message.reply_text('''For first step make registration by, or autorizate by /start command, if already registered.
     after all you can update your report, or pull statistic for choice''')
-
-
 
 
 def update_db(update, context):
@@ -158,8 +326,6 @@ def update_db(update, context):
         FileNameProcessed.save_filename_to_db(processed_files)
         list_new_files.clear()
         update.message.reply_text('Database updated')
-
-
 
 
 def save_reports(update, context):
@@ -432,6 +598,38 @@ def main():
     updater = Updater(os.environ['TELEGRAM_TOKEN'], use_context=True)
     dp = updater.dispatcher
 
+    # Geting id for users
+    dp.add_handler(CommandHandler("id", get_id))
+
+    # Changing status of driver
+    dp.add_handler(CommandHandler("status", status))
+    dp.add_handler(MessageHandler(
+        Filters.text(Driver.ACTIVE) |
+        Filters.text(Driver.WITH_CLIENT) |
+        Filters.text(Driver.WAIT_FOR_CLIENT) |
+        Filters.text(Driver.OFFLINE),
+        set_status))
+
+    # Ordering taxi
+    dp.add_handler(CommandHandler("start", start))
+    #incomplete auth
+    dp.add_handler(MessageHandler(Filters.contact, update_phone_number))
+    # ordering taxi
+    dp.add_handler(MessageHandler(Filters.location, location, run_async=True))
+    dp.add_handler(MessageHandler(Filters.text(f"\u2705 {LOCATION_CORRECT}"), to_the_adress))
+    dp.add_handler(MessageHandler(Filters.text(f"\u274c {LOCATION_WRONG}"), from_address))
+    dp.add_handler(MessageHandler(
+        Filters.text(f"\U0001f4b7 {Order.CASH}") |
+        Filters.text(f"\U0001f4b8 {Order.CARD}"),
+        order_create))
+    # sending comment
+    dp.add_handler(MessageHandler(Filters.text("\U0001f4e2 Залишити відгук"), comment))
+    # updating information for Users
+    dp.add_handler(MessageHandler(Filters.text("\U0001f465 Надати повну інформацію"), name))
+
+    dp.add_handler(MessageHandler(Filters.text, text))
+
+
     conv_handler = ConversationHandler(
         entry_points=[
             CommandHandler('status_car', status_car),
@@ -473,21 +671,14 @@ def main():
         ],
     )
 
+
+
     dp.add_handler(CommandHandler("help",   help))
-    dp.add_handler(CommandHandler("start",  start))
+
     dp.add_handler(CommandHandler("report", report, run_async=True))
-    dp.add_handler(CommandHandler("status", status))
-    dp.add_handler(MessageHandler(
-          Filters.text(Driver.ACTIVE) |
-          Filters.text(Driver.WITH_CLIENT) |
-          Filters.text(Driver.WAIT_FOR_CLIENT) |
-          Filters.text(Driver.OFFLINE),
-          set_status
-        )
-    )
-    dp.add_handler(MessageHandler(Filters.contact, update_phone_number))
-    dp.add_handler(MessageHandler(Filters.location, location, run_async=True))
-    
+
+
+
     dp.add_handler(MessageHandler(Filters.regex(r'^\d{4}$'), code))
     dp.add_error_handler(error_handler)
 

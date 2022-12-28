@@ -61,3 +61,9 @@ class TestBot(unittest.TestCase):
 
     def test_get_information_2(self):
         self.assertIsNotNone('/get_information')
+
+    def test_id(self):
+        self.assertTrue('/id')
+
+    def test_id_2(self):
+        self.assertIsNotNone('/id')
