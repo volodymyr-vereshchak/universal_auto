@@ -593,6 +593,8 @@ class Fleets_drivers_vehicles_rate(models.Model):
     created_at = models.DateTimeField(editable=False, auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     deleted_at = models.DateTimeField(null=True, blank=True)
+    pay_cash = models.BooleanField(default=False)
+    withdraw_money = models.BooleanField(default=False)
 
     def __str__(self) -> str:
         return ''
@@ -983,7 +985,7 @@ class SeleniumTools():
         options.add_argument("--enable-file-cookies")
         options.add_argument('--allow-profiles-outside-user-dir')
         options.add_argument('--enable-profile-shortcut-manager')
-        options.add_argument(f'user-data-dir={os.getcwd()}\\_ChromeUser_{self.__class__.__name__}')
+        options.add_argument(f'user-data-dir={os.getcwd()}\\_ChromeUser_{self.session_file_name.capitalize()}')
 
         if headless:
             options.add_argument('--headless')
