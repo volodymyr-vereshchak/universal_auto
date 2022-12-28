@@ -8,12 +8,19 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.common import TimeoutException, WebDriverException
 from translators.server import tss
 
-from app.models import Bolt, Driver, NewUklon, Uber, Fleets_drivers_vehicles_rate, Fleet, Vehicle
+from app.models import Bolt, Driver, NewUklon, Uber, Fleets_drivers_vehicles_rate, Fleet, Vehicle, SeleniumTools
 
 LOGGER.setLevel(logging.WARNING)
 
 
 class Synchronizer:
+
+    def __init__(self, chrome_driver):
+        if chrome_driver is None:
+            super().__init__(driver=True, sleep=3, headless=True)
+        else:
+            super().__init__(driver=False, sleep=3, headless=True)
+            self.driver = chrome_driver
 
     def get_target_element_of_page(self, url, xpath):
         try:

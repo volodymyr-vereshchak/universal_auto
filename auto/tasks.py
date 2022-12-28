@@ -7,12 +7,15 @@ from celery.utils.log import get_task_logger
 from django.conf import settings
 from django.core.cache import cache
 
-from app.models import RawGPS, Vehicle, VehicleGPS, Fleet, Bolt, Driver, NewUklon
+from app.models import RawGPS, Vehicle, VehicleGPS, Fleet, Bolt, Driver, NewUklon, Uber
 from auto.celery import app
+from auto.fleet_synchronizer import BoltSynchronizer, UklonSynchronizer, UberSynchronizer
 
 BOLT_CHROME_DRIVER = None
 UKLON_CHROME_DRIVER = None
+UBER_CHROME_DRIVER = None
 
+UPDATE_DRIVER_DATA_FREQUENCY = 60*2
 UPDATE_DRIVER_STATUS_FREQUENCY = 60
 MEMCASH_LOCK_EXPIRE = 60 * 10
 MEMCASH_LOCK_AFTER_FINISHING = 10
@@ -111,11 +114,26 @@ def update_driver_status(self):
             logger.info('passed')
 
 
+@app.task(bind=True)
+def update_driver_data(self):
+    with memcache_lock(self.name, self.app.oid) as acquired:
+        if acquired:
+            BoltSynchronizer(BOLT_CHROME_DRIVER.driver).synchronize()
+            UklonSynchronizer(UKLON_CHROME_DRIVER.driver).synchronize()
+            UberSynchronizer(UBER_CHROME_DRIVER.driver).synchronize()
+
+        else:
+            logger.info('passed')
+
+
 @app.on_after_finalize.connect
 def setup_periodic_tasks(sender, **kwargs):
     global BOLT_CHROME_DRIVER
     global UKLON_CHROME_DRIVER
+    global UBER_CHROME_DRIVER
     BOLT_CHROME_DRIVER = Bolt(driver=True, sleep=3, headless=True)
     UKLON_CHROME_DRIVER = NewUklon(driver=True, sleep=3, headless=True)
+    UBER_CHROME_DRIVER = Uber(driver=True, sleep=3, headless=True)
     sender.add_periodic_task(UPDATE_DRIVER_STATUS_FREQUENCY, update_driver_status.s())
+    sender.add_periodic_task(UPDATE_DRIVER_DATA_FREQUENCY, update_driver_data.s())
 

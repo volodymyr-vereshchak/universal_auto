@@ -1059,10 +1059,9 @@ class Uber(SeleniumTools):
     def __init__(self, week_number=None, day=None, driver=True, sleep=3, headless=False, base_url="https://supplier.uber.com"):
         super().__init__('uber', week_number=week_number, day=day)
         self.sleep = sleep
-        print(driver)
         if driver:
             self.driver = self.build_driver(headless)
-            self.base_url = base_url
+        self.base_url = base_url
 
     def quit(self):
         self.driver.quit()
@@ -1360,7 +1359,7 @@ class Bolt(SeleniumTools):
         self.sleep = sleep
         if driver:
             self.driver = self.build_driver(headless)
-            self.base_url = base_url
+        self.base_url = base_url
     
     def quit(self):
         self.driver.quit() 
@@ -1555,7 +1554,7 @@ class Uklon(SeleniumTools):
         self.sleep = sleep
         if driver:
             self.driver = self.build_driver(headless)
-            self.base_url = base_url
+        self.base_url = base_url
 
     def quit(self):
         self.driver.quit()
@@ -1697,7 +1696,7 @@ class NewUklon(SeleniumTools):
         self.sleep = sleep
         if driver:
             self.driver = self.build_driver(headless)
-            self.base_url = base_url
+        self.base_url = base_url
 
     def quit(self):
         self.driver.quit()
