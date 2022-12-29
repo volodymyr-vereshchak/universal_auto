@@ -30,8 +30,8 @@ logger = logging.getLogger(__name__)
 
 processed_files = []
 
-#Ordering taxi
 
+#Ordering taxi
 def start(update, context):
     update.message.reply_text('Привіт! Тебе вітає Універсальне таксі - викликай кнопкою нижче.')
     chat_id = update.message.chat.id
@@ -57,6 +57,7 @@ def start(update, context):
         )
     update.message.reply_text("Будь ласка розшарьте номер телефону та геолокацію для виклику таксі", reply_markup=reply_markup,)
 
+
 def update_phone_number(update, context):
     chat_id = update.message.chat.id
     user = User.get_by_chat_id(chat_id)
@@ -67,8 +68,10 @@ def update_phone_number(update, context):
         user.save()
         update.message.reply_text('Дякуємо ми отримали ваш номер телефону для звязку з водієм')
 
+
 LOCATION_WRONG = "Місце посадки - невірне"
 LOCATION_CORRECT = "Місце посадки - вірне"
+
 
 def location(update: Update, context: CallbackContext):
     active_drivers = [i.chat_id for i in Driver.objects.all() if i.driver_status == f'{Driver.ACTIVE}']
@@ -99,8 +102,10 @@ def location(update: Update, context: CallbackContext):
                 logger.error(i)
             time.sleep(5)
 
+
 STATE = None
 LOCATION, FROM_ADDRESS, TO_THE_ADDRESS, COMMENT, NAME, SECOND_NAME, EMAIL = range(1, 8)
+
 
 def the_confirmation_of_location(update, context):
     global STATE
@@ -115,11 +120,13 @@ def the_confirmation_of_location(update, context):
 
     update.message.reply_text('Виберіть статус вашої геолокації!', reply_markup=reply_markup)
 
+
 def from_address(update, context):
     global STATE
     STATE = FROM_ADDRESS
     context.user_data['latitude'], context.user_data['longitude'] = 'Null', 'Null'
     update.message.reply_text('Введіть адресу місця посадки:', reply_markup=ReplyKeyboardRemove())
+
 
 def to_the_adress(update, context):
     global STATE
@@ -128,6 +135,7 @@ def to_the_adress(update, context):
         STATE = TO_THE_ADDRESS
     update.message.reply_text('Введіть адресу місця призначення:', reply_markup=ReplyKeyboardRemove())
     STATE = TO_THE_ADDRESS
+
 
 def payment_method(update, context):
     global STATE
@@ -142,6 +150,7 @@ def payment_method(update, context):
         resize_keyboard=True, )
 
     update.message.reply_text('Виберіть спосіб оплати:', reply_markup=reply_markup)
+
 
 def order_create(update, context):
     WAITING = 'Очікується'
@@ -166,7 +175,6 @@ def order_create(update, context):
 
 
 # Changing status of driver
-
 def status(update, context):
     chat_id = update.message.chat.id
     driver = Driver.get_by_chat_id(chat_id)
@@ -182,6 +190,7 @@ def status(update, context):
     else:
         update.message.reply_text("Ви не в списку водіїв автопарку")
 
+
 def set_status(update, context):
     status = update.message.text
     chat_id = update.message.chat.id
@@ -191,13 +200,15 @@ def set_status(update, context):
         driver.save()
         update.message.reply_text(f'Твій статус: <b>{status}</b>', reply_markup=ReplyKeyboardRemove(), parse_mode=ParseMode.HTML)
     else:
-        update.message.reply_text(f'Зареєструся як водій', reply_markup=ReplyKeyboardRemove())
+        update.message.reply_text(f'Зареєструйтесь як водій', reply_markup=ReplyKeyboardRemove())
+
 
 # Sending comment
 def comment(update, context):
     global STATE
     STATE = COMMENT
     update.message.reply_text('Залишіть відгук або сповістіть о проблемі', reply_markup=ReplyKeyboardRemove())
+
 
 def save_comment(update, context):
     global STATE
@@ -212,16 +223,19 @@ def save_comment(update, context):
     STATE = None
     update.message.reply_text('Ваш відгук був збережено. Очікуйте, менеджер скоро з вами звяжеться!')
 
+
 # Getting id for users
 def get_id(update, context):
     chat_id = update.message.chat.id
     update.message.reply_text(f"Ваш id: {chat_id}")
+
 
 # Adding information for Users
 def name(update, context):
     global STATE
     STATE = NAME
     update.message.reply_text("Введіть ваше Ім`я:")
+
 
 def second_name(update, context):
     global STATE
@@ -234,6 +248,7 @@ def second_name(update, context):
     else:
         update.message.reply_text('Ваше Ім`я занадто довге. Спробуйте ще раз')
 
+
 def email(update, context):
     global STATE
     STATE = EMAIL
@@ -244,6 +259,7 @@ def email(update, context):
         update.message.reply_text("Введіть вашу електронну адресу:")
     else:
         update.message.reply_text('Ваше Прізвище занадто довге. Спробуйте ще раз')
+
 
 def update_data_for_user(update, context):
     global STATE
@@ -260,8 +276,225 @@ def update_data_for_user(update, context):
         update.message.reply_text('Ваша електронна адреса некоректна. Спробуйте ще раз')
 
 
+SERVICEABLE = 'Придатна до обслуговування'
+BROKEN = 'Зламана'
+
+STATE_D = None
+NUMBERPLATE = range(1, 2)
+
+# Changing status car
+def status_car(update, context):
+    chat_id = update.message.chat.id
+    driver = Driver.get_by_chat_id(chat_id)
+    if driver is not None:
+        buttons = [[KeyboardButton(f'{SERVICEABLE}')], [KeyboardButton(f'{BROKEN}')]]
+        context.bot.send_message(chat_id=update.effective_chat.id, text='Оберіть статус автомобіля',
+                                        reply_markup=ReplyKeyboardMarkup(buttons, one_time_keyboard=True))
+    else:
+        update.message.reply_text(f'Зареєструтесь як водій', reply_markup=ReplyKeyboardRemove())
+
+
+def numberplate(update, context):
+    global STATE_D
+    context.user_data['status'] = update.message.text
+    STATE_D = NUMBERPLATE
+    update.message.reply_text('Введіть номер автомобіля', reply_markup=ReplyKeyboardRemove())
+
+
+def change_status_car(update, context):
+    global STATE_D
+    context.user_data['licence_place'] = update.message.text.upper()
+    number_car = context.user_data['licence_place']
+    numberplates = [i.licence_plate for i in Vehicle.objects.all()]
+    if number_car in numberplates:
+        vehicle = Vehicle.get_by_numberplate(number_car)
+        vehicle.car_status = context.user_data['status']
+        vehicle.save()
+        numberplates.clear()
+        STATE_D = None
+        update.message.reply_text('Статус авто був змінений')
+    else:
+        update.message.reply_text('Цього номера немає в базі даних або надіслано неправильні дані. Зверніться до менеджера або повторіть команду')
+
+# Viewing broken car
+def broken_car(update, context):
+    chat_id = update.message.chat.id
+    driver_manager = DriverManager.get_by_chat_id(chat_id)
+    if driver_manager is not None:
+        vehicle = Vehicle.objects.filter(car_status=f'{BROKEN}')
+        report = ''
+        result = [f'{i.licence_plate}' for i in vehicle]
+        if len(result) == 0:
+            update.message.reply_text("Немає зламаних авто")
+        else:
+            for i in result:
+                report += f'{i}\n'
+            update.message.reply_text(f'{report}')
+    else:
+        update.message.reply_text('Зареєструйтесь як менеджер водіїв')
+
+STATE_DM = None
+STATUS = range(1, 2)
+
+# Viewing status driver
+def driver_status(update, context):
+    global STATE_DM
+    chat_id = update.message.chat.id
+    driver_manager = DriverManager.get_by_chat_id(chat_id)
+    if True:
+        buttons = [[KeyboardButton(Driver.ACTIVE)],
+                   [KeyboardButton(Driver.WITH_CLIENT)],
+                   [KeyboardButton(Driver.WAIT_FOR_CLIENT)],
+                   [KeyboardButton(Driver.OFFLINE)]
+                   ]
+        STATE_DM = STATUS
+        context.bot.send_message(chat_id=update.effective_chat.id, text='Оберіть статус',
+                                 reply_markup=ReplyKeyboardMarkup(buttons, one_time_keyboard=True))
+    else:
+        update.message.reply_text('Зареєструйтесь як менеджер водіїв')
+
+
+def viewing_status_driver(update, context):
+    global STATE_DM
+    status = update.message.text
+    driver = Driver.objects.filter(driver_status=status)
+    report = ''
+    result = [f'{i.name} {i.second_name}: {i.fleet}' for i in driver]
+    if len(result) == 0:
+        update.message.reply_text('Зараз немає водіїв з таким статусом', reply_markup=ReplyKeyboardRemove())
+    else:
+        for i in result:
+            report += f'{i}\n'
+    update.message.reply_text(f'{report}', reply_markup=ReplyKeyboardRemove())
+    STATE_DM = None
+
+
+STATE_SSM = None
+LICENCE_PLATE, PHOTO, START_OF_REPAIR, END_OF_REPAIR = range(1, 5)
+
+# Sending report on repair
+def numberplate_car(update, context):
+    global STATE_SSM
+    chat_id = update.message.chat.id
+    service_station_manager = ServiceStationManager.get_by_chat_id(chat_id)
+    if service_station_manager is not None:
+        STATE_SSM = LICENCE_PLATE
+        update.message.reply_text('Будь ласка, введіть номерний знак автомобіля')
+    else:
+        update.message.reply_text('Зареєструйтесь як менеджер сервісного центру')
+
+
+def photo(update, context):
+    global STATE_SSM
+    context.user_data['licence_plate'] = update.message.text.upper()
+    numberplates = [i.licence_plate for i in Vehicle.objects.all()]
+    if context.user_data['licence_plate'] not in numberplates:
+        update.message.reply_text('Написаного вами номера немає в базі, зверніться до менеджера парку')
+    STATE_SSM = PHOTO
+    update.message.reply_text('Будь ласка, надішліть мені фото звіту про ремонт (Одне фото)')
+
+
+def start_of_repair(update, context):
+    global STATE_SSM
+    context.user_data['photo'] = update.message.photo[-1].get_file()
+    update.message.reply_text('Будь ласка, введіть дату та час початку ремонту у форматі: %Y-%m-%d %H:%M:%S')
+    STATE_SSM = START_OF_REPAIR
+
+
+def end_of_repair(update, context):
+    global STATE_SSM
+    context.user_data['start_of_repair'] = update.message.text + "+00"
+    try:
+        time.strptime(context.user_data['start_of_repair'], "%Y-%m-%d %H:%M:%S+00")
+    except ValueError:
+        update.message.reply_text('Недійсна дата')
+    STATE_SSM = END_OF_REPAIR
+    update.message.reply_text("Будь ласка, введіть дату та час закінченяя ремонту у форматі: %Y-%m-%d %H:%M:%S")
+
+
+def send_report_to_db_and_driver(update, context):
+    global STATE_SSM
+    context.user_data['end_of_repair'] = update.message.text + '+00'
+    try:
+        time.strptime(context.user_data['end_of_repair'], "%Y-%m-%d %H:%M:%S+00")
+    except ValueError:
+        update.message.reply_text('Недійсна дата')
+
+    order = RepairReport(
+                    repair=context.user_data['photo']["file_path"],
+                    numberplate=context.user_data['licence_plate'],
+                    start_of_repair=context.user_data['start_of_repair'],
+                    end_of_repair=context.user_data['end_of_repair'])
+    order.save()
+    STATE_SSM = None
+    update.message.reply_text('Ваш звіт збережено в базі даних')
+
+
+def error_handler(update: object, context: CallbackContext) -> None:
+    """Log the error and send a telegram message to notify the developer."""
+    # Log the error before we do anything else, so we can see it even if something breaks.
+    logger.error(msg="Exception while handling an update:", exc_info=context.error)
+
+    # traceback.format_exception returns the usual python message about an exception, but as a
+    # list of strings rather than a single string, so we have to join them together.
+    tb_list = traceback.format_exception(None, context.error, context.error.__traceback__)
+    tb_string = ''.join(tb_list)
+
+    # Build the message with some markup and additional information about what happened.
+    # You might need to add some logic to deal with messages longer than the 4096 character limit.
+    update_str = update.to_dict() if isinstance(update, Update) else str(update)
+    message = (
+        f'An exception was raised while handling an update\n'
+        f'<pre>update = {html.escape(json.dumps(update_str, indent=2, ensure_ascii=False))}'
+        '</pre>\n\n'
+        f'<pre>context.chat_data = {html.escape(str(context.chat_data))}</pre>\n\n'
+        f'<pre>context.user_data = {html.escape(str(context.user_data))}</pre>\n\n'
+        f'<pre>{html.escape(tb_string)}</pre>'
+    )
+
+    # Finally, send the message
+    context.bot.send_message(chat_id=DEVELOPER_CHAT_ID, text=message, parse_mode=ParseMode.HTML)
+
+
+def code(update: Update, context: CallbackContext):
+    r = redis.Redis.from_url(os.environ["REDIS_URL"])
+    r.publish('code', update.message.text)
+    update.message.reply_text('Формування звіту...')
+    context.bot.send_chat_action(chat_id=update.effective_message.chat_id, action=ChatAction.TYPING)
+
+
+def help(update, context) -> str:
+    update.message.reply_text('Для першого кроку зробіть реєстрацію або авторизуйтеся командою /start \n' \
+                              'Щоб переглянути команди для вашої ролі скористайтесь командою /get_information')
+
+
+def get_information(update, context):
+    chat_id = update.message.chat.id
+    driver_manager = DriverManager.get_by_chat_id(chat_id)
+    driver = Driver.get_by_chat_id(chat_id)
+    manager = ServiceStationManager.get_by_chat_id(chat_id)
+    if driver is not None:
+        report = '/status - changing status of driver\n' \
+                 '/status_car -changing status of car'
+        update.message.reply_text(f'{report}')
+    elif driver_manager is not None:
+        report = '/broken_car - showing all broken car\n' \
+                 '/status - showing status  of drivers\n'
+        update.message.reply_text(f'{report}')
+    elif manager is not None:
+        report = '/send_report - sending report of repair\n'
+        update.message.reply_text(f'{report}')
+    else:
+        update.message.reply_text('There is no information on commands for your role yet')
+
+
 def text(update, context):
+    """ STATE - for all users, STATE_D - for drivers,
+            STATE_DM - for driver manager, STATE_SSM - for service station manager"""
     global STATE
+    global STATE_D
+    global STATE_DM
+    global STATE_SSM
 
     if STATE is not None:
         if STATE == FROM_ADDRESS:
@@ -276,6 +509,33 @@ def text(update, context):
             return email(update, context)
         elif STATE == EMAIL:
             return update_data_for_user(update, context)
+    elif STATE_D is not None:
+        if STATE_D == NUMBERPLATE:
+            return change_status_car(update, context)
+    elif STATE_DM is not None:
+        if STATE_DM == STATUS:
+            return viewing_status_driver(update, context)
+    elif STATE_SSM is not None:
+        if STATE_SSM == LICENCE_PLATE:
+            return photo(update, context)
+        elif STATE_SSM ==PHOTO:
+            return start_of_repair(update, context)
+        elif STATE_SSM == START_OF_REPAIR:
+            return end_of_repair(update, context)
+        elif STATE_SSM == END_OF_REPAIR:
+            return send_report_to_db_and_driver(update, context)
+
+def drivers_rating(update, context):
+    text = 'Рейтинг водіїв\n\n'
+    for fleet in DriversRatingMixin().get_rating():
+        text += fleet['fleet'] + '\n'
+        for period in fleet['rating']:
+            text += f"{period['start']:%d.%m.%Y} - {period['end']:%d.%m.%Y}" + '\n'
+            if period['rating']:
+                text += '\n'.join([f"{item['num']} {item['driver']} {item['amount']:15.2f} - {item['trips'] if item['trips']>0 else ''}" for item in period['rating']]) + '\n\n'
+            else:
+                text += 'Отримання даних... Спробуйте пізніше\n'
+    update.message.reply_text(text)
 
 
 def report(update, context):
@@ -284,17 +544,6 @@ def report(update, context):
 
 
 #Need fix
-def code(update: Update, context: CallbackContext):
-    r = redis.Redis.from_url(os.environ["REDIS_URL"])
-    r.publish('code', update.message.text)
-    update.message.reply_text('Generating a report...')
-    context.bot.send_chat_action(chat_id=update.effective_message.chat_id, action=ChatAction.TYPING)
-
-def help(update, context) -> str:
-    update.message.reply_text('''For first step make registration by, or autorizate by /start command, if already registered.
-    after all you can update your report, or pull statistic for choice''')
-
-
 def update_db(update, context):
     """Pushing data to database from weekly_csv files"""
     # getting and opening files
@@ -333,31 +582,6 @@ def save_reports(update, context):
     wrf.save_weekly_reports_to_db()
     update.message.reply_text("Reports have been saved")
 
-
-def error_handler(update: object, context: CallbackContext) -> None:
-    """Log the error and send a telegram message to notify the developer."""
-    # Log the error before we do anything else, so we can see it even if something breaks.
-    logger.error(msg="Exception while handling an update:", exc_info=context.error)
-
-    # traceback.format_exception returns the usual python message about an exception, but as a
-    # list of strings rather than a single string, so we have to join them together.
-    tb_list = traceback.format_exception(None, context.error, context.error.__traceback__)
-    tb_string = ''.join(tb_list)
-
-    # Build the message with some markup and additional information about what happened.
-    # You might need to add some logic to deal with messages longer than the 4096 character limit.
-    update_str = update.to_dict() if isinstance(update, Update) else str(update)
-    message = (
-        f'An exception was raised while handling an update\n'
-        f'<pre>update = {html.escape(json.dumps(update_str, indent=2, ensure_ascii=False))}'
-        '</pre>\n\n'
-        f'<pre>context.chat_data = {html.escape(str(context.chat_data))}</pre>\n\n'
-        f'<pre>context.user_data = {html.escape(str(context.user_data))}</pre>\n\n'
-        f'<pre>{html.escape(tb_string)}</pre>'
-    )
-
-    # Finally, send the message
-    context.bot.send_message(chat_id=DEVELOPER_CHAT_ID, text=message, parse_mode=ParseMode.HTML)
 
 
 def get_owner_today_report(update, context) -> str:
@@ -399,19 +623,6 @@ def get_stat_for_manager(update, context) -> list:
         reply_markup=ReplyKeyboardMarkup(buttons))
 
 
-def drivers_rating(update, context):
-    text = 'Drivers Rating\n\n'
-    for fleet in DriversRatingMixin().get_rating():
-        text += fleet['fleet'] + '\n'
-        for period in fleet['rating']:
-            text += f"{period['start']:%d.%m.%Y} - {period['end']:%d.%m.%Y}" + '\n'
-            if period['rating']:
-                text += '\n'.join([f"{item['num']} {item['driver']} {item['amount']:15.2f} - {item['trips'] if item['trips']>0 else ''}" for item in period['rating']]) + '\n\n'
-            else:
-                text += 'Receiving data...Please try later\n'
-    update.message.reply_text(text)
-
-
 def aut_handler(update, context) -> list:
     if 'Get autorizate' in update.message.text:
         if user.type == 0:
@@ -438,181 +649,23 @@ def get_update_report(update, context):
         aut_handler(update, context)
 
 
-
-STATUS, LICENCE_PLACE = range(2)
-
-
-def status_car(update, context):
-    chat_id = update.message.chat.id
-    driver = Driver.get_by_chat_id(chat_id)
-    if driver is not None:
-        buttons = [[KeyboardButton('Serviceable')], [KeyboardButton('Broken')]]
-        context.bot.send_message(chat_id=update.effective_chat.id, text='Choice your status of car',
-                                        reply_markup=ReplyKeyboardMarkup(buttons, one_time_keyboard=True))
-    else:
-        update.message.reply_text('This command only for driver')
-        return ConversationHandler.END
-    return STATUS
-
-
-def numberplate(update, context):
-    context.user_data[STATUS] = update.message.text
-    update.message.reply_text('Please, enter the number of your car that broke down', reply_markup=ReplyKeyboardRemove())
-    return LICENCE_PLACE
-
-
-def change_status_car(update, context):
-    """This func change status_car and only for the role of drivers"""
-    chat_id = update.message.chat.id
-    context.user_data[LICENCE_PLACE] = update.message.text.upper()
-    number_car = context.user_data[LICENCE_PLACE]
-    status_car = context.user_data[STATUS]
-    queryset = Vehicle.objects.all()
-    numberplates = [i.licence_plate for i in queryset]
-    if number_car in numberplates:
-        driver = Driver.get_by_chat_id(chat_id)
-        vehicle = Vehicle.get_by_numberplate(number_car)
-        vehicle.car_status = status_car
-        vehicle.save()
-        numberplates.clear()
-        update.message.reply_text('Your status of car has been changed')
-    else:
-        update.message.reply_text('This number is not in the database or incorrect data was sent. Contact the manager or repeat the command')
-
-    return ConversationHandler.END
-
-
-def cancel_status_car(update: Update, context: CallbackContext):
-    """ Cancel the entire dialogue process. Data will be lost
-    """
-    update.message.reply_text('Cancel. To start from scratch press /status_car')
-    return ConversationHandler.END
-
-
-
-NUMBERPLATE, PHOTO, START_OF_REPAIR, END_OF_REPAIR = range(4)
-
-
-def numberplate_car(update, context):
-    chat_id = update.message.chat.id
-    manager = ServiceStationManager.get_by_chat_id(chat_id)
-    if manager is not None:
-        update.message.reply_text('Please enter numberplate car ')
-    else:
-        update.message.reply_text('This commands only for service station manager')
-        return ConversationHandler.END
-    return NUMBERPLATE
-
-
-def photo(update, context):
-    context.user_data[NUMBERPLATE] = update.message.text.upper()
-    queryset = Vehicle.objects.all()
-    numberplates = [i.licence_plate for i in queryset]
-    if context.user_data[NUMBERPLATE] not in numberplates:
-        update.message.reply_text('The number you wrote is not in the database, contact the park manager')
-        return ConversationHandler.END
-    update.message.reply_text('Please, send me report  photo on repair (One photo)')
-    return PHOTO
-
-
-def start_of_repair(update, context):
-    context.user_data[PHOTO] = update.message.photo[-1].get_file()
-    update.message.reply_text('Please, enter date and time start of repair in format: %Y-%m-%d %H:%M:%S')
-    return START_OF_REPAIR
-
-
-def end_of_repair(update, context):
-    context.user_data[START_OF_REPAIR] = update.message.text + "+00"
-    try:
-        time.strptime(context.user_data[START_OF_REPAIR], "%Y-%m-%d %H:%M:%S+00")
-    except ValueError:
-        update.message.reply_text('Invalid date')
-        return ConversationHandler.END
-    update.message.reply_text("Please, enter date and time end of repair in format: %Y-%m-%d %H:%M:%S")
-    return END_OF_REPAIR
-
-
-def send_report_to_db_and_driver(update, context):
-    context.user_data[END_OF_REPAIR] = update.message.text + '+00'
-    try:
-        time.strptime(context.user_data[END_OF_REPAIR], "%Y-%m-%d %H:%M:%S+00")
-    except ValueError:
-        update.message.reply_text('Invalid date')
-        return ConversationHandler.END
-    order = RepairReport(
-                    repair=context.user_data[PHOTO]["file_path"],
-                    numberplate=context.user_data[NUMBERPLATE],
-                    start_of_repair=context.user_data[START_OF_REPAIR],
-                    end_of_repair=context.user_data[END_OF_REPAIR])
-    order.save()
-    update.message.reply_text('Your report saved to database')
-    #vehicle = Vehicle.get_by_numberplate(context.user_data[NUMBERPLATE])
-    #chat_id_driver = vehicle.driver.chat_id
-    #context.bot.send_message(chat_id=chat_id_driver, text=f'Your car {context.user_data[NUMBERPLATE]} renovated')
-    return ConversationHandler.END
-
-
-def cancel_send_report(update, context):
-    update.message.reply_text('/cancel. To start from scratch press /send_report')
-    return ConversationHandler.END
-
-
-def broken_car(update, context):
-    chat_id = update.message.chat.id
-    driver_manager = DriverManager.get_by_chat_id(chat_id)
-    if driver_manager is not None:
-        vehicle = Vehicle.objects.filter(car_status='Broken')
-        report = ''
-        result = [f'{i.licence_plate}' for i in vehicle]
-        if len(result) == 0:
-            update.message.reply_text("No broken cars")
-        else:
-            for i in result:
-                report += f'{i}\n'
-            update.message.reply_text(f'{report}')
-    else:
-        update.message.reply_text('This commands only for service station manager')
-
-
-def get_information(update, context):
-    chat_id = update.message.chat.id
-    driver_manager = DriverManager.get_by_chat_id(chat_id)
-    driver = Driver.get_by_chat_id(chat_id)
-    manager = ServiceStationManager.get_by_chat_id(chat_id)
-    if driver is not None:
-        report = '/status - changing status of driver\n' \
-                 '/status_car -changing status of car'
-        update.message.reply_text(f'{report}')
-    elif driver_manager is not None:
-        report = '/broken_car - showing all broken car\n' \
-                 '/status - showing status  of drivers\n'
-        update.message.reply_text(f'{report}')
-    elif manager is not None:
-        report = '/send_report - sending report of repair\n'
-        update.message.reply_text(f'{report}')
-    else:
-        update.message.reply_text('There is no information on commands for your role yet')
-
-
 def main():
     updater = Updater(os.environ['TELEGRAM_TOKEN'], use_context=True)
     dp = updater.dispatcher
 
-    # Geting id for users
+
+    # Publicly available commands
+    # Getting id
     dp.add_handler(CommandHandler("id", get_id))
+    # Information on commands
+    dp.add_handler(CommandHandler("help", help))
+    dp.add_handler(CommandHandler("get_information", get_information))
 
-    # Changing status of driver
-    dp.add_handler(CommandHandler("status", status))
-    dp.add_handler(MessageHandler(
-        Filters.text(Driver.ACTIVE) |
-        Filters.text(Driver.WITH_CLIENT) |
-        Filters.text(Driver.WAIT_FOR_CLIENT) |
-        Filters.text(Driver.OFFLINE),
-        set_status))
 
+    # Commands for Users
     # Ordering taxi
     dp.add_handler(CommandHandler("start", start))
-    #incomplete auth
+    # incomplete auth
     dp.add_handler(MessageHandler(Filters.contact, update_phone_number))
     # ordering taxi
     dp.add_handler(MessageHandler(Filters.location, location, run_async=True))
@@ -624,78 +677,60 @@ def main():
         order_create))
     # sending comment
     dp.add_handler(MessageHandler(Filters.text("\U0001f4e2 Залишити відгук"), comment))
-    # updating information for Users
+    # updating information
     dp.add_handler(MessageHandler(Filters.text("\U0001f465 Надати повну інформацію"), name))
 
     dp.add_handler(MessageHandler(Filters.text, text))
 
 
-    conv_handler = ConversationHandler(
-        entry_points=[
-            CommandHandler('status_car', status_car),
-        ],
-        states={
-            STATUS: [
-                MessageHandler(Filters.all, numberplate, pass_user_data=True),
-            ],
-            LICENCE_PLACE: [
-                MessageHandler(Filters.all, change_status_car, pass_user_data=True),
-                CommandHandler('cancel', cancel_status_car)
-            ],
-        },
-        fallbacks=[
-            CommandHandler('cancel', cancel_status_car),
-        ],
-    )
+    # Commands for Drivers
+    # Changing status of driver
+    dp.add_handler(CommandHandler("status", status))
+    dp.add_handler(MessageHandler(
+        Filters.text(Driver.ACTIVE) |
+        Filters.text(Driver.WITH_CLIENT) |
+        Filters.text(Driver.WAIT_FOR_CLIENT) |
+        Filters.text(Driver.OFFLINE),
+        set_status))
 
-    conv_handler_1 = ConversationHandler(
-        entry_points=[
-            CommandHandler('send_report', numberplate_car),
-        ],
-        states={
-            NUMBERPLATE: [
-                MessageHandler(Filters.all, photo, pass_user_data=True),
-            ],
-            PHOTO: [
-                MessageHandler(Filters.all, start_of_repair, pass_user_data=True),
-            ],
-            START_OF_REPAIR: [
-                MessageHandler(Filters.all, end_of_repair, pass_user_data=True),
-            ],
-            END_OF_REPAIR: [
-                MessageHandler(Filters.all, send_report_to_db_and_driver, pass_user_data=True),
-            ],
-        },
-        fallbacks=[
-            CommandHandler('cancel', cancel_send_report),
-        ],
-    )
+    # Updating status_car
+    dp.add_handler(CommandHandler("status_car", status_car))
+    dp.add_handler(MessageHandler(
+        Filters.text(f'{SERVICEABLE}') |
+        Filters.text(f'{BROKEN}'),
+        numberplate))
 
 
+    # Commands for Driver Managers
+    # Returns status cars
+    dp.add_handler(CommandHandler("car_status", broken_car))
+    # Viewing status driver
+    dp.add_handler(CommandHandler("driver_status", driver_status))
 
-    dp.add_handler(CommandHandler("help",   help))
 
+    # Commands for Service Station Manager
+    # Sending report on repair
+    dp.add_handler(CommandHandler("send_report", numberplate_car))
+
+
+    # Command for Owner
     dp.add_handler(CommandHandler("report", report, run_async=True))
+    dp.add_handler(CommandHandler("rating", drivers_rating))
 
-
-
+    # System commands
     dp.add_handler(MessageHandler(Filters.regex(r'^\d{4}$'), code))
     dp.add_error_handler(error_handler)
+    updater.start_polling()
+    updater.idle()
 
-
+    # need fix
     dp.add_handler(CommandHandler('update', update_db, run_async=True))
     dp.add_handler(CommandHandler("save_reports", save_reports))
-    dp.add_handler(CommandHandler("rating", drivers_rating))
-    dp.add_handler(CommandHandler("broken_car", broken_car))
-    dp.add_handler(CommandHandler("get_information", get_information))
+
     dp.add_handler(MessageHandler(Filters.text('Get all today statistic'), get_manager_today_report))
     dp.add_handler(MessageHandler(Filters.text('Get today statistic'), get_driver_today_report))
     dp.add_handler(MessageHandler(Filters.text('Choice week number'), get_driver_week_report))
     dp.add_handler(MessageHandler(Filters.text('Update report'), get_update_report))
-    
-        
-    updater.start_polling()
-    updater.idle()
 
 
 def run():
