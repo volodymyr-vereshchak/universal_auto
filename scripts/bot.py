@@ -465,7 +465,7 @@ def code(update: Update, context: CallbackContext):
 
 def help(update, context) -> str:
     update.message.reply_text('Для першого кроку зробіть реєстрацію або авторизуйтеся командою /start \n' \
-                              'Щоб переглянути команди для вашої ролі скористайтесь командою /get_information')
+                              'Щоб переглянути команди для вашої ролі скористайтесь командою /get_information \n')
 
 
 def get_information(update, context):
@@ -473,19 +473,38 @@ def get_information(update, context):
     driver_manager = DriverManager.get_by_chat_id(chat_id)
     driver = Driver.get_by_chat_id(chat_id)
     manager = ServiceStationManager.get_by_chat_id(chat_id)
+    owner = Owner.get_by_chat_id(chat_id)
+    standart_commands = '/start - Щоб зареєструватись та замовити таксі\n' \
+                        '/help - Допомога\n' \
+                        '/id - Дізнатись id\n'
     if driver is not None:
-        report = '/status - changing status of driver\n' \
-                 '/status_car -changing status of car'
+        report = 'Стандарті команди: \n\n' \
+                f'{standart_commands}\n' \
+                'Для вашої ролі:\n\n' \
+                '/status - Змінити статус водія\n' \
+                '/status_car -Змінити статус автомобіля\n'
         update.message.reply_text(f'{report}')
     elif driver_manager is not None:
-        report = '/broken_car - showing all broken car\n' \
-                 '/status - showing status  of drivers\n'
+        report = 'Стандарті команди: \n\n' \
+                f'{standart_commands}\n' \
+                'Для вашої ролі:\n\n' \
+                '/car_status - Показати всі зломлені машини\n' \
+                '/driver_status - Показати водіїв за їх статусом\n'
         update.message.reply_text(f'{report}')
     elif manager is not None:
-        report = '/send_report - sending report of repair\n'
+        report = 'Стандарті команди: \n\n' \
+                f'{standart_commands}\n' \
+                'Для вашої ролі:\n\n' \
+                '/send_report - відправити звіт про ремонт\n'
         update.message.reply_text(f'{report}')
+    elif owner is not None:
+        report = 'Стандарті команди: \n\n' \
+                f'{standart_commands}\n' \
+                'Для вашої ролі:\n\n' \
+                '/report - загрузити та побачити недільні звіти\n' \
+                '/rating - побачити рейтинг водіїв\n'
     else:
-        update.message.reply_text('There is no information on commands for your role yet')
+        update.message.reply_text(f'{standart_commands}')
 
 
 def text(update, context):
@@ -581,7 +600,6 @@ def save_reports(update, context):
     wrf = WeeklyReportFile()
     wrf.save_weekly_reports_to_db()
     update.message.reply_text("Reports have been saved")
-
 
 
 def get_owner_today_report(update, context) -> str:

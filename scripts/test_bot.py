@@ -51,10 +51,10 @@ class TestBot(unittest.TestCase):
         self.assertIsNotNone('/send_report')
 
     def test_broken_car(self):
-        self.assertTrue('/broken_car')
+        self.assertTrue('/car_status')
 
     def test_broken_car_2(self):
-        self.assertIsNotNone('/broken_car')
+        self.assertIsNotNone('/car_status')
 
     def test_get_information(self):
         self.assertTrue('/get_information')
@@ -67,3 +67,15 @@ class TestBot(unittest.TestCase):
 
     def test_id_2(self):
         self.assertIsNotNone('/id')
+
+    def test_driver_status(self):
+        self.assertTrue('/driver_status')
+
+    def test_driver_status_2(self):
+        self.assertIsNotNone('/driver_status')
+
+    def test_rating(self):
+        self.assertTrue('/rating')
+
+    def test_rating_2(self):
+        self.assertIsNotNone('/rating')
