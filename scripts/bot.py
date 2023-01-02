@@ -132,7 +132,6 @@ def to_the_adress(update, context):
     global STATE
     if STATE == FROM_ADDRESS:
         context.user_data['from_address'] = update.message.text
-        STATE = TO_THE_ADDRESS
     update.message.reply_text('Введіть адресу місця призначення:', reply_markup=ReplyKeyboardRemove())
     STATE = TO_THE_ADDRESS
 
@@ -178,7 +177,7 @@ def order_create(update, context):
 def status(update, context):
     chat_id = update.message.chat.id
     driver = Driver.get_by_chat_id(chat_id)
-    if True:
+    if driver is not None:
         buttons = [ [KeyboardButton(Driver.ACTIVE)],
                     [KeyboardButton(Driver.WITH_CLIENT)],
                     [KeyboardButton(Driver.WAIT_FOR_CLIENT)],
@@ -188,19 +187,16 @@ def status(update, context):
         context.bot.send_message(chat_id=update.effective_chat.id, text='Оберіть статус',
                                  reply_markup=ReplyKeyboardMarkup(buttons, one_time_keyboard=True))
     else:
-        update.message.reply_text("Ви не в списку водіїв автопарку")
+        update.message.reply_text(f'Зареєструйтесь як водій')
 
 
 def set_status(update, context):
     status = update.message.text
     chat_id = update.message.chat.id
     driver = Driver.get_by_chat_id(chat_id)
-    if driver is not None:
-        driver.driver_status = status
-        driver.save()
-        update.message.reply_text(f'Твій статус: <b>{status}</b>', reply_markup=ReplyKeyboardRemove(), parse_mode=ParseMode.HTML)
-    else:
-        update.message.reply_text(f'Зареєструйтесь як водій', reply_markup=ReplyKeyboardRemove())
+    driver.driver_status = status
+    driver.save()
+    update.message.reply_text(f'Твій статус: <b>{status}</b>', reply_markup=ReplyKeyboardRemove(), parse_mode=ParseMode.HTML)
 
 
 # Sending comment
@@ -280,7 +276,7 @@ SERVICEABLE = 'Придатна до обслуговування'
 BROKEN = 'Зламана'
 
 STATE_D = None
-NUMBERPLATE = range(1, 2)
+NUMBERPLATE = 1
 
 # Changing status car
 def status_car(update, context):
@@ -288,7 +284,7 @@ def status_car(update, context):
     driver = Driver.get_by_chat_id(chat_id)
     if driver is not None:
         buttons = [[KeyboardButton(f'{SERVICEABLE}')], [KeyboardButton(f'{BROKEN}')]]
-        context.bot.send_message(chat_id=update.effective_chat.id, text='Оберіть статус автомобіля',
+        context.bot.send_message(chat_id=chat_id, text='Оберіть статус автомобіля',
                                         reply_markup=ReplyKeyboardMarkup(buttons, one_time_keyboard=True))
     else:
         update.message.reply_text(f'Зареєструтесь як водій', reply_markup=ReplyKeyboardRemove())
@@ -503,6 +499,7 @@ def get_information(update, context):
                 'Для вашої ролі:\n\n' \
                 '/report - загрузити та побачити недільні звіти\n' \
                 '/rating - побачити рейтинг водіїв\n'
+        update.message.reply_text(f'{report}')
     else:
         update.message.reply_text(f'{standart_commands}')
 
@@ -560,6 +557,15 @@ def drivers_rating(update, context):
 def report(update, context):
     update.message.reply_text("Введіть ваш Uber OTP код з SMS:")
     update.message.reply_text(get_report())
+
+
+def cancel(update, context):
+    global STATE
+    global STATE_D
+    global STATE_DM
+    global STATE_SSM
+
+    STATE, STATE_D, STATE_DM, STATE_SSM = None, None, None, None
 
 
 #Need fix
@@ -736,6 +742,7 @@ def main():
     dp.add_handler(CommandHandler("rating", drivers_rating))
 
     # System commands
+    dp.add_handler(CommandHandler("cancel", cancel))
     dp.add_handler(MessageHandler(Filters.regex(r'^\d{4}$'), code))
     dp.add_error_handler(error_handler)
     updater.start_polling()

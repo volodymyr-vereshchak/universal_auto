@@ -355,7 +355,7 @@ class User(models.Model):
             user = User.objects.get(chat_id=chat_id)
             return user
         except User.DoesNotExist:
-            None
+            return None
 
 
     @staticmethod
