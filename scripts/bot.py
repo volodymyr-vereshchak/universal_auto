@@ -293,24 +293,28 @@ def status_car(update, context):
 def numberplate(update, context):
     global STATE_D
     context.user_data['status'] = update.message.text
-    STATE_D = NUMBERPLATE
     update.message.reply_text('Введіть номер автомобіля', reply_markup=ReplyKeyboardRemove())
-
+    STATE_D = NUMBERPLATE
 
 def change_status_car(update, context):
     global STATE_D
-    context.user_data['licence_place'] = update.message.text.upper()
-    number_car = context.user_data['licence_place']
-    numberplates = [i.licence_plate for i in Vehicle.objects.all()]
-    if number_car in numberplates:
-        vehicle = Vehicle.get_by_numberplate(number_car)
+    update.message.reply_text("fsdssdfd")
+    licence_place = update.message.text
+    context.user_data['licence_place'] = licence_place.upper()
+    update.message.reply_text("fsdfd")
+    numberplates = [i for i in Vehicle.objects.all()]
+    update.message.reply_text("fsdfd2")
+    update.message.reply_text(numberplates)
+    if context.user_data['licence_place'] in numberplates:
+        vehicle = Vehicle.get_by_numberplate(licence_plate=context.user_data['licence_place'])
         vehicle.car_status = context.user_data['status']
         vehicle.save()
         numberplates.clear()
-        STATE_D = None
         update.message.reply_text('Статус авто був змінений')
     else:
         update.message.reply_text('Цього номера немає в базі даних або надіслано неправильні дані. Зверніться до менеджера або повторіть команду')
+    STATE_D = None
+
 
 # Viewing broken car
 def broken_car(update, context):
@@ -704,7 +708,7 @@ def main():
     # updating information
     dp.add_handler(MessageHandler(Filters.text("\U0001f465 Надати повну інформацію"), name))
 
-    dp.add_handler(MessageHandler(Filters.text, text))
+
 
 
     # Commands for Drivers
@@ -756,6 +760,8 @@ def main():
     dp.add_handler(MessageHandler(Filters.text('Get today statistic'), get_driver_today_report))
     dp.add_handler(MessageHandler(Filters.text('Choice week number'), get_driver_week_report))
     dp.add_handler(MessageHandler(Filters.text('Update report'), get_update_report))
+
+    dp.add_handler(MessageHandler(Filters.text, text))
 
 
 def run():
