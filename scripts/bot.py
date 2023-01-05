@@ -671,7 +671,10 @@ def main():
     updater = Updater(os.environ['TELEGRAM_TOKEN'], use_context=True)
     dp = updater.dispatcher
 
-
+    # Command for Owner
+    dp.add_handler(CommandHandler("report", report, run_async=True))
+    dp.add_handler(CommandHandler("rating", drivers_rating))
+    
     # Publicly available commands
     # Getting id
     dp.add_handler(CommandHandler("id", get_id))
@@ -730,16 +733,9 @@ def main():
     # Sending report on repair
     dp.add_handler(CommandHandler("send_report", numberplate_car))
 
-
-    # Command for Owner
-    dp.add_handler(CommandHandler("report", report, run_async=True))
-    dp.add_handler(CommandHandler("rating", drivers_rating))
-
     # System commands
     dp.add_handler(MessageHandler(Filters.regex(r'^\d{4}$'), code))
     dp.add_error_handler(error_handler)
-    updater.start_polling()
-    updater.idle()
 
     # need fix
     dp.add_handler(CommandHandler('update', update_db, run_async=True))
@@ -749,6 +745,9 @@ def main():
     dp.add_handler(MessageHandler(Filters.text('Get today statistic'), get_driver_today_report))
     dp.add_handler(MessageHandler(Filters.text('Choice week number'), get_driver_week_report))
     dp.add_handler(MessageHandler(Filters.text('Update report'), get_update_report))
+
+    updater.start_polling()
+    updater.idle()
 
 
 def run():
