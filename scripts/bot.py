@@ -546,14 +546,14 @@ def text(update, context):
 
 def drivers_rating(update, context):
     text = 'Рейтинг водіїв\n\n'
-    for fleet in DriversRatingMixin().get_rating():
-        text += fleet['fleet'] + '\n'
-        for period in fleet['rating']:
-            text += f"{period['start']:%d.%m.%Y} - {period['end']:%d.%m.%Y}" + '\n'
-            if period['rating']:
-                text += '\n'.join([f"{item['num']} {item['driver']} {item['amount']:15.2f} - {item['trips'] if item['trips']>0 else ''}" for item in period['rating']]) + '\n\n'
-            else:
-                text += 'Отримання даних... Спробуйте пізніше\n'
+    # for fleet in DriversRatingMixin().get_rating():
+    #     text += fleet['fleet'] + '\n'
+    #     for period in fleet['rating']:
+    #         text += f"{period['start']:%d.%m.%Y} - {period['end']:%d.%m.%Y}" + '\n'
+    #         if period['rating']:
+    #             text += '\n'.join([f"{item['num']} {item['driver']} {item['amount']:15.2f} - {item['trips'] if item['trips']>0 else ''}" for item in period['rating']]) + '\n\n'
+    #         else:
+    #             text += 'Отримання даних... Спробуйте пізніше\n'
     update.message.reply_text(text)
 
 
