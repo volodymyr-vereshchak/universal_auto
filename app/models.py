@@ -7,6 +7,7 @@ from django.db import models, IntegrityError
 from django.db.models import Sum, QuerySet
 from django.db.models.base import ModelBase
 from polymorphic.models import PolymorphicModel
+from selenium.common import TimeoutException, WebDriverException
 
 
 class PaymentsOrder(models.Model):
@@ -592,6 +593,8 @@ class Fleets_drivers_vehicles_rate(models.Model):
     created_at = models.DateTimeField(editable=False, auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     deleted_at = models.DateTimeField(null=True, blank=True)
+    pay_cash = models.BooleanField(default=False)
+    withdraw_money = models.BooleanField(default=False)
 
     def __str__(self) -> str:
         return ''
@@ -977,11 +980,12 @@ class SeleniumTools():
             "download.prompt_for_download": False,
             "download.directory_upgrade": True,
             "safebrowsing_for_trusted_sources_enabled": False,
-            "safebrowsing.enabled": False
         })
         options.add_argument("--disable-infobars")
         options.add_argument("--enable-file-cookies")
-        options.add_argument('--disable-blink-features=AutomationControlled')
+        options.add_argument('--allow-profiles-outside-user-dir')
+        options.add_argument('--enable-profile-shortcut-manager')
+        options.add_argument(f'user-data-dir={os.getcwd()}\\_ChromeUser_{self.session_file_name.capitalize()}')
 
         if headless:
             options.add_argument('--headless')
@@ -991,10 +995,9 @@ class SeleniumTools():
             options.add_argument("--window-size=1920,1080")
             options.add_argument("--start-maximized")
             options.add_argument("--disable-extensions")
-            options.add_argument('--disable-dev-shm-usage')    
-            options.add_argument('--disable-software-rasterizer')
+            options.add_argument('--disable-dev-shm-usage')
+            # options.add_argument('--disable-software-rasterizer')
             options.add_argument("user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/104.0.0.0 Safari/537.36")
-            options.add_argument("--disable-notifications")
 
         driver = webdriver.Chrome(options=options, port=9514)
         return driver
@@ -1038,12 +1041,18 @@ class SeleniumTools():
         except Driver.MultipleObjectsReturned:
             driver = Driver.objects.filter(name=kwargs['name'], second_name=kwargs['second_name'])[0]
         except Driver.DoesNotExist:
-            driver = Driver.objects.create(
-                name=kwargs['name'],
-                second_name=kwargs['second_name'],
-                phone_number=kwargs['phone_number']
-            )
-            driver.save()
+            try:
+                driver = Driver.objects.get(name=kwargs['second_name'], second_name=kwargs['name'])
+            except Driver.MultipleObjectsReturned:
+                driver = Driver.objects.filter(name=kwargs['second_name'], second_name=kwargs['name'])[0]
+            except Driver.DoesNotExist:
+                driver = Driver.objects.create(
+                    name=kwargs['name'],
+                    second_name=kwargs['second_name'],
+                    phone_number=kwargs['phone_number']
+                )
+                driver.save()
+
         return driver
 
 
@@ -1051,10 +1060,9 @@ class Uber(SeleniumTools):
     def __init__(self, week_number=None, day=None, driver=True, sleep=3, headless=False, base_url="https://supplier.uber.com"):
         super().__init__('uber', week_number=week_number, day=day)
         self.sleep = sleep
-        print(driver)
         if driver:
             self.driver = self.build_driver(headless)
-            self.base_url = base_url
+        self.base_url = base_url
 
     def quit(self):
         self.driver.quit()
@@ -1318,6 +1326,33 @@ class Uber(SeleniumTools):
             u.quit()
         return u.save_report()
 
+    def get_driver_status_from_map(self, search_text):
+        return []
+        # Need to implement
+
+    def get_driver_status(self):
+        livemap = f"{self.base_url}/orgs/2c5515cd-a4ed-4136-905f-99504677a324/livemap"
+        # livemap = f"https://supplier.uber.com/orgs/49dffc54-e8d9-47bd-a1e5-52ce16241cb6/livemap"
+        try:
+            try:
+                xpath = f'//div[@data-tracking-name="livemap"]'
+                WebDriverWait(self.driver, self.sleep).until(EC.presence_of_element_located((By.XPATH, xpath)))
+            except TimeoutException:
+                try:
+                    self.driver.get(livemap)
+                    xpath = f'//div[@data-tracking-name="livemap"]'
+                    WebDriverWait(self.driver, self.sleep).until(EC.presence_of_element_located((By.XPATH, xpath)))
+                except (TimeoutException, FileNotFoundError):
+                    self.login_v2()
+                    self.driver.get(livemap)
+            return {
+                'online': self.get_driver_status_from_map('Онлайн'),
+                'width_client': self.get_driver_status_from_map('У поїздці'),
+                'wait': self.get_driver_status_from_map('Очікування')
+            }
+        except WebDriverException as err:
+            print(err.msg)
+
 
 class Bolt(SeleniumTools):    
     def __init__(self, week_number=None, day=None, driver=True, sleep=3, headless=False, base_url="https://fleets.bolt.eu"):
@@ -1325,7 +1360,7 @@ class Bolt(SeleniumTools):
         self.sleep = sleep
         if driver:
             self.driver = self.build_driver(headless)
-            self.base_url = base_url
+        self.base_url = base_url
     
     def quit(self):
         self.driver.quit() 
@@ -1461,17 +1496,66 @@ class Bolt(SeleniumTools):
             b.download_payments_order()
         return b.save_report()
 
-    def status(self):
-        pass
+    def get_driver_status_from_map(self, search_text):
+        raw_data = []
+        try:
+            xpath = f'//div[contains(@class, "map-overlay")]//div[text()[contains(.,"{search_text}")]]'
+            WebDriverWait(self.driver, self.sleep).until(EC.presence_of_element_located((By.XPATH, xpath))).click()
+        except TimeoutException:
+            return raw_data
+        i = 0
+        while True:
+            i += 1
+            try:
+                xpath = f'//div[contains(@class, "map-overlay")]/div/div/div[@role="button"][{i}]/div/div/div[1]/span/span'
+                driver_name = WebDriverWait(self.driver, self.sleep).until(EC.presence_of_element_located((By.XPATH, xpath))).text
+                xpath = f'//div[contains(@class, "map-overlay")]/div/div/div[@role="button"][{i}]/div/div/div[2]/span/span'
+                driver_car = WebDriverWait(self.driver, self.sleep).until(EC.presence_of_element_located((By.XPATH, xpath))).text
+            except TimeoutException:
+                break
+            name_list = [x for x in driver_name.split(' ') if len(x) > 0]
+            name, second_name, car = '', '', ''
+            try:
+                name, second_name, car = name_list[0], name_list[1], driver_car.split(' ')[0]
+            except IndexError:
+                pass
+            raw_data.append((name, second_name))
+            raw_data.append((second_name, name))
+        return raw_data
+
+    def get_driver_status(self):
+        try:
+            try:
+                xpath = f'//div[contains(@class, "map-overlay")]'
+                WebDriverWait(self.driver, self.sleep).until(EC.presence_of_element_located((By.XPATH, xpath)))
+                # self.driver.get_screenshot_as_file('bolt_map_ok.png')
+            except TimeoutException:
+                try:
+                    self.driver.get(f"{self.base_url}/v2/58225/liveMap")
+                    # time.sleep(self.sleep)
+                    # self.driver.get_screenshot_as_file('bolt_map_reloaded.png')
+                    xpath = f'//div[contains(@class, "map-overlay")]'
+                    WebDriverWait(self.driver, self.sleep).until(EC.presence_of_element_located((By.XPATH, xpath)))
+                except (TimeoutException, FileNotFoundError):
+                    self.login()
+                    # self.driver.get_screenshot_as_file('bolt_map_login.png')
+                    self.driver.get(f"{self.base_url}/v2/58225/liveMap")
+            return {
+                'online': self.get_driver_status_from_map('Онлайн'),
+                'width_client': self.get_driver_status_from_map('У поїздці'),
+                'wait': self.get_driver_status_from_map('Очікування')
+            }
+        except WebDriverException as err:
+            print(err.msg)
 
 
-class Uklon(SeleniumTools):    
+class Uklon(SeleniumTools):
     def __init__(self, week_number=None, day=None, driver=True, sleep=3, headless=False, base_url="https://partner.uklon.com.ua"):
         super().__init__('uklon', week_number=week_number, day=day)
         self.sleep = sleep
         if driver:
             self.driver = self.build_driver(headless)
-            self.base_url = base_url
+        self.base_url = base_url
 
     def quit(self):
         self.driver.quit()
@@ -1621,7 +1705,7 @@ class NewUklon(SeleniumTools):
         self.sleep = sleep
         if driver:
             self.driver = self.build_driver(headless)
-            self.base_url = base_url
+        self.base_url = base_url
 
     def quit(self):
         self.driver.quit()
@@ -1853,8 +1937,88 @@ class NewUklon(SeleniumTools):
             u.download_payments_day_order()
         return u.save_report()
 
-    def status(self):
-        pass
+    def get_driver_status_from_table(self):
+        online = []
+        width_client = []
+        try:
+            xpath = f'//div[@id="mat-tab-label-0-1"]'
+            WebDriverWait(self.driver, self.sleep).until(EC.presence_of_element_located((By.XPATH, xpath))).click()
+            xpath = f'//mat-select[@id="mat-select-4"]'
+            WebDriverWait(self.driver, self.sleep).until(EC.presence_of_element_located((By.XPATH, xpath))).click()
+            xpath = f'//mat-option[@id="mat-option-10"]'
+            WebDriverWait(self.driver, self.sleep).until(EC.presence_of_element_located((By.XPATH, xpath))).click()
+            xpath = f'//button[@data-cy="order-filter-apply-btn"]'
+            WebDriverWait(self.driver, self.sleep).until(EC.presence_of_element_located((By.XPATH, xpath))).click()
+        except TimeoutException:
+            return {
+                'online': online,
+                'width_client': width_client,
+                'wait': []
+            }
+        i = 0
+        while True:
+            i += 1
+            try:
+                xpath = f'//table[@data-cy="trips-list-table"]/tbody/tr[{i}]/td[@data-cy="td-driver"]'
+                driver_name = WebDriverWait(self.driver, self.sleep).until(EC.presence_of_element_located((By.XPATH, xpath))).text
+                xpath = f'//table[@data-cy="trips-list-table"]/tbody/tr[{i}]/td[@data-cy="td-license-plate"]'
+                driver_car = WebDriverWait(self.driver, self.sleep).until(EC.presence_of_element_located((By.XPATH, xpath))).text
+                xpath = f'//table[@data-cy="trips-list-table"]/tbody/tr[{i}]/td[@data-cy="td-pickup-time"]'
+                last_action_date = WebDriverWait(self.driver, self.sleep).until(EC.presence_of_element_located((By.XPATH, xpath))).text
+                xpath = f'//table[@data-cy="trips-list-table"]/tbody/tr[{i}]/td[@data-cy="td-status"]'
+                status = WebDriverWait(self.driver, self.sleep).until(EC.presence_of_element_located((By.XPATH, xpath))).text
+            except TimeoutException:
+                break
+            name_list = [x for x in driver_name.split(' ') if len(x) > 0]
+            name, second_name, car = '', '', ''
+            try:
+                name, second_name, car = name_list[0], name_list[1], driver_car.split(' ')[0]
+            except IndexError:
+                pass
+
+            match = re.findall(r'(\d{1,2}).(\d{2}).(\d{4}).*(\d{2}):(\d{2})', last_action_date)
+            date_time_delta = 1000000
+            if len(match) > 0:
+                date_time = datetime.datetime.strptime(
+                    f'{match[0][0]}.{match[0][1]}.{match[0][2]}-{match[0][3]}:{match[0][4]}', '%d.%m.%Y-%H:%M'
+                )
+                date_time_delta = (datetime.datetime.now() - date_time).total_seconds()
+
+            if (status.strip() == 'Виконується' or date_time_delta < 60*30) and (name, second_name) not in online:
+                online.append((name, second_name))
+                online.append((second_name, name))
+
+            if status.strip() == 'Виконується' and (name, second_name) not in width_client:
+                width_client.append((name, second_name))
+                width_client.append((second_name, name))
+
+        return {
+            'online': online,
+            'width_client': width_client,
+            'wait': []
+        }
+
+    def get_driver_status(self):
+        try:
+            try:
+                xpath = f'//div[@id="mat-tab-label-0-1"]'
+                WebDriverWait(self.driver, self.sleep).until(EC.presence_of_element_located((By.XPATH, xpath)))
+                # self.driver.get_screenshot_as_file('uklon_map_ok.png')
+            except TimeoutException:
+                try:
+                    self.driver.get(f"{self.base_url}/workspace/orders")
+                    # time.sleep(self.sleep)
+                    # self.driver.get_screenshot_as_file('uklon_map_reloaded.png')
+                    xpath = f'//div[@id="mat-tab-label-0-1"]'
+                    WebDriverWait(self.driver, self.sleep).until(EC.presence_of_element_located((By.XPATH, xpath)))
+                except (TimeoutException, FileNotFoundError):
+                    self.login()
+                    self.driver.get(f"{self.base_url}/workspace/orders")
+                    # time.sleep(self.sleep)
+                    # self.driver.get_screenshot_as_file('uklon_map_login.png')
+            return self.get_driver_status_from_table()
+        except WebDriverException as err:
+            print(err.msg)
 
 
 def get_report(week_number = None, driver=True, sleep=5, headless=True):
