@@ -298,21 +298,18 @@ def numberplate(update, context):
 
 def change_status_car(update, context):
     global STATE_D
-    update.message.reply_text("fsdssdfd")
-    licence_place = update.message.text
-    context.user_data['licence_place'] = licence_place.upper()
-    update.message.reply_text("fsdfd")
-    numberplates = [i for i in Vehicle.objects.all()]
-    update.message.reply_text("fsdfd2")
-    update.message.reply_text(numberplates)
-    if context.user_data['licence_place'] in numberplates:
-        vehicle = Vehicle.get_by_numberplate(licence_plate=context.user_data['licence_place'])
+    context.user_data['licence_place'] = update.message.text.upper()
+    number_car = context.user_data['licence_place']
+    numberplates = [i.licence_plate for i in Vehicle.objects.all()]
+    if number_car in numberplates:
+        vehicle = Vehicle.get_by_numberplate(number_car)
         vehicle.car_status = context.user_data['status']
         vehicle.save()
         numberplates.clear()
         update.message.reply_text('Статус авто був змінений')
     else:
         update.message.reply_text('Цього номера немає в базі даних або надіслано неправильні дані. Зверніться до менеджера або повторіть команду')
+
     STATE_D = None
 
 
@@ -747,6 +744,7 @@ def main():
 
     # System commands
     dp.add_handler(CommandHandler("cancel", cancel))
+    dp.add_handler(MessageHandler(Filters.text, text))
     dp.add_handler(MessageHandler(Filters.regex(r'^\d{4}$'), code))
     dp.add_error_handler(error_handler)
     updater.start_polling()
@@ -761,7 +759,7 @@ def main():
     dp.add_handler(MessageHandler(Filters.text('Choice week number'), get_driver_week_report))
     dp.add_handler(MessageHandler(Filters.text('Update report'), get_update_report))
 
-    dp.add_handler(MessageHandler(Filters.text, text))
+
 
 
 def run():
