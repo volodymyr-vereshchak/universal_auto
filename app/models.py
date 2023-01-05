@@ -326,6 +326,7 @@ class User(models.Model):
         DRIVER_MANAGER = 'DRIVER_MANAGER', 'Driver manager'
         SERVICE_STATION_MANAGER = 'SERVICE_STATION_MANAGER', 'Service station manager'
         SUPPORT_MANAGER = 'SUPPORT_MANAGER', 'Support manager'
+        OWNER = 'OWNER', 'Owner'
 
     id = models.AutoField(primary_key=True)
     name = models.CharField(max_length=255, blank=True, null=True)
@@ -355,7 +356,7 @@ class User(models.Model):
             user = User.objects.get(chat_id=chat_id)
             return user
         except User.DoesNotExist:
-            pass
+            None
 
 
     @staticmethod
@@ -368,6 +369,37 @@ class User(models.Model):
         user.deleted_at = datetime.datetime.now()
         user.save()
         return user
+
+    @staticmethod
+    def name_and_second_name_validator(name) -> str:
+        """This func validator for name and second name"""
+        if len(name) <= 255:
+            return name.title()
+        else:
+            return None
+
+    @staticmethod
+    def email_validator(email) -> str:
+        pattern = r"^[-\w\.]+@([-\w]+\.)+[-\w]{2,4}$"
+        if re.match(pattern, email) is not None:
+            return email
+        else:
+            return None
+
+    @staticmethod
+    def phone_number_validator(phone_number) -> str:
+        if len(phone_number) <= 13:
+            if len(phone_number) == 10:
+                valid_phone_number = f'+38{phone_number}'
+                return valid_phone_number
+            elif len(phone_number) == 12:
+                valid_phone_number = f'+{phone_number}'
+                return valid_phone_number
+            elif len(phone_number) == 11:
+                valid_phone_number = f'+3{phone_number}'
+                return valid_phone_number
+        else:
+            return None
         
         
 class Driver(User):
@@ -466,6 +498,14 @@ class Client(User):
     support_manager_id = models.ManyToManyField('SupportManager',  blank=True)
     role = models.CharField(max_length=50, choices=User.Role.choices, default=User.Role.CLIENT)
 
+    @staticmethod
+    def get_by_chat_id(chat_id):
+        try:
+            client = Client.objects.get(chat_id=chat_id)
+            return client
+        except Client.DoesNotExist:
+            return None
+
 
 # class Partner(User):
 #     fleet = models.OneToOneField(Fleet,  blank=True, null=True, on_delete=models.SET_NULL)
@@ -517,6 +557,26 @@ class SupportManager(User):
     client_id = models.ManyToManyField(Client,  blank=True)
     driver_id = models.ManyToManyField(Driver,  blank=True)
     role = models.CharField(max_length=50, choices=User.Role.choices, default=User.Role.SUPPORT_MANAGER)
+
+    @staticmethod
+    def get_by_chat_id(chat_id):
+        try:
+            support_manager = SupportManager.objects.get(chat_id=chat_id)
+            return support_manager
+        except SupportManager.DoesNotExist:
+            return None
+
+
+class Owner(User):
+    role = models.CharField(max_length=50, choices=User.Role.choices, default=User.Role.OWNER)
+
+    @staticmethod
+    def get_by_chat_id(chat_id):
+        try:
+            owner = Owner.objects.get(chat_id=chat_id)
+            return owner
+        except Owner.DoesNotExist:
+            return None
 
 
 class UberFleet(Fleet):
@@ -883,6 +943,33 @@ class ServiceStation(models.Model):
 
     def __str__(self):
         return f'{self.name}'
+
+
+class Comment(models.Model):
+    comment = models.TextField()
+    chat_id = models.CharField(blank=True, max_length=9)
+    processed = models.BooleanField(default=False)
+
+    created_at = models.DateTimeField(editable=False, auto_now=datetime.datetime.now())
+    updated_at = models.DateTimeField(auto_now=True)
+    deleted_at = models.DateTimeField(null=True, blank=True)
+
+
+class Order(models.Model):
+    CARD = 'Картка'
+    CASH = 'Готівка'
+
+    from_address = models.CharField(max_length=255)
+    latitude = models.CharField(max_length=10)
+    longitude = models.CharField(max_length=10)
+    to_the_address = models.CharField(max_length=255)
+    phone_number = models.CharField(max_length=13)
+    chat_id_client = models.CharField(max_length=15)
+    sum = models.CharField(max_length=30)
+    payment_method = models.CharField(max_length=70)
+    status_order = models.CharField(max_length=70)
+    driver = models.ForeignKey(Driver, null=True, on_delete=models.RESTRICT)
+    created_at = models.DateTimeField(editable=False, auto_now_add=True)
 
 
 
