@@ -544,14 +544,14 @@ def text(update, context):
 
 def drivers_rating(update, context):
     text = 'Рейтинг водіїв\n\n'
-    for fleet in DriversRatingMixin().get_rating():
-        text += fleet['fleet'] + '\n'
-        for period in fleet['rating']:
-            text += f"{period['start']:%d.%m.%Y} - {period['end']:%d.%m.%Y}" + '\n'
-            if period['rating']:
-                text += '\n'.join([f"{item['num']} {item['driver']} {item['amount']:15.2f} - {item['trips'] if item['trips']>0 else ''}" for item in period['rating']]) + '\n\n'
-            else:
-                text += 'Отримання даних... Спробуйте пізніше\n'
+    # for fleet in DriversRatingMixin().get_rating():
+    #     text += fleet['fleet'] + '\n'
+    #     for period in fleet['rating']:
+    #         text += f"{period['start']:%d.%m.%Y} - {period['end']:%d.%m.%Y}" + '\n'
+    #         if period['rating']:
+    #             text += '\n'.join([f"{item['num']} {item['driver']} {item['amount']:15.2f} - {item['trips'] if item['trips']>0 else ''}" for item in period['rating']]) + '\n\n'
+    #         else:
+    #             text += 'Отримання даних... Спробуйте пізніше\n'
     update.message.reply_text(text)
 
 
@@ -678,7 +678,10 @@ def main():
     updater = Updater(os.environ['TELEGRAM_TOKEN'], use_context=True)
     dp = updater.dispatcher
 
-
+    # Command for Owner
+    dp.add_handler(CommandHandler("report", report, run_async=True))
+    dp.add_handler(CommandHandler("rating", drivers_rating))
+    
     # Publicly available commands
     # Getting id
     dp.add_handler(CommandHandler("id", get_id))
@@ -737,18 +740,11 @@ def main():
     # Sending report on repair
     dp.add_handler(CommandHandler("send_report", numberplate_car))
 
-
-    # Command for Owner
-    dp.add_handler(CommandHandler("report", report, run_async=True))
-    dp.add_handler(CommandHandler("rating", drivers_rating))
-
     # System commands
     dp.add_handler(CommandHandler("cancel", cancel))
     dp.add_handler(MessageHandler(Filters.text, text))
     dp.add_handler(MessageHandler(Filters.regex(r'^\d{4}$'), code))
     dp.add_error_handler(error_handler)
-    updater.start_polling()
-    updater.idle()
 
     # need fix
     dp.add_handler(CommandHandler('update', update_db, run_async=True))
@@ -758,6 +754,9 @@ def main():
     dp.add_handler(MessageHandler(Filters.text('Get today statistic'), get_driver_today_report))
     dp.add_handler(MessageHandler(Filters.text('Choice week number'), get_driver_week_report))
     dp.add_handler(MessageHandler(Filters.text('Update report'), get_update_report))
+
+    updater.start_polling()
+    updater.idle()
 
 
 
