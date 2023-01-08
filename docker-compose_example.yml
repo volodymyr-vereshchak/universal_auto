@@ -24,6 +24,8 @@ services:
       BOLT_PASSWORD: 
       UKLON_NAME: 
       UKLON_PASSWORD:
+      PRIVAT24_NAME:              #lenght = 9 ex: 632587413
+      PRIVAT24_PASSWORD:
       REDIS_URL: redis://redis
       DB_HOST: postgres
       POSTGRES_DB: "universal_auto_dev"
