@@ -1072,7 +1072,8 @@ class SeleniumTools():
         options.add_argument("--enable-file-cookies")
         options.add_argument('--allow-profiles-outside-user-dir')
         options.add_argument('--enable-profile-shortcut-manager')
-        #options.add_argument(f'user-data-dir={os.getcwd()}\\_ChromeUser_{self.session_file_name.capitalize()}')
+        options.add_argument(f'user-data-dir={os.getcwd()}\\_ChromeUser_{self.session_file_name.capitalize()}')
+
 
         if headless:
             options.add_argument('--headless')
@@ -1083,7 +1084,7 @@ class SeleniumTools():
             options.add_argument("--start-maximized")
             options.add_argument("--disable-extensions")
             options.add_argument('--disable-dev-shm-usage')
-            options.add_argument('--disable-software-rasterizer')
+            # options.add_argument('--disable-software-rasterizer')
             options.add_argument("user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/104.0.0.0 Safari/537.36")
 
         driver = webdriver.Chrome(options=options, port=9514)
@@ -2186,25 +2187,6 @@ class Privat24(SeleniumTools):
             return result
         else:
             return None
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 def get_report(week_number = None, driver=True, sleep=5, headless=True):
