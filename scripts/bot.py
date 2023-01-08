@@ -521,7 +521,7 @@ def transfer(update, context):
     p.password()
     p.money_transfer()
 
-    update.message.photo(result)
+    context.bot.send_photo(chat_id=update.effective_chat.id, photo=open('privat_3.png', 'rb'))
     context.bot.send_message(chat_id=update.effective_chat.id, text='Оберіть опцію:',
                              reply_markup=ReplyKeyboardMarkup(buttons, one_time_keyboard=True))
     STATE_O = None
@@ -536,8 +536,6 @@ def wrong_transfer(update, context):
     update.message.reply_text("Транзакція відмінена")
     p.quit()
 
-def my(update, context):
-    update.message.photo
 
 def get_information(update, context):
     chat_id = update.message.chat.id
