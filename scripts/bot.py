@@ -845,7 +845,5 @@ def main():
     updater.idle()
 
 
-
-
 def run():
     main()
