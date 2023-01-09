@@ -1401,7 +1401,8 @@ class Uber(SeleniumTools):
     def login_form(self, id, button, selector):
         element = self.driver.find_element(By.ID, id)
         element.send_keys(os.environ["UBER_NAME"])
-        self.driver.find_element(selector, button).click() 
+        e = self.driver.find_element(selector, button)
+        e.click() 
         self.driver.get_screenshot_as_file('UBER_NAME.png')
 
     @staticmethod
