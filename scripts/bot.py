@@ -132,7 +132,6 @@ def to_the_adress(update, context):
     global STATE
     if STATE == FROM_ADDRESS:
         context.user_data['from_address'] = update.message.text
-        STATE = TO_THE_ADDRESS
     update.message.reply_text('Введіть адресу місця призначення:', reply_markup=ReplyKeyboardRemove())
     STATE = TO_THE_ADDRESS
 
@@ -178,7 +177,7 @@ def order_create(update, context):
 def status(update, context):
     chat_id = update.message.chat.id
     driver = Driver.get_by_chat_id(chat_id)
-    if True:
+    if driver is not None:
         buttons = [ [KeyboardButton(Driver.ACTIVE)],
                     [KeyboardButton(Driver.WITH_CLIENT)],
                     [KeyboardButton(Driver.WAIT_FOR_CLIENT)],
@@ -188,19 +187,16 @@ def status(update, context):
         context.bot.send_message(chat_id=update.effective_chat.id, text='Оберіть статус',
                                  reply_markup=ReplyKeyboardMarkup(buttons, one_time_keyboard=True))
     else:
-        update.message.reply_text("Ви не в списку водіїв автопарку")
+        update.message.reply_text(f'Зареєструйтесь як водій')
 
 
 def set_status(update, context):
     status = update.message.text
     chat_id = update.message.chat.id
     driver = Driver.get_by_chat_id(chat_id)
-    if driver is not None:
-        driver.driver_status = status
-        driver.save()
-        update.message.reply_text(f'Твій статус: <b>{status}</b>', reply_markup=ReplyKeyboardRemove(), parse_mode=ParseMode.HTML)
-    else:
-        update.message.reply_text(f'Зареєструйтесь як водій', reply_markup=ReplyKeyboardRemove())
+    driver.driver_status = status
+    driver.save()
+    update.message.reply_text(f'Твій статус: <b>{status}</b>', reply_markup=ReplyKeyboardRemove(), parse_mode=ParseMode.HTML)
 
 
 # Sending comment
@@ -280,7 +276,7 @@ SERVICEABLE = 'Придатна до обслуговування'
 BROKEN = 'Зламана'
 
 STATE_D = None
-NUMBERPLATE = range(1, 2)
+NUMBERPLATE = 1
 
 # Changing status car
 def status_car(update, context):
@@ -288,7 +284,7 @@ def status_car(update, context):
     driver = Driver.get_by_chat_id(chat_id)
     if driver is not None:
         buttons = [[KeyboardButton(f'{SERVICEABLE}')], [KeyboardButton(f'{BROKEN}')]]
-        context.bot.send_message(chat_id=update.effective_chat.id, text='Оберіть статус автомобіля',
+        context.bot.send_message(chat_id=chat_id, text='Оберіть статус автомобіля',
                                         reply_markup=ReplyKeyboardMarkup(buttons, one_time_keyboard=True))
     else:
         update.message.reply_text(f'Зареєструтесь як водій', reply_markup=ReplyKeyboardRemove())
@@ -297,9 +293,8 @@ def status_car(update, context):
 def numberplate(update, context):
     global STATE_D
     context.user_data['status'] = update.message.text
-    STATE_D = NUMBERPLATE
     update.message.reply_text('Введіть номер автомобіля', reply_markup=ReplyKeyboardRemove())
-
+    STATE_D = NUMBERPLATE
 
 def change_status_car(update, context):
     global STATE_D
@@ -311,10 +306,12 @@ def change_status_car(update, context):
         vehicle.car_status = context.user_data['status']
         vehicle.save()
         numberplates.clear()
-        STATE_D = None
         update.message.reply_text('Статус авто був змінений')
     else:
         update.message.reply_text('Цього номера немає в базі даних або надіслано неправильні дані. Зверніться до менеджера або повторіть команду')
+
+    STATE_D = None
+
 
 # Viewing broken car
 def broken_car(update, context):
@@ -468,6 +465,78 @@ def help(update, context) -> str:
                               'Щоб переглянути команди для вашої ролі скористайтесь командою /get_information \n')
 
 
+STATE_O = None
+CARD, SUM = range(1, 3)
+
+TRANSFER_MONEY = 'Перевести кошти'
+GENERATE_LINK = 'Сгенерувати лінк'
+
+def payments(update, context):
+    #chat_id = update.message.chat.id
+    #owner = Owner.get_by_chat_id(chat_id)
+    buttons = [[KeyboardButton(f'{TRANSFER_MONEY}')],
+               [KeyboardButton(f'{GENERATE_LINK}')]]
+    context.bot.send_message(chat_id=update.effective_chat.id, text='Оберіть опцію:',
+                             reply_markup=ReplyKeyboardMarkup(buttons, one_time_keyboard=True))
+    #else:
+    #    update.message.reply_text('Ця команда тільки для власника')
+
+
+def generate_link(update, context):
+    pass
+
+
+def get_card(update, context):
+    global STATE_O
+    update.message.reply_text('Введіть номер картки отримувача', reply_markup=ReplyKeyboardRemove())
+    STATE_O = CARD
+
+
+def get_sum(update, context):
+    global STATE_O
+    card = update.message.text
+    card = Privat24.card_validator(card=card)
+    if card is not None:
+        context.user_data['card'] = card
+        update.message.reply_text('Введіть суму в форматі DD.CC')
+        STATE_O = SUM
+    else:
+        update.messega.reply_text('Введена карта невалідна')
+
+
+THE_DATA_IS_CORRECT = "Транзакція заповнена вірно"
+THE_DATA_IS_WRONG = "Транзакція заповнена невірно"
+
+def transfer(update, context):
+    global STATE_O
+    global p
+
+    buttons = [[KeyboardButton(f'{THE_DATA_IS_CORRECT}')],
+               [KeyboardButton(f'{THE_DATA_IS_WRONG}')]]
+
+    context.user_data['sum'] = update.message.text
+
+    p = Privat24(card=context.user_data['card'], sum=context.user_data['sum'], driver=True, sleep=7, headless=True)
+    p.login()
+    p.password()
+    p.money_transfer()
+
+    context.bot.send_photo(chat_id=update.effective_chat.id, photo=open('privat_3.png', 'rb'))
+    context.bot.send_message(chat_id=update.effective_chat.id, text='Оберіть опцію:',
+                             reply_markup=ReplyKeyboardMarkup(buttons, one_time_keyboard=True))
+    STATE_O = None
+
+
+def correct_transfer(update, context):
+    p.transfer_confirmation()
+    update.message.reply_text("Транзакція пройшла успішно")
+
+
+def wrong_transfer(update, context):
+    update.message.reply_text("Транзакція відмінена")
+    p.quit()
+
+
 def get_information(update, context):
     chat_id = update.message.chat.id
     driver_manager = DriverManager.get_by_chat_id(chat_id)
@@ -503,14 +572,16 @@ def get_information(update, context):
                 'Для вашої ролі:\n\n' \
                 '/report - загрузити та побачити недільні звіти\n' \
                 '/rating - побачити рейтинг водіїв\n'
+        update.message.reply_text(f'{report}')
     else:
         update.message.reply_text(f'{standart_commands}')
 
 
 def text(update, context):
-    """ STATE - for all users, STATE_D - for drivers,
+    """ STATE - for all users, STATE_D - for drivers, STATE_O - for owner,
             STATE_DM - for driver manager, STATE_SSM - for service station manager"""
     global STATE
+    global STATE_O
     global STATE_D
     global STATE_DM
     global STATE_SSM
@@ -531,6 +602,11 @@ def text(update, context):
     elif STATE_D is not None:
         if STATE_D == NUMBERPLATE:
             return change_status_car(update, context)
+    elif STATE_O is not None:
+        if STATE_O == CARD:
+            return get_sum(update, context)
+        elif STATE_O == SUM:
+            return transfer(update, context)
     elif STATE_DM is not None:
         if STATE_DM == STATUS:
             return viewing_status_driver(update, context)
@@ -560,6 +636,16 @@ def drivers_rating(update, context):
 def report(update, context):
     update.message.reply_text("Введіть ваш Uber OTP код з SMS:")
     update.message.reply_text(get_report())
+
+
+def cancel(update, context):
+    global STATE
+    global STATE_D
+    global STATE_O
+    global STATE_DM
+    global STATE_SSM
+
+    STATE, STATE_D, STATE_O, STATE_DM, STATE_SSM = None, None, None, None, None
 
 
 #Need fix
@@ -674,7 +760,14 @@ def main():
     # Command for Owner
     dp.add_handler(CommandHandler("report", report, run_async=True))
     dp.add_handler(CommandHandler("rating", drivers_rating))
-    
+
+    # tnansfer money
+    dp.add_handler(CommandHandler("payment", payments))
+    dp.add_handler(MessageHandler(Filters.text(f"{TRANSFER_MONEY}"), get_card))
+    dp.add_handler(MessageHandler(Filters.text(f"{THE_DATA_IS_CORRECT}"), correct_transfer))
+    dp.add_handler(MessageHandler(Filters.text(f"{THE_DATA_IS_WRONG}"), wrong_transfer))
+
+
     # Publicly available commands
     # Getting id
     dp.add_handler(CommandHandler("id", get_id))
@@ -700,8 +793,6 @@ def main():
     dp.add_handler(MessageHandler(Filters.text("\U0001f4e2 Залишити відгук"), comment))
     # updating information
     dp.add_handler(MessageHandler(Filters.text("\U0001f465 Надати повну інформацію"), name))
-
-    dp.add_handler(MessageHandler(Filters.text, text))
 
 
     # Commands for Drivers
@@ -734,6 +825,8 @@ def main():
     dp.add_handler(CommandHandler("send_report", numberplate_car))
 
     # System commands
+    dp.add_handler(CommandHandler("cancel", cancel))
+    dp.add_handler(MessageHandler(Filters.text, text))
     dp.add_handler(MessageHandler(Filters.regex(r'^\d{4}$'), code))
     dp.add_error_handler(error_handler)
 
