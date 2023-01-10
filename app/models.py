@@ -1456,10 +1456,12 @@ class Bolt(SeleniumTools):
         self.driver.get(f"{self.base_url}/login")
         if self.sleep:
             time.sleep(self.sleep)
-        element = self.driver.find_element(By.ID, 'username')
-        element.send_keys('')
+        element = WebDriverWait(self.driver, self.sleep).until(EC.presence_of_element_located((By.ID, 'username')))
+        element.clear()
         element.send_keys(os.environ["BOLT_NAME"])
-        self.driver.find_element(By.ID, "password").send_keys(os.environ["BOLT_PASSWORD"])
+        element = WebDriverWait(self.driver, self.sleep).until(EC.presence_of_element_located((By.ID, 'password')))
+        element.clear()
+        element.send_keys(os.environ["BOLT_PASSWORD"])
         self.driver.find_element(By.XPATH, '//button[@type="submit"]').click()
         if self.sleep:
             time.sleep(self.sleep)
@@ -1586,7 +1588,7 @@ class Bolt(SeleniumTools):
     def get_driver_status_from_map(self, search_text):
         raw_data = []
         try:
-            xpath = f'//div[contains(@class, "map-overlay")]//div[text()[contains(.,"{search_text}")]]'
+            xpath = f'//div[contains(@class, "map-overlay")]/div/div[1]//div[@role="button"][{search_text}]'
             WebDriverWait(self.driver, self.sleep).until(EC.presence_of_element_located((By.XPATH, xpath))).click()
         except TimeoutException:
             return raw_data
@@ -1615,24 +1617,23 @@ class Bolt(SeleniumTools):
             try:
                 xpath = f'//div[contains(@class, "map-overlay")]'
                 WebDriverWait(self.driver, self.sleep).until(EC.presence_of_element_located((By.XPATH, xpath)))
-                # self.driver.get_screenshot_as_file('bolt_map_ok.png')
+                self.driver.get_screenshot_as_file('bolt_map_ok.png')
             except TimeoutException:
                 try:
-                    self.driver.get(f"{self.base_url}/v2/58225/liveMap")
-                    # time.sleep(self.sleep)
-                    # self.driver.get_screenshot_as_file('bolt_map_reloaded.png')
+                    self.driver.get(f"{self.base_url}/v2/liveMap")
+                    self.driver.get_screenshot_as_file('bolt_map_reloaded.png')
                     xpath = f'//div[contains(@class, "map-overlay")]'
                     WebDriverWait(self.driver, self.sleep).until(EC.presence_of_element_located((By.XPATH, xpath)))
                 except (TimeoutException, FileNotFoundError):
                     self.login()
-                    # self.driver.get_screenshot_as_file('bolt_map_login.png')
-                    self.driver.get(f"{self.base_url}/v2/58225/liveMap")
+                    self.driver.get(f"{self.base_url}/v2/liveMap")
+                    self.driver.get_screenshot_as_file('bolt_map_login.png')
             return {
-                'online': self.get_driver_status_from_map('Онлайн'),
-                'width_client': self.get_driver_status_from_map('У поїздці'),
-                'wait': self.get_driver_status_from_map('Очікування')
+                'online': self.get_driver_status_from_map('1'),
+                'width_client': self.get_driver_status_from_map('2'),
+                'wait': self.get_driver_status_from_map('3')
             }
-        except WebDriverException as err:
+        except (TimeoutException,WebDriverException) as err:
             print(err.msg)
 
 
@@ -2036,6 +2037,7 @@ class NewUklon(SeleniumTools):
             WebDriverWait(self.driver, self.sleep).until(EC.presence_of_element_located((By.XPATH, xpath))).click()
             xpath = f'//button[@data-cy="order-filter-apply-btn"]'
             WebDriverWait(self.driver, self.sleep).until(EC.presence_of_element_located((By.XPATH, xpath))).click()
+            time.sleep(self.sleep)
         except TimeoutException:
             return {
                 'online': online,
@@ -2052,8 +2054,8 @@ class NewUklon(SeleniumTools):
                 driver_car = WebDriverWait(self.driver, self.sleep).until(EC.presence_of_element_located((By.XPATH, xpath))).text
                 xpath = f'//table[@data-cy="trips-list-table"]/tbody/tr[{i}]/td[@data-cy="td-pickup-time"]'
                 last_action_date = WebDriverWait(self.driver, self.sleep).until(EC.presence_of_element_located((By.XPATH, xpath))).text
-                xpath = f'//table[@data-cy="trips-list-table"]/tbody/tr[{i}]/td[@data-cy="td-status"]'
-                status = WebDriverWait(self.driver, self.sleep).until(EC.presence_of_element_located((By.XPATH, xpath))).text
+                xpath = f'//table[@data-cy="trips-list-table"]/tbody/tr[{i}]/td[@data-cy="td-status"]/i'
+                status = WebDriverWait(self.driver, self.sleep).until(EC.presence_of_element_located((By.XPATH, xpath))).get_attribute('class')
             except TimeoutException:
                 break
             name_list = [x for x in driver_name.split(' ') if len(x) > 0]
@@ -2071,11 +2073,11 @@ class NewUklon(SeleniumTools):
                 )
                 date_time_delta = (datetime.datetime.now() - date_time).total_seconds()
 
-            if (status.strip() == 'Виконується' or date_time_delta < 60*30) and (name, second_name) not in online:
+            if ('blue' in status or date_time_delta < 60*30) and (name, second_name) not in online:
                 online.append((name, second_name))
                 online.append((second_name, name))
 
-            if status.strip() == 'Виконується' and (name, second_name) not in width_client:
+            if 'blue' in status and (name, second_name) not in width_client:
                 width_client.append((name, second_name))
                 width_client.append((second_name, name))
 
@@ -2090,19 +2092,19 @@ class NewUklon(SeleniumTools):
             try:
                 xpath = f'//div[@id="mat-tab-label-0-1"]'
                 WebDriverWait(self.driver, self.sleep).until(EC.presence_of_element_located((By.XPATH, xpath)))
-                # self.driver.get_screenshot_as_file('uklon_map_ok.png')
+                self.driver.get_screenshot_as_file('uklon_map_ok.png')
             except TimeoutException:
                 try:
                     self.driver.get(f"{self.base_url}/workspace/orders")
-                    # time.sleep(self.sleep)
-                    # self.driver.get_screenshot_as_file('uklon_map_reloaded.png')
+                    time.sleep(self.sleep)
+                    self.driver.get_screenshot_as_file('uklon_map_reloaded.png')
                     xpath = f'//div[@id="mat-tab-label-0-1"]'
                     WebDriverWait(self.driver, self.sleep).until(EC.presence_of_element_located((By.XPATH, xpath)))
                 except (TimeoutException, FileNotFoundError):
                     self.login()
                     self.driver.get(f"{self.base_url}/workspace/orders")
-                    # time.sleep(self.sleep)
-                    # self.driver.get_screenshot_as_file('uklon_map_login.png')
+                    time.sleep(self.sleep)
+                    self.driver.get_screenshot_as_file('uklon_map_login.png')
             return self.get_driver_status_from_table()
         except WebDriverException as err:
             print(err.msg)

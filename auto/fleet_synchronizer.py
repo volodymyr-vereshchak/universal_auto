@@ -189,6 +189,7 @@ class Synchronizer:
 
     def synchronize(self):
         drivers = self.get_drivers_table()
+        print(f'Received {self.__class__.__name__} drivers: {len(drivers)}')
         for driver in drivers:
             self.create_driver(**driver)
 
@@ -200,6 +201,7 @@ class BoltSynchronizer(Synchronizer, Bolt):
         url = f'{self.base_url}/company/58225/drivers'
         xpath = '//table[@class="table"]'
         self.get_target_element_of_page(url, xpath)
+        self.driver.get_screenshot_as_file('BoltSynchronizer.png')
         i_table = 0
         while True:
             i_table += 1
@@ -256,6 +258,7 @@ class UklonSynchronizer(Synchronizer, NewUklon):
         url = f'{self.base_url}/workspace/drivers'
         xpath = '//upf-drivers-list[@data-cy="driver-list"]'
         self.get_target_element_of_page(url, xpath)
+        self.driver.get_screenshot_as_file('UklonSynchronizer.png')
         driver_urls = []
         i = 0
         while True:
@@ -336,6 +339,7 @@ class UberSynchronizer(Synchronizer, Uber):
         url = f'{self.base_url}/orgs/49dffc54-e8d9-47bd-a1e5-52ce16241cb6/vehicles'
         xpath = '//div[@data-testid="paginated-table"]'
         self.get_target_element_of_page(url, xpath)
+        self.driver.get_screenshot_as_file('UberSynchronizer.png')
         i = 0
         while True:
             i += 1
