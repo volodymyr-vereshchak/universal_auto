@@ -1072,7 +1072,7 @@ class SeleniumTools():
         options.add_argument("--enable-file-cookies")
         options.add_argument('--allow-profiles-outside-user-dir')
         options.add_argument('--enable-profile-shortcut-manager')
-        options.add_argument(f'user-data-dir={os.getcwd()}\\_ChromeUser_{self.session_file_name.capitalize()}')
+        #options.add_argument(f'user-data-dir={os.getcwd()}\\_ChromeUser_{self.session_file_name.capitalize()}')
 
 
         if headless:
@@ -1476,11 +1476,15 @@ class Bolt(SeleniumTools):
             element_date.find_element(By.XPATH, "./../td/a").click()
         else:
             self.driver.get(f"{self.base_url}/company/58225/reports/weekly/{self.file_patern()}")
-    
+
     def file_patern(self):
         if self.day:
             return self.day.format("DD.MM.YYYY")
-        return f"{self.current_date.strftime('%Y')}W{self.week_number()}"
+        else:
+            if int(self.week_number()) < 9:
+                return f"{self.current_date.strftime('%Y')}W0{self.week_number()}"
+            else:
+                return f"{self.current_date.strftime('%Y')}W{self.week_number()}"
 
     def payments_order_file_name(self):
         return self.report_file_name(self.file_patern())
@@ -1804,7 +1808,7 @@ class NewUklon(SeleniumTools):
         if self.sleep:
             time.sleep(self.sleep)
         self.driver.get_screenshot_as_file(f'new_uklon1.png')
-        element = self.driver.find_element(By.ID,'login')
+        element = self.driver.find_element(By.ID, 'login')
         element.send_keys(os.environ["UKLON_NAME"])
         time.sleep(0.1)
 
@@ -1902,6 +1906,7 @@ class NewUklon(SeleniumTools):
             time.sleep(self.sleep)
         items = []
         print(self.file_patern())
+
         files = os.listdir(os.curdir)
         report_file = ''
         if files:
@@ -2014,8 +2019,8 @@ class NewUklon(SeleniumTools):
             u = NewUklon(week_number=week_number, driver=driver, sleep=sleep, headless=headless)
             u.login()
             u.download_payments_order()
-        # return u.save_report()
-        return u.save_report_v2()
+        return u.save_report()
+        #return u.save_report_v2()
 
     @staticmethod
     def download_daily_report(day=None, driver=True, sleep=5, headless=True):
