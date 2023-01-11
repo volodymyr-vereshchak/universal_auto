@@ -1481,7 +1481,7 @@ class Bolt(SeleniumTools):
         if self.day:
             return self.day.format("DD.MM.YYYY")
         else:
-            if int(self.week_number()) < 9:
+            if int(self.week_number()) <= 9:
                 return f"{self.current_date.strftime('%Y')}W0{self.week_number()}"
             else:
                 return f"{self.current_date.strftime('%Y')}W{self.week_number()}"
