@@ -131,9 +131,9 @@ def setup_periodic_tasks(sender, **kwargs):
     global BOLT_CHROME_DRIVER
     global UKLON_CHROME_DRIVER
     global UBER_CHROME_DRIVER
-    BOLT_CHROME_DRIVER = Bolt(driver=True, sleep=3, headless=True)
-    UKLON_CHROME_DRIVER = NewUklon(driver=True, sleep=3, headless=True)
-    UBER_CHROME_DRIVER = Uber(driver=True, sleep=3, headless=True)
-    sender.add_periodic_task(UPDATE_DRIVER_STATUS_FREQUENCY, update_driver_status.s())
-    sender.add_periodic_task(UPDATE_DRIVER_DATA_FREQUENCY, update_driver_data.s())
+    # BOLT_CHROME_DRIVER = Bolt(driver=True, sleep=3, headless=True)
+    # UKLON_CHROME_DRIVER = NewUklon(driver=True, sleep=3, headless=True)
+    # UBER_CHROME_DRIVER = Uber(driver=True, sleep=3, headless=True)
+    # sender.add_periodic_task(UPDATE_DRIVER_STATUS_FREQUENCY, update_driver_status.s())
+    # sender.add_periodic_task(UPDATE_DRIVER_DATA_FREQUENCY, update_driver_data.s())
 

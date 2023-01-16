@@ -333,7 +333,7 @@ class User(models.Model):
     second_name = models.CharField(max_length=255, blank=True, null=True)
     email = models.EmailField(blank=True, max_length=254)
     phone_number = models.CharField(blank=True, max_length=13)
-    chat_id = models.CharField(blank=True, max_length=9)
+    chat_id = models.CharField(blank=True, max_length=100)
     created_at = models.DateTimeField(editable=False, auto_now=datetime.datetime.now())
     updated_at = models.DateTimeField(auto_now=True)
     deleted_at = models.DateTimeField(null=True, blank=True)
@@ -980,6 +980,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver import ActionChains
+from selenium.webdriver import DesiredCapabilities
 
 import time
 import csv
@@ -991,13 +992,14 @@ import itertools
 import logging
 import redis
 import pendulum
+import base64
 
 from django.db import models
 from app.models import Fleet
 
 
 class SeleniumTools():
-    def __init__(self, session, week_number=None, day=None):
+    def __init__(self, session, week_number=None, day=None, profile=None):
         self.session_file_name = session
         self.day = day  # if not None then we work with daly reports
         logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.DEBUG)
@@ -1006,7 +1008,7 @@ class SeleniumTools():
             self.current_date = pendulum.parse(week_number, tz="Europe/Kiev")
         else:
             self.current_date = pendulum.now().start_of('week').subtract(days=3)
-
+        self.profile = 'Profile 1' if profile is None else profile
 
     def report_file_name(self, patern):
         filenames = os.listdir(os.curdir)
@@ -1015,7 +1017,7 @@ class SeleniumTools():
                 return file 
 
     def week_number(self):
-        return f'{int(self.start_of_week().strftime("%W"))}'
+        return f'{self.start_of_week().strftime("%W")}'
 
     def start_report_interval(self):
         """
@@ -1072,7 +1074,7 @@ class SeleniumTools():
         options.add_argument("--enable-file-cookies")
         options.add_argument('--allow-profiles-outside-user-dir')
         options.add_argument('--enable-profile-shortcut-manager')
-        options.add_argument(f'user-data-dir={os.getcwd()}\\_ChromeUser_{self.session_file_name.capitalize()}')
+        options.add_argument(f'user-data-dir={os.path.join(os.getcwd(), "_SeleniumChromeUsers", self.__class__.__name__)}')
 
 
         if headless:
@@ -1089,6 +1091,89 @@ class SeleniumTools():
 
         driver = webdriver.Chrome(options=options, port=9514)
         return driver
+
+    def build_remote_driver(self, headless=False):
+
+        options = Options()
+        options.add_argument("--disable-infobars")
+        options.add_argument("--enable-file-cookies")
+        options.add_argument('--allow-profiles-outside-user-dir')
+        options.add_argument('--enable-profile-shortcut-manager')
+        options.add_argument(f'user-data-dir=home/seluser/profile')
+        options.add_argument(f'--profile-directory={self.profile}')
+
+        # if headless:
+        #     options.add_argument('--headless')
+
+        # options.add_argument('--disable-gpu')
+        # options.add_argument("--no-sandbox")
+        # options.add_argument("--start-maximized")
+        # options.add_argument("--disable-extensions")
+        # options.add_argument('--disable-dev-shm-usage')
+        # options.add_argument("user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/104.0.0.0 Safari/537.36")
+
+        driver = webdriver.Remote(
+            os.environ['SELENIUM_HUB_HOST'],
+            desired_capabilities=DesiredCapabilities.CHROME,
+            options=options
+        )
+
+        return driver
+
+    def get_target_page_or_login(self, url, xpath, login):
+        try:
+            self.driver.get(url)
+            WebDriverWait(self.driver, self.sleep).until(EC.presence_of_element_located((By.XPATH, xpath)))
+            self.logger.info(f'Got the page without authorization {url}')
+        except TimeoutException:
+            login()
+            self.driver.get(url)
+            WebDriverWait(self.driver, self.sleep).until(EC.presence_of_element_located((By.XPATH, xpath)))
+            self.logger.info(f'Got the page using authorization {url}')
+
+    def get_downloaded_files(self, driver):
+        if not self.driver.current_url.startswith("chrome://downloads"):
+            self.driver.get("chrome://downloads/")
+
+        return self.driver.execute_script( \
+            "return  document.querySelector('downloads-manager')  "
+            " .shadowRoot.querySelector('#downloadsList')         "
+            " .items.filter(e => e.state === 'COMPLETE')          "
+            " .map(e => e.filePath || e.file_path || e.fileUrl || e.file_url); ")
+
+    def get_file_content(self, path):
+        try:
+            elem = self.driver.execute_script( \
+                "var input = window.document.createElement('INPUT'); "
+                "input.setAttribute('type', 'file'); "
+                "input.hidden = true; "
+                "input.onchange = function (e) { e.stopPropagation() }; "
+                "return window.document.documentElement.appendChild(input); ")
+            elem._execute('sendKeysToElement', {'value': [path], 'text': path})
+            result = self.driver.execute_async_script( \
+                "var input = arguments[0], callback = arguments[1]; "
+                "var reader = new FileReader(); "
+                "reader.onload = function (ev) { callback(reader.result) }; "
+                "reader.onerror = function (ex) { callback(ex.message) }; "
+                "reader.readAsDataURL(input.files[0]); "
+                "input.remove(); "
+                , elem)
+            if not result.startswith('data:'):
+                raise Exception("Failed to get file content: %s" % result)
+            return base64.b64decode(result[result.find('base64,') + 7:])
+        finally:
+            logging.info("get_file_content executed successfully")
+
+    def get_last_downloaded_file_frome_remote(self):
+        files = WebDriverWait(self.driver, 30, 1).until(lambda driver: self.get_downloaded_files(driver))
+        content = self.get_file_content(files[0])
+        if len(files):
+            with open(os.path.join(os.getcwd(),os.path.basename(files[0])), 'wb') as f:
+                f.write(content)
+
+    def quit(self):
+        if hasattr(self, 'driver'):
+            self.driver.quit()
 
     def get_driver_dict(self, **kwargs):
         return {}
@@ -1145,11 +1230,15 @@ class SeleniumTools():
 
 
 class Uber(SeleniumTools):
-    def __init__(self, week_number=None, day=None, driver=True, sleep=3, headless=False, base_url="https://supplier.uber.com"):
+    def __init__(self, week_number=None, day=None, driver=True, sleep=3, headless=False, base_url="https://supplier.uber.com", remote=True):
         super().__init__('uber', week_number=week_number, day=day)
         self.sleep = sleep
         if driver:
-            self.driver = self.build_driver(headless)
+            if remote:
+                self.driver = self.build_remote_driver(headless)
+            else:
+                self.driver = self.build_driver(headless)
+        self.remote = remote
         self.base_url = base_url
 
     def quit(self):
@@ -1174,9 +1263,10 @@ class Uber(SeleniumTools):
             time.sleep(self.sleep)
     
     def generate_payments_order(self):
-        self.driver.get(f"{self.base_url}/orgs/49dffc54-e8d9-47bd-a1e5-52ce16241cb6/reports")
-        if self.sleep:
-            time.sleep(self.sleep)
+        url = f"{self.base_url}/orgs/49dffc54-e8d9-47bd-a1e5-52ce16241cb6/reports"
+        # url = f"{self.base_url}/orgs/2c5515cd-a4ed-4136-905f-99504677a324/reports"  #my
+        xpath = '//div[@data-testid="report-type-dropdown"]/div/div'
+        self.get_target_page_or_login(url, xpath, self.login_v2)
         self.driver.get_screenshot_as_file('generate_payments_order.png')
         menu = '//div[@data-testid="report-type-dropdown"]/div/div'
         WebDriverWait(self.driver, 10).until(EC.presence_of_element_located((By.XPATH, menu)))
@@ -1230,7 +1320,8 @@ class Uber(SeleniumTools):
     def download_payments_order(self):
         if os.path.exists(f'{self.payments_order_file_name()}'):
             print('Report already downloaded')
-            return 
+            return
+
         self.generate_payments_order()
         download_button = '(//div[@data-testid="paginated-table"]//button)[1]'
         try:
@@ -1240,7 +1331,9 @@ class Uber(SeleniumTools):
             WebDriverWait(self.driver, 600).until_not(EC.presence_of_element_located((By.XPATH, in_progress_text)))
             expected_element = WebDriverWait(self.driver, 10).until(EC.presence_of_element_located((By.XPATH, download_button)))
             WebDriverWait(self.driver, 60).until(EC.element_to_be_clickable((By.XPATH, download_button))).click()
-            expected_element.click()
+            time.sleep(self.sleep)
+            if self.remote:
+                self.get_last_downloaded_file_frome_remote()
 
         except Exception as e:
             self.logger.error(str(e))
@@ -1410,7 +1503,7 @@ class Uber(SeleniumTools):
         u = Uber(week_number=week_number, driver=False, sleep=0, headless=headless)
         if u.payments_order_file_name() not in os.listdir(os.curdir):
             u = Uber(week_number=week_number, driver=driver, sleep=sleep, headless=headless)
-            u.login_v2()
+            # u.login_v2()
             u.download_payments_order()
             u.quit()
         return u.save_report()
@@ -1444,11 +1537,15 @@ class Uber(SeleniumTools):
 
 
 class Bolt(SeleniumTools):    
-    def __init__(self, week_number=None, day=None, driver=True, sleep=3, headless=False, base_url="https://fleets.bolt.eu"):
-        super().__init__('bolt', week_number=week_number, day=day)
+    def __init__(self, week_number=None, day=None, driver=True, sleep=3, headless=False, base_url="https://fleets.bolt.eu", remote=True, profile=None):
+        super().__init__('bolt', week_number=week_number, day=day, profile=profile)
         self.sleep = sleep
         if driver:
-            self.driver = self.build_driver(headless)
+            if remote:
+                self.driver = self.build_remote_driver(headless)
+            else:
+                self.driver = self.build_driver(headless)
+        self.remote = remote
         self.base_url = base_url
     
     def quit(self):
@@ -1469,6 +1566,10 @@ class Bolt(SeleniumTools):
             time.sleep(self.sleep)
 
     def download_payments_order(self):
+        url = f"{self.base_url}/company/58225/reports/weekly"
+        xpath = '//div/div/table'
+        self.get_target_page_or_login(url, xpath, self.login)
+
         if self.day:
             self.driver.get(f"{self.base_url}/company/58225/reports/dayly/")
             if self.sleep:
@@ -1478,6 +1579,10 @@ class Bolt(SeleniumTools):
             element_date.find_element(By.XPATH, "./../td/a").click()
         else:
             self.driver.get(f"{self.base_url}/company/58225/reports/weekly/{self.file_patern()}")
+            time.sleep(self.sleep)
+            if self.remote:
+                self.get_last_downloaded_file_frome_remote()
+
     
     def file_patern(self):
         if self.day:
@@ -1583,8 +1688,9 @@ class Bolt(SeleniumTools):
         b = Bolt(week_number=week_number, day=day, driver=False, sleep=0, headless=headless)
         if b.payments_order_file_name() not in os.listdir(os.curdir):
             b = Bolt(week_number=week_number, day=day, driver=driver, sleep=sleep, headless=headless)
-            b.login()
+            # b.login()
             b.download_payments_order()
+            b.quit()
         return b.save_report()
 
     def get_driver_status_from_map(self, search_text):
@@ -1790,11 +1896,15 @@ class Uklon(SeleniumTools):
 
 
 class NewUklon(SeleniumTools):
-    def __init__(self, week_number=None, day=None, driver=True, sleep=3, headless=False, base_url="https://fleets.uklon.com.ua"):
+    def __init__(self, week_number=None, day=None, driver=True, sleep=3, headless=False, base_url="https://fleets.uklon.com.ua", remote=True):
         super().__init__('nuklon', week_number=week_number, day=day)
         self.sleep = sleep
         if driver:
-            self.driver = self.build_driver(headless)
+            if remote:
+                self.driver = self.build_remote_driver(headless)
+            else:
+                self.driver = self.build_driver(headless)
+        self.remote = remote
         self.base_url = base_url
 
     def quit(self):
@@ -1807,8 +1917,6 @@ class NewUklon(SeleniumTools):
         self.driver.get_screenshot_as_file(f'new_uklon1.png')
         element = self.driver.find_element(By.ID,'login')
         element.send_keys(os.environ["UKLON_NAME"])
-        time.sleep(0.1)
-
         self.driver.get_screenshot_as_file(f'new_uklon2.png')
 
         element = self.driver.find_element(By.ID, "password")
@@ -1824,16 +1932,18 @@ class NewUklon(SeleniumTools):
 
     def download_payments_order(self):
         url = f'{self.base_url}/workspace/orders'
-        self.driver.get(url)
-        if self.sleep:
-            time.sleep(self.sleep)
+        xpath = '//flt-group-filter[1]/flt-date-range-filter/mat-form-field/div'
+        self.get_target_page_or_login(url, xpath, self.login)
 
-        self.driver.find_element(By.XPATH, '//upf-order-reports/section[1]/flt-filter-group/form/flt-group-filter[1]/flt-date-range-filter/mat-form-field/div').click()
+        self.driver.find_element(By.XPATH, '//flt-group-filter[1]/flt-date-range-filter/mat-form-field/div').click()
         self.driver.get_screenshot_as_file(f'new_uklon6.png')
-        self.driver.find_element(By.XPATH, '//mat-option/span[text()=" Минулий тиждень "]').click()
+        self.driver.find_element(By.XPATH, '//mat-option[@id="mat-option-5"]/span').click()  #Минулий тиждень
         self.driver.get_screenshot_as_file(f'new_uklon7.png')
-        self.driver.find_element(By.XPATH, '//span[text()="Експорт CSV"]').click()
+        self.driver.find_element(By.XPATH, '//flt-filter-group/div/div/button').click()  #Експорт CSV
         self.driver.get_screenshot_as_file(f'new_uklon8.png')
+        time.sleep(self.sleep)
+        if self.remote:
+            self.get_last_downloaded_file_frome_remote()
 
     def download_payments_day_order(self):
         actions = ActionChains(self.driver)
@@ -2013,8 +2123,9 @@ class NewUklon(SeleniumTools):
         u = NewUklon(week_number=week_number, driver=False, sleep=0, headless=headless)
         if u.payments_order_file_name() not in os.listdir(os.curdir):
             u = NewUklon(week_number=week_number, driver=driver, sleep=sleep, headless=headless)
-            u.login()
+            # u.login()
             u.download_payments_order()
+            u.quit()
         # return u.save_report()
         return u.save_report_v2()
 

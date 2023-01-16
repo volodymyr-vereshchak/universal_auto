@@ -50,7 +50,11 @@ def start(update, context):
           resize_keyboard=True,
         )
     else:
-        User.objects.create(chat_id=chat_id)
+        User.objects.create(
+            chat_id=chat_id,
+            name=update.message.from_user.first_name,
+            second_name=update.message.from_user.last_name
+        )
         reply_markup = ReplyKeyboardMarkup(
           keyboard=[keyboard],
           resize_keyboard=True,
@@ -761,6 +765,12 @@ def main():
     dp.add_handler(CommandHandler("report", report, run_async=True))
     dp.add_handler(CommandHandler("rating", drivers_rating))
 
+    # System commands
+    dp.add_handler(CommandHandler("cancel", cancel))
+    dp.add_handler(MessageHandler(Filters.regex(r'^\d{4}$'), code))  # this should be at the first place
+    dp.add_handler(MessageHandler(Filters.text, text))
+    dp.add_error_handler(error_handler)
+
     # tnansfer money
     dp.add_handler(CommandHandler("payment", payments))
     dp.add_handler(MessageHandler(Filters.text(f"{TRANSFER_MONEY}"), get_card))
@@ -823,12 +833,6 @@ def main():
     # Commands for Service Station Manager
     # Sending report on repair
     dp.add_handler(CommandHandler("send_report", numberplate_car))
-
-    # System commands
-    dp.add_handler(CommandHandler("cancel", cancel))
-    dp.add_handler(MessageHandler(Filters.text, text))
-    dp.add_handler(MessageHandler(Filters.regex(r'^\d{4}$'), code))
-    dp.add_error_handler(error_handler)
 
     # need fix
     dp.add_handler(CommandHandler('update', update_db, run_async=True))
