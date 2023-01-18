@@ -10,6 +10,7 @@ import html
 import json
 import time
 import logging
+import requests
 import traceback
 from telegram import * 
 from telegram.ext import *
@@ -276,7 +277,7 @@ SERVICEABLE = 'Придатна до обслуговування'
 BROKEN = 'Зламана'
 
 STATE_D = None
-NUMBERPLATE = 1
+NUMBERPLATE, REPORT = range(1, 3)
 
 # Changing status car
 def status_car(update, context):
@@ -284,7 +285,7 @@ def status_car(update, context):
     driver = Driver.get_by_chat_id(chat_id)
     if driver is not None:
         buttons = [[KeyboardButton(f'{SERVICEABLE}')], [KeyboardButton(f'{BROKEN}')]]
-        context.bot.send_message(chat_id=chat_id, text='Оберіть статус автомобіля',
+        context.bot.send_message(chat_id=update.effective_chat.id, text='Оберіть статус автомобіля',
                                         reply_markup=ReplyKeyboardMarkup(buttons, one_time_keyboard=True))
     else:
         update.message.reply_text(f'Зареєструтесь як водій', reply_markup=ReplyKeyboardRemove())
@@ -312,6 +313,35 @@ def change_status_car(update, context):
 
     STATE_D = None
 
+SEND_REPORT_DEBT = 'Надіслати звіт про оплату заборгованості'
+
+# Sending report for drivers(payment debt)
+def sending_report(update, context):
+    chat_id = update.message.chat.id
+    driver = Driver.get_by_chat_id(chat_id)
+    if driver is None:
+        buttons = [[KeyboardButton(f'{SEND_REPORT_DEBT}')]]
+        context.bot.send_message(chat_id=update.effective_chat.id, text='Оберіть опцію]:',
+                                 reply_markup=ReplyKeyboardMarkup(buttons, one_time_keyboard=True))
+    else:
+        update.message.reply_text(f'Зареєструтесь як водій', reply_markup=ReplyKeyboardRemove())
+
+
+def get_debt_photo(update, context):
+    update.message.reply_text('Надішліть фото оплати заборгованості', reply_markup=ReplyKeyboardRemove())
+
+
+def save_debt_report(update, context):
+    chat_id = update.message.chat.id
+    driver = Driver.get_by_chat_id(chat_id)
+    image = update.message.photo[-1].get_file()
+    filename = f'{image["file_unique_id"]}.jpg'
+    image.download(filename)
+    Report_of_driver_debt.objects.create(
+                                driver=driver,
+                                image=filename)
+    update.message.reply_text('Ваш звіт збережено')
+
 
 # Viewing broken car
 def broken_car(update, context):
@@ -329,6 +359,7 @@ def broken_car(update, context):
             update.message.reply_text(f'{report}')
     else:
         update.message.reply_text('Зареєструйтесь як менеджер водіїв')
+
 
 STATE_DM = None
 STATUS = range(1, 2)
@@ -454,10 +485,15 @@ def error_handler(update: object, context: CallbackContext) -> None:
 
 
 def code(update: Update, context: CallbackContext):
-    r = redis.Redis.from_url(os.environ["REDIS_URL"])
-    r.publish('code', update.message.text)
-    update.message.reply_text('Формування звіту...')
-    context.bot.send_chat_action(chat_id=update.effective_message.chat_id, action=ChatAction.TYPING)
+    pattern = r'^\d{4}$'
+    m = update.message.text
+    if re.match(pattern, m) is not None:
+        r = redis.Redis.from_url(os.environ["REDIS_URL"])
+        r.publish('code', update.message.text)
+        update.message.reply_text('Формування звіту...')
+        context.bot.send_chat_action(chat_id=update.effective_message.chat_id, action=ChatAction.TYPING)
+    else:
+        update.message.reply_text('Боту не вдалось опрацювати ваше повідомлення. Спробуйте пізніше')
 
 
 def help(update, context) -> str:
@@ -471,15 +507,17 @@ CARD, SUM = range(1, 3)
 TRANSFER_MONEY = 'Перевести кошти'
 GENERATE_LINK = 'Сгенерувати лінк'
 
+# Transfer money
 def payments(update, context):
-    #chat_id = update.message.chat.id
-    #owner = Owner.get_by_chat_id(chat_id)
-    buttons = [[KeyboardButton(f'{TRANSFER_MONEY}')],
-               [KeyboardButton(f'{GENERATE_LINK}')]]
-    context.bot.send_message(chat_id=update.effective_chat.id, text='Оберіть опцію:',
-                             reply_markup=ReplyKeyboardMarkup(buttons, one_time_keyboard=True))
-    #else:
-    #    update.message.reply_text('Ця команда тільки для власника')
+    chat_id = update.message.chat.id
+    owner = Owner.get_by_chat_id(chat_id)
+    if True:
+        buttons = [[KeyboardButton(f'{TRANSFER_MONEY}')],
+                   [KeyboardButton(f'{GENERATE_LINK}')]]
+        context.bot.send_message(chat_id=update.effective_chat.id, text='Оберіть опцію:',
+                                reply_markup=ReplyKeyboardMarkup(buttons, one_time_keyboard=True))
+    else:
+        update.message.reply_text('Ця команда тільки для власника')
 
 
 def generate_link(update, context):
@@ -571,7 +609,8 @@ def get_information(update, context):
                 f'{standart_commands}\n' \
                 'Для вашої ролі:\n\n' \
                 '/report - загрузити та побачити недільні звіти\n' \
-                '/rating - побачити рейтинг водіїв\n'
+                '/rating - побачити рейтинг водіїв\n' \
+                '/payment - перевести кошти або сгенерити лінк на оплату\n'
         update.message.reply_text(f'{report}')
     else:
         update.message.reply_text(f'{standart_commands}')
@@ -619,6 +658,9 @@ def text(update, context):
             return end_of_repair(update, context)
         elif STATE_SSM == END_OF_REPAIR:
             return send_report_to_db_and_driver(update, context)
+    else:
+        return code(update, context)
+
 
 def drivers_rating(update, context):
     text = 'Рейтинг водіїв\n\n'
@@ -761,7 +803,7 @@ def main():
     dp.add_handler(CommandHandler("report", report, run_async=True))
     dp.add_handler(CommandHandler("rating", drivers_rating))
 
-    # tnansfer money
+    # Transfer money
     dp.add_handler(CommandHandler("payment", payments))
     dp.add_handler(MessageHandler(Filters.text(f"{TRANSFER_MONEY}"), get_card))
     dp.add_handler(MessageHandler(Filters.text(f"{THE_DATA_IS_CORRECT}"), correct_transfer))
@@ -812,13 +854,16 @@ def main():
         Filters.text(f'{BROKEN}'),
         numberplate))
 
+    # Sending report(payment debt)
+    dp.add_handler(CommandHandler("sending_report", sending_report))
+    dp.add_handler(MessageHandler(Filters.text(f'{SEND_REPORT_DEBT}'), get_debt_photo))
+    dp.add_handler(MessageHandler(Filters.photo, save_debt_report))
 
     # Commands for Driver Managers
     # Returns status cars
     dp.add_handler(CommandHandler("car_status", broken_car))
     # Viewing status driver
     dp.add_handler(CommandHandler("driver_status", driver_status))
-
 
     # Commands for Service Station Manager
     # Sending report on repair
@@ -827,7 +872,6 @@ def main():
     # System commands
     dp.add_handler(CommandHandler("cancel", cancel))
     dp.add_handler(MessageHandler(Filters.text, text))
-    dp.add_handler(MessageHandler(Filters.regex(r'^\d{4}$'), code))
     dp.add_error_handler(error_handler)
 
     # need fix

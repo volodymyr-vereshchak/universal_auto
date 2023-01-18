@@ -26,6 +26,9 @@ services:
       UKLON_PASSWORD:
       PRIVAT24_NAME:              #lenght = 9 ex: 632587413
       PRIVAT24_PASSWORD:
+      PORTMONE_LOGIN:
+      PORTMONE_PASSWORD:
+      PORTMONE_PAYEE_ID:
       REDIS_URL: redis://redis
       DB_HOST: postgres
       POSTGRES_DB: "universal_auto_dev"

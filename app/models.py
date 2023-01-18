@@ -972,6 +972,14 @@ class Order(models.Model):
     created_at = models.DateTimeField(editable=False, auto_now_add=True)
 
 
+class Report_of_driver_debt(models.Model):
+    driver = models.CharField(max_length=255)
+    image = models.ImageField(upload_to='.')
+
+    created_at = models.DateTimeField(editable=False, auto_now=datetime.datetime.now())
+    updated_at = models.DateTimeField(auto_now=True)
+    deleted_at = models.DateTimeField(null=True, blank=True)
+
 
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options

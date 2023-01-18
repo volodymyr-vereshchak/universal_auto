@@ -36,7 +36,7 @@ from polymorphic.admin import PolymorphicParentModelAdmin, PolymorphicChildModel
 #     base_model = Fleet
 #     child_models = (UberFleet, BoltFleet, UklonFleet, NewUklonFleet)
 #     list_filter = (PolymorphicChildModelFilter,)
-
+admin.site.register(Report_of_driver_debt)
 
 class DriverManagerInline(admin.TabularInline):
     model = DriverManager.driver_id.through
