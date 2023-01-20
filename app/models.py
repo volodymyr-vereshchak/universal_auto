@@ -329,14 +329,18 @@ class User(models.Model):
         OWNER = 'OWNER', 'Owner'
 
     id = models.AutoField(primary_key=True)
-    name = models.CharField(max_length=255, blank=True, null=True)
-    second_name = models.CharField(max_length=255, blank=True, null=True)
-    email = models.EmailField(blank=True, max_length=254)
-    phone_number = models.CharField(blank=True, max_length=13)
-    chat_id = models.CharField(blank=True, max_length=9)
-    created_at = models.DateTimeField(editable=False, auto_now=datetime.datetime.now())
-    updated_at = models.DateTimeField(auto_now=True)
-    deleted_at = models.DateTimeField(null=True, blank=True)
+    name = models.CharField(max_length=255, blank=True, null=True, verbose_name="Ім'я")
+    second_name = models.CharField(max_length=255, blank=True, null=True, verbose_name='Прізвище')
+    email = models.EmailField(blank=True, max_length=254, verbose_name='Електрона пошта')
+    phone_number = models.CharField(blank=True, max_length=13, verbose_name='Номер телефона')
+    chat_id = models.CharField(blank=True, max_length=9, verbose_name='Індетифікатор чата')
+    created_at = models.DateTimeField(editable=False, auto_now=datetime.datetime.now(), verbose_name='Створено')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='Обновлено')
+    deleted_at = models.DateTimeField(null=True, blank=True, verbose_name='Видалено')
+
+    class Meta:
+        verbose_name = 'Користувач'
+        verbose_name_plural = 'Користувачі'
 
     def __str__(self)-> str:
         return self.full_name()
@@ -414,8 +418,11 @@ class Driver(User):
     driver_manager_id = models.ManyToManyField('DriverManager', blank=True)
     #partner = models.ManyToManyField('Partner', blank=True)
     role = models.CharField(max_length=50, choices=User.Role.choices, default=User.Role.DRIVER)
-    driver_status = models.CharField(max_length=35, null=False, default='Offline')
+    driver_status = models.CharField(max_length=35, null=False, default='Offline', verbose_name='Статус водія')
 
+    class Meta:
+        verbose_name = 'Водій'
+        verbose_name_plural = 'Водії'
 
     def get_driver_external_id(self, vendor: str) -> str:
         try:
@@ -488,6 +495,10 @@ class Fleet(PolymorphicModel):
     deleted_at = models.DateTimeField(null=True, blank=True)
     min_fee = models.DecimalField(decimal_places=2, max_digits=15, default=0)
 
+    class Meta:
+        verbose_name = 'Автопарк'
+        verbose_name_plural = 'Автопарки'
+
     def __str__(self) -> str:
         return f'{self.name}'
 
@@ -497,6 +508,10 @@ class Client(User):
     #we have to delete this
     support_manager_id = models.ManyToManyField('SupportManager',  blank=True)
     role = models.CharField(max_length=50, choices=User.Role.choices, default=User.Role.CLIENT)
+
+    class Meta:
+        verbose_name = 'Клієнт'
+        verbose_name_plural = 'Клієнти'
 
     @staticmethod
     def get_by_chat_id(chat_id):
@@ -517,6 +532,10 @@ class DriverManager(User):
     driver_id = models.ManyToManyField(Driver,  blank=True, verbose_name = 'Driver')
     role = models.CharField(max_length=50, choices=User.Role.choices, default=User.Role.DRIVER_MANAGER)
 
+    class Meta:
+        verbose_name ='Менеджер водія'
+        verbose_name_plural = 'Менеджер водіїв'
+
     def __str__(self):
         return f'{self.name} {self.second_name}'
 
@@ -533,7 +552,11 @@ class ServiceStationManager(User):
     car_id = models.ManyToManyField('Vehicle', blank=True)
     fleet_id = models.ManyToManyField(Fleet, blank=True)
     role = models.CharField(max_length=50, choices=User.Role.choices, default=User.Role.SERVICE_STATION_MANAGER)
-    service_station = models.OneToOneField('ServiceStation', on_delete=models.RESTRICT)
+    service_station = models.OneToOneField('ServiceStation', on_delete=models.RESTRICT, verbose_name='Сервісний центр')
+
+    class Meta:
+        verbose_name ='Менеджер сервісного центра'
+        verbose_name_plural = 'Менеджери сервісних центрів'
 
     def __str__(self):
         return self.full_name()
@@ -558,6 +581,10 @@ class SupportManager(User):
     driver_id = models.ManyToManyField(Driver,  blank=True)
     role = models.CharField(max_length=50, choices=User.Role.choices, default=User.Role.SUPPORT_MANAGER)
 
+    class Meta:
+        verbose_name ='Менеджер служби підтримки'
+        verbose_name_plural = 'Менеджери служби підтримки'
+
     @staticmethod
     def get_by_chat_id(chat_id):
         try:
@@ -569,6 +596,10 @@ class SupportManager(User):
 
 class Owner(User):
     role = models.CharField(max_length=50, choices=User.Role.choices, default=User.Role.OWNER)
+
+    class Meta:
+        verbose_name ='Власник'
+        verbose_name_plural = 'Власники'
 
     @staticmethod
     def get_by_chat_id(chat_id):
@@ -620,17 +651,21 @@ class NewUklonFleet(Fleet):
 
 
 class Vehicle(models.Model):
-    name = models.CharField(max_length=255)
-    model = models.CharField(max_length=50)
-    type = models.CharField(max_length=20)
-    licence_plate = models.CharField(max_length=24, unique=True)
+    name = models.CharField(max_length=255, verbose_name='Назва')
+    model = models.CharField(max_length=50, verbose_name='Модель')
+    type = models.CharField(max_length=20, verbose_name='Тип')
+    licence_plate = models.CharField(max_length=24, unique=True, verbose_name='Номерний знак')
     vin_code = models.CharField(max_length=17)
     gps_imei = models.CharField(max_length=100, default='')
-    car_status = models.CharField(max_length=18, null=False, default="Serviceable")
-    driver = models.ForeignKey(Driver, null=True, on_delete=models.RESTRICT)
-    created_at = models.DateTimeField(editable=False, auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    deleted_at = models.DateTimeField(null=True, blank=True)
+    car_status = models.CharField(max_length=18, null=False, default="Serviceable", verbose_name='Статус автомобіля')
+    driver = models.ForeignKey(Driver, null=True, on_delete=models.RESTRICT, verbose_name='Водій')
+    created_at = models.DateTimeField(editable=False, auto_now_add=True, verbose_name='Створено')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='Обновлено')
+    deleted_at = models.DateTimeField(null=True, blank=True, verbose_name='Видалено')
+
+    class Meta:
+        verbose_name ='Автомобіль'
+        verbose_name_plural = 'Автомобілі'
 
     def __str__(self) -> str:
         return f'{self.licence_plate}'
@@ -661,13 +696,16 @@ class Fleets_drivers_vehicles_rate(models.Model):
 
 
 class DriverRateLevels(models.Model):
-    fleet = models.ForeignKey(Fleet, on_delete=models.CASCADE)
+    fleet = models.ForeignKey(Fleet, on_delete=models.CASCADE, verbose_name='Автопарк')
     threshold_value = models.DecimalField(decimal_places=2, max_digits=15, default=0)
     rate_delta = models.DecimalField(decimal_places=2, max_digits=3, default=0)
     created_at = models.DateTimeField(editable=False, auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     deleted_at = models.DateTimeField(null=True, blank=True)
 
+    class Meta:
+        verbose_name = 'Рівень рейтингу водія'
+        verbose_name_plural = 'Рівень рейтингу водіїв'
 
 class RawGPS(models.Model):
 

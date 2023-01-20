@@ -503,7 +503,7 @@ def help(update, context) -> str:
 
 
 STATE_O = None
-CARD, SUM, PORTMONE_SUM, PORTMONE_COMMISSION, GENERATE_LINK = range(1, 5)
+CARD, SUM, PORTMONE_SUM, PORTMONE_COMMISSION, GENERATE_LINK = range(1, 6)
 
 TRANSFER_MONEY = 'Перевести кошти'
 GENERATE_LINK = 'Сгенерувати лінк'
