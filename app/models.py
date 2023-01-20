@@ -921,38 +921,51 @@ class BoltTransactions(models.Model):
 
 
 class RepairReport(models.Model):
-    repair = models.CharField(max_length=255)
-    numberplate = models.CharField(max_length=12, unique=True)
-    start_of_repair = models.DateTimeField(blank=True, null=False)
-    end_of_repair = models.DateTimeField(blank=True, null=False)
-    status_of_payment_repair = models.CharField(max_length=6, default="Unpaid")  # Paid, Unpaid
-    driver = models.ForeignKey(Driver, null=True, blank=True, on_delete=models.CASCADE)
+    repair = models.CharField(max_length=255, verbose_name='Фото звіту про ремонт')
+    numberplate = models.CharField(max_length=12, unique=True, verbose_name='Номер автомобіля')
+    start_of_repair = models.DateTimeField(blank=True, null=False, verbose_name='Початок ремонту')
+    end_of_repair = models.DateTimeField(blank=True, null=False, verbose_name='Закінчення ремонту')
+    status_of_payment_repair = models.BooleanField(default=False, verbose_name='Статус оплати')  # Paid, Unpaid
+    driver = models.ForeignKey(Driver, null=True, blank=True, on_delete=models.CASCADE, verbose_name='Водій')
+
+    class Meta:
+        verbose_name='Звіт про ремонт'
+        verbose_name_plural='Звіти про ремонти'
 
     def __str__(self):
         return f'{self.numberplate}'
 
 
 class ServiceStation(models.Model):
-    name = models.CharField(max_length=120)
-    owner = models.CharField(max_length=150)
-    lat = models.DecimalField(decimal_places=4, max_digits=10, default=0)
-    lat_zone = models.CharField(max_length=1)
-    lon = models.DecimalField(decimal_places=4, max_digits=10, default=0)
-    lon_zone = models.CharField(max_length=1)
-    description = models.CharField(max_length=255)
+    name = models.CharField(max_length=120, verbose_name='Назва')
+    owner = models.CharField(max_length=150, verbose_name='Власник')
+    lat = models.DecimalField(decimal_places=4, max_digits=10, default=0, verbose_name='Широта')
+    lat_zone = models.CharField(max_length=1, verbose_name='Пояс-Широти')
+    lon = models.DecimalField(decimal_places=4, max_digits=10, default=0, verbose_name='Довгота')
+    lon_zone = models.CharField(max_length=1, verbose_name='Пояс-Довготи')
+    description = models.CharField(max_length=255, verbose_name='Опис')
+
+    class Meta:
+        verbose_name="Сервісний Центр"
+        verbose_name_plural='Сервісні центри'
 
     def __str__(self):
         return f'{self.name}'
 
 
 class Comment(models.Model):
-    comment = models.TextField()
-    chat_id = models.CharField(blank=True, max_length=9)
-    processed = models.BooleanField(default=False)
+    comment = models.TextField(verbose_name='Відгук')
+    chat_id = models.CharField(blank=True, max_length=9, verbose_name='ID в чаті')
+    processed = models.BooleanField(default=False, verbose_name='Опрацьовано')
 
-    created_at = models.DateTimeField(editable=False, auto_now=datetime.datetime.now())
-    updated_at = models.DateTimeField(auto_now=True)
-    deleted_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(editable=False, auto_now=datetime.datetime.now(), verbose_name='Створено')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='Обновлено')
+    deleted_at = models.DateTimeField(null=True, blank=True, verbose_name='Видалено')
+
+    class Meta:
+        verbose_name='Відгук'
+        verbose_name_plural='Відгуки'
+        ordering=['-created_at']
 
 
 class Order(models.Model):
@@ -973,12 +986,17 @@ class Order(models.Model):
 
 
 class Report_of_driver_debt(models.Model):
-    driver = models.CharField(max_length=255)
-    image = models.ImageField(upload_to='.')
+    driver = models.CharField(max_length=255, verbose_name='Водій')
+    image = models.ImageField(upload_to='.', verbose_name='Фото')
 
-    created_at = models.DateTimeField(editable=False, auto_now=datetime.datetime.now())
-    updated_at = models.DateTimeField(auto_now=True)
-    deleted_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(editable=False, auto_now=datetime.datetime.now(), verbose_name='Створено')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='Обновлено')
+    deleted_at = models.DateTimeField(null=True, blank=True, verbose_name='Видалено')
+
+    class Meta:
+        verbose_name = 'Звіт заборгованості водія'
+        verbose_name_plural = 'Звіти заборгованості водіїв'
+        ordering = ['driver']
 
 
 from selenium import webdriver
@@ -2027,8 +2045,8 @@ class NewUklon(SeleniumTools):
             u = NewUklon(week_number=week_number, driver=driver, sleep=sleep, headless=headless)
             u.login()
             u.download_payments_order()
-        return u.save_report()
-        #return u.save_report_v2()
+        #return u.save_report()
+        return u.save_report_v2()
 
     @staticmethod
     def download_daily_report(day=None, driver=True, sleep=5, headless=True):

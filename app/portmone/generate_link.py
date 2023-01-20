@@ -19,7 +19,7 @@ class Portmone():
         self.commission = commission
 
     def user_commission(self):
-        return self.sum - self.commission
+        return self.portmone_commission() - self.commission
 
     def portmone_commission(self):
         return self.sum - (self.sum * 0.01) - 5

@@ -1,7 +1,7 @@
 from django.contrib import admin
 from .models import *
 from polymorphic.admin import PolymorphicParentModelAdmin, PolymorphicChildModelAdmin, PolymorphicChildModelFilter
-
+from django.utils.safestring import mark_safe
 
 # class FleetChildAdmin(PolymorphicChildModelAdmin):
 #     base_model = Fleet
@@ -36,7 +36,7 @@ from polymorphic.admin import PolymorphicParentModelAdmin, PolymorphicChildModel
 #     base_model = Fleet
 #     child_models = (UberFleet, BoltFleet, UklonFleet, NewUklonFleet)
 #     list_filter = (PolymorphicChildModelFilter,)
-admin.site.register(Report_of_driver_debt)
+
 
 class DriverManagerInline(admin.TabularInline):
     model = DriverManager.driver_id.through
@@ -302,14 +302,19 @@ class SupportManagerAdmin(admin.ModelAdmin):
 @admin.register(RepairReport)
 class RepairReportAdmin(admin.ModelAdmin):
     list_display = [f.name for f in RepairReport._meta.fields]
+    list_filter = ['numberplate', 'status_of_payment_repair']
+    list_editable = ['status_of_payment_repair']
+    search_fields = ['numberplate']
     list_per_page = 25
+
 
 
 @admin.register(ServiceStation)
 class ServiceStationAdmin(admin.ModelAdmin):
     list_display = ('name', 'owner', 'description')
     list_display_links = ('name',)
-    search_fields = ('name',)
+    list_filter = ['owner']
+    search_fields = ('name', 'owner')
     ordering = ('name', )
     list_per_page = 25
 
@@ -330,3 +335,24 @@ class ServiceStationManagerAdmin(admin.ModelAdmin):
         ServiceStationManagerVehicleInline,
         ServiceStationManagerFleetInline,
     ]
+
+@admin.register(Report_of_driver_debt)
+class ReportOfDriverDebtAdmin(admin.ModelAdmin):
+    list_display = ('driver', 'image', 'created_at')
+    list_filter = ('driver', 'created_at')
+    search_fields = ('driver', 'created_at')
+
+    fieldsets = [
+        (None, {'fields': ['driver', 'image']}),
+    ]
+
+@admin.register(Comment)
+class CommentAdmin(admin.ModelAdmin):
+    list_display = ('comment', 'chat_id', 'processed')
+    list_filter = ('chat_id', 'processed')
+    list_editable = ['processed']
+
+    fieldsets = [
+        (None, {'fields': ['comment', 'chat_id']}),
+    ]
+

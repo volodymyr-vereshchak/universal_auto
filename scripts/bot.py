@@ -15,6 +15,7 @@ import traceback
 from telegram import * 
 from telegram.ext import *
 from app.models import *
+from app.portmone.generate_link import *
 from . import bolt, uklon, uber
 from scripts.driversrating import DriversRatingMixin
 import traceback
@@ -319,10 +320,10 @@ SEND_REPORT_DEBT = 'Надіслати звіт про оплату заборг
 def sending_report(update, context):
     chat_id = update.message.chat.id
     driver = Driver.get_by_chat_id(chat_id)
-    if driver is None:
+    if driver is not None:
         buttons = [[KeyboardButton(f'{SEND_REPORT_DEBT}')]]
-        context.bot.send_message(chat_id=update.effective_chat.id, text='Оберіть опцію]:',
-                                 reply_markup=ReplyKeyboardMarkup(buttons, one_time_keyboard=True))
+        context.bot.send_message(chat_id=update.effective_chat.id, text='Оберіть опцію:',
+                                 reply_markup=ReplyKeyboardMarkup(buttons, resize_keyboard=True, one_time_keyboard=True))
     else:
         update.message.reply_text(f'Зареєструтесь як водій', reply_markup=ReplyKeyboardRemove())
 
@@ -339,7 +340,7 @@ def save_debt_report(update, context):
     image.download(filename)
     Report_of_driver_debt.objects.create(
                                 driver=driver,
-                                image=filename)
+                                image=f'static/{filename}')
     update.message.reply_text('Ваш звіт збережено')
 
 
@@ -502,7 +503,7 @@ def help(update, context) -> str:
 
 
 STATE_O = None
-CARD, SUM = range(1, 3)
+CARD, SUM, PORTMONE_SUM, PORTMONE_COMMISSION, GENERATE_LINK = range(1, 5)
 
 TRANSFER_MONEY = 'Перевести кошти'
 GENERATE_LINK = 'Сгенерувати лінк'
@@ -518,10 +519,6 @@ def payments(update, context):
                                 reply_markup=ReplyKeyboardMarkup(buttons, one_time_keyboard=True))
     else:
         update.message.reply_text('Ця команда тільки для власника')
-
-
-def generate_link(update, context):
-    pass
 
 
 def get_card(update, context):
@@ -544,6 +541,7 @@ def get_sum(update, context):
 
 THE_DATA_IS_CORRECT = "Транзакція заповнена вірно"
 THE_DATA_IS_WRONG = "Транзакція заповнена невірно"
+
 
 def transfer(update, context):
     global STATE_O
@@ -573,6 +571,68 @@ def correct_transfer(update, context):
 def wrong_transfer(update, context):
     update.message.reply_text("Транзакція відмінена")
     p.quit()
+
+
+# Generate link debt
+COMMISSION_ONLY_PORTMONE = 'Використати стандартну комісію'
+MY_COMMISSION = "Встановити свою комісію"
+
+
+def commission(update, context):
+    buttons = [[KeyboardButton(f'{COMMISSION_ONLY_PORTMONE}')],
+               [KeyboardButton(f'{MY_COMMISSION}')]]
+    context.bot.send_message(chat_id=update.effective_chat.id, text='Виберіть, яку комісію бажаєте встановити:',
+                             reply_markup=ReplyKeyboardMarkup(buttons, one_time_keyboard=True))
+
+
+def get_my_commission(update, context):
+    global STATE_O
+    update.message.reply_text(
+        "Введіть суму комісії в форматі DD.CC (ваша комісія з комісієй сервісу Portmone буде вирахувана від загальної суми)")
+    STATE_O = PORTMONE_COMMISSION
+
+
+def get_sum_for_portmone(update, context):
+    global STATE_O
+    if STATE_O == PORTMONE_COMMISSION:
+        commission = update.message.text
+        commission = conversion_to_float(sum=commission)
+        if commission is not None:
+            context.user_data['commission'] = commission
+            update.message.reply_text(f'Введіть суму на яку ви хочете виставити запит, в форматі DD.CC')
+            STATE_O = GENERATE_LINK
+            STATE_O = GENERATE_LINK
+        else:
+            update.message.reply_text('Не вдалось опрацювати суму вашої комісії, спробуйте ще раз')
+    else:
+        update.message.reply_text(f'Введіть суму на яку ви хочете виставити запит, в форматі DD.CC')
+        STATE_O = PORTMONE_SUM
+
+
+def generate_link_v1(update, context):
+    global STATE_O
+    sum = update.message.text
+    n_sum = conversion_to_float(sum=sum)
+    if n_sum is not None:
+        p = Portmone(sum=n_sum)
+        result = p.get_link()
+        update.message.reply_text(f'{result}')
+        STATE_O = None
+    else:
+        update.message.reply_text('Не вдалось обробити вашу суму, спробуйте ще раз')
+
+
+def generate_link_v2(update, context):
+    global STATE_O
+    sum = update.message.text
+    n_sum = conversion_to_float(sum=sum)
+    if n_sum is not None:
+        p = Portmone(sum=n_sum, commission=context.user_data['commission'])
+        result = p.get_link()
+        update.message.reply_text(f'{result}')
+        STATE_O = None
+    else:
+        update.message.reply_text('Не вдалось обробити вашу суму, спробуйте ще раз')
 
 
 def get_information(update, context):
@@ -646,6 +706,12 @@ def text(update, context):
             return get_sum(update, context)
         elif STATE_O == SUM:
             return transfer(update, context)
+        elif STATE_O == PORTMONE_SUM:
+            return generate_link_v1(update, context)
+        elif STATE_O == PORTMONE_COMMISSION:
+            return get_sum_for_portmone(update, context)
+        elif STATE_O == GENERATE_LINK:
+            return generate_link_v2(update, context)
     elif STATE_DM is not None:
         if STATE_DM == STATUS:
             return viewing_status_driver(update, context)
@@ -809,6 +875,10 @@ def main():
     dp.add_handler(MessageHandler(Filters.text(f"{THE_DATA_IS_CORRECT}"), correct_transfer))
     dp.add_handler(MessageHandler(Filters.text(f"{THE_DATA_IS_WRONG}"), wrong_transfer))
 
+    # Generate link debt
+    dp.add_handler(MessageHandler(Filters.text(f"{GENERATE_LINK}"), commission))
+    dp.add_handler(MessageHandler(Filters.text(f"{COMMISSION_ONLY_PORTMONE}"), get_sum_for_portmone))
+    dp.add_handler(MessageHandler(Filters.text(f"{MY_COMMISSION}"), get_my_commission))
 
     # Publicly available commands
     # Getting id
