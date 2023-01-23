@@ -1,7 +1,7 @@
 from django.contrib import admin
 from .models import *
 from polymorphic.admin import PolymorphicParentModelAdmin, PolymorphicChildModelAdmin, PolymorphicChildModelFilter
-
+from django.utils.safestring import mark_safe
 
 # class FleetChildAdmin(PolymorphicChildModelAdmin):
 #     base_model = Fleet
@@ -45,11 +45,11 @@ class DriverManagerInline(admin.TabularInline):
     def __init__(self, parent_model, admin_site):
         super().__init__(parent_model, admin_site)
         if parent_model is Driver:
-            self.verbose_name = 'Manager'
-            self.verbose_name_plural = 'Managers'
+            self.verbose_name = 'Менеджер'
+            self.verbose_name_plural = 'Менеджери'
         if parent_model is DriverManager:
-            self.verbose_name = 'Driver'
-            self.verbose_name_plural = 'Drivers'
+            self.verbose_name = 'Водій'
+            self.verbose_name_plural = 'Водії'
 
 
 class SupportManagerClientInline(admin.TabularInline):
@@ -59,11 +59,11 @@ class SupportManagerClientInline(admin.TabularInline):
     def __init__(self, parent_model, admin_site):
         super().__init__(parent_model, admin_site)
         if parent_model is Client:
-            self.verbose_name = 'Support manager'
-            self.verbose_name_plural = 'Support managers'
+            self.verbose_name = 'Менеджер служби підтримки'
+            self.verbose_name_plural = 'Менеджери служби підтримки'
         if parent_model is SupportManager:
-            self.verbose_name = 'Client'
-            self.verbose_name_plural = 'Clients'
+            self.verbose_name = 'Клієнт'
+            self.verbose_name_plural = 'Клієнти'
 
 
 class SupportManagerDriverInline(admin.TabularInline):
@@ -73,11 +73,11 @@ class SupportManagerDriverInline(admin.TabularInline):
     def __init__(self, parent_model, admin_site):
         super().__init__(parent_model, admin_site)
         if parent_model is Driver:
-            self.verbose_name = 'Support manager'
-            self.verbose_name_plural = 'Support managers'
+            self.verbose_name = 'Менеджер служби підтримки'
+            self.verbose_name_plural = 'Менеджери служби підтримки'
         if parent_model is SupportManager:
-            self.verbose_name = 'Driver'
-            self.verbose_name_plural = 'Drivers'
+            self.verbose_name = 'Водій'
+            self.verbose_name_plural = 'Водії'
 
 
 class ServiceStationManagerVehicleInline(admin.TabularInline):
@@ -87,11 +87,11 @@ class ServiceStationManagerVehicleInline(admin.TabularInline):
     def __init__(self, parent_model, admin_site):
         super().__init__(parent_model, admin_site)
         if parent_model is Vehicle:
-            self.verbose_name = 'Service station manager'
-            self.verbose_name_plural = 'Service station managers'
+            self.verbose_name = 'Менеджер сервісного центру'
+            self.verbose_name_plural = 'Менеджери сервісного центру'
         if parent_model is ServiceStationManager:
-            self.verbose_name = 'Vehicle'
-            self.verbose_name_plural = 'Vehicles'
+            self.verbose_name = 'Автомобіль'
+            self.verbose_name_plural = 'Автомобілі'
 
 
 class ServiceStationManagerFleetInline(admin.TabularInline):
@@ -101,11 +101,11 @@ class ServiceStationManagerFleetInline(admin.TabularInline):
     def __init__(self, parent_model, admin_site):
         super().__init__(parent_model, admin_site)
         if parent_model is Fleet:
-            self.verbose_name = 'Service station manager'
-            self.verbose_name_plural = 'Service station managers'
+            self.verbose_name = 'Менеджер сервісного центру'
+            self.verbose_name_plural = 'Менеджери сервісного центру'
         if parent_model is ServiceStationManager:
-            self.verbose_name = 'Fleet'
-            self.verbose_name_plural = 'Fleets'
+            self.verbose_name = 'Автопарк'
+            self.verbose_name_plural = 'Автопарки'
 
 
 class Fleets_drivers_vehicles_rateInline(admin.TabularInline):
@@ -137,6 +137,7 @@ class FleetAdmin(admin.ModelAdmin):
 class DriverAdmin(admin.ModelAdmin):
     list_display = ('name', 'second_name', 'email', 'phone_number', 'driver_status', 'created_at')
     list_display_links = ('name', 'second_name')
+    list_filter = ['created_at']
     search_fields = ('name', 'second_name')
     ordering = ('name', 'second_name')
     list_per_page = 25
@@ -157,6 +158,9 @@ class DriverRateLevelsAdmin(admin.ModelAdmin):
     list_display = [f.name for f in DriverRateLevels._meta.fields]
     list_per_page = 25
 
+    fieldsets = [
+        (None, {'fields': ['fleet', 'threshold_value', 'rate_delta']}),
+    ]
 
 @admin.register(DriverManager)
 class DriverManagerAdmin(admin.ModelAdmin):
@@ -255,6 +259,7 @@ class UberPaymentsOrderAdmin(admin.ModelAdmin):
 class UserAdmin(admin.ModelAdmin):
     list_display = ('name', 'second_name', 'email', 'phone_number', 'created_at')
     list_display_links = ('name', 'second_name')
+    list_filter = ['created_at']
     search_fields = ('name', 'second_name')
     ordering = ('name', 'second_name')
     list_per_page = 25
@@ -268,6 +273,7 @@ class UserAdmin(admin.ModelAdmin):
 class ClientAdmin(admin.ModelAdmin):
     list_display = ('name', 'second_name', 'email', 'phone_number', 'created_at')
     list_display_links = ('name', 'second_name')
+    list_filter = ['created_at']
     search_fields = ('name', 'second_name')
     ordering = ('name', 'second_name')
     list_per_page = 25
@@ -302,14 +308,19 @@ class SupportManagerAdmin(admin.ModelAdmin):
 @admin.register(RepairReport)
 class RepairReportAdmin(admin.ModelAdmin):
     list_display = [f.name for f in RepairReport._meta.fields]
+    list_filter = ['numberplate', 'status_of_payment_repair']
+    list_editable = ['status_of_payment_repair']
+    search_fields = ['numberplate']
     list_per_page = 25
+
 
 
 @admin.register(ServiceStation)
 class ServiceStationAdmin(admin.ModelAdmin):
     list_display = ('name', 'owner', 'description')
     list_display_links = ('name',)
-    search_fields = ('name',)
+    list_filter = ['owner']
+    search_fields = ('name', 'owner')
     ordering = ('name', )
     list_per_page = 25
 
@@ -330,3 +341,24 @@ class ServiceStationManagerAdmin(admin.ModelAdmin):
         ServiceStationManagerVehicleInline,
         ServiceStationManagerFleetInline,
     ]
+
+@admin.register(Report_of_driver_debt)
+class ReportOfDriverDebtAdmin(admin.ModelAdmin):
+    list_display = ('driver', 'image', 'created_at')
+    list_filter = ('driver', 'created_at')
+    search_fields = ('driver', 'created_at')
+
+    fieldsets = [
+        (None, {'fields': ['driver', 'image']}),
+    ]
+
+@admin.register(Comment)
+class CommentAdmin(admin.ModelAdmin):
+    list_display = ('comment', 'chat_id', 'processed')
+    list_filter = ('chat_id', 'processed')
+    list_editable = ['processed']
+
+    fieldsets = [
+        (None, {'fields': ['comment', 'chat_id']}),
+    ]
+

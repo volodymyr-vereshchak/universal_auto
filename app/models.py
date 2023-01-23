@@ -329,14 +329,19 @@ class User(models.Model):
         OWNER = 'OWNER', 'Owner'
 
     id = models.AutoField(primary_key=True)
-    name = models.CharField(max_length=255, blank=True, null=True)
-    second_name = models.CharField(max_length=255, blank=True, null=True)
-    email = models.EmailField(blank=True, max_length=254)
-    phone_number = models.CharField(blank=True, max_length=13)
-    chat_id = models.CharField(blank=True, max_length=100)
-    created_at = models.DateTimeField(editable=False, auto_now=datetime.datetime.now())
-    updated_at = models.DateTimeField(auto_now=True)
-    deleted_at = models.DateTimeField(null=True, blank=True)
+
+    name = models.CharField(max_length=255, blank=True, null=True, verbose_name="Ім'я")
+    second_name = models.CharField(max_length=255, blank=True, null=True, verbose_name='Прізвище')
+    email = models.EmailField(blank=True, max_length=254, verbose_name='Електрона пошта')
+    phone_number = models.CharField(blank=True, max_length=13, verbose_name='Номер телефона')
+    chat_id = models.CharField(blank=True, max_length=100, verbose_name='Індетифікатор чата')
+    created_at = models.DateTimeField(editable=False, auto_now=datetime.datetime.now(), verbose_name='Створено')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='Обновлено')
+    deleted_at = models.DateTimeField(null=True, blank=True, verbose_name='Видалено')
+
+    class Meta:
+        verbose_name = 'Користувач'
+        verbose_name_plural = 'Користувачі'
 
     def __str__(self)-> str:
         return self.full_name()
@@ -414,8 +419,11 @@ class Driver(User):
     driver_manager_id = models.ManyToManyField('DriverManager', blank=True)
     #partner = models.ManyToManyField('Partner', blank=True)
     role = models.CharField(max_length=50, choices=User.Role.choices, default=User.Role.DRIVER)
-    driver_status = models.CharField(max_length=35, null=False, default='Offline')
+    driver_status = models.CharField(max_length=35, null=False, default='Offline', verbose_name='Статус водія')
 
+    class Meta:
+        verbose_name = 'Водій'
+        verbose_name_plural = 'Водії'
 
     def get_driver_external_id(self, vendor: str) -> str:
         try:
@@ -488,6 +496,10 @@ class Fleet(PolymorphicModel):
     deleted_at = models.DateTimeField(null=True, blank=True)
     min_fee = models.DecimalField(decimal_places=2, max_digits=15, default=0)
 
+    class Meta:
+        verbose_name = 'Автопарк'
+        verbose_name_plural = 'Автопарки'
+
     def __str__(self) -> str:
         return f'{self.name}'
 
@@ -497,6 +509,10 @@ class Client(User):
     #we have to delete this
     support_manager_id = models.ManyToManyField('SupportManager',  blank=True)
     role = models.CharField(max_length=50, choices=User.Role.choices, default=User.Role.CLIENT)
+
+    class Meta:
+        verbose_name = 'Клієнт'
+        verbose_name_plural = 'Клієнти'
 
     @staticmethod
     def get_by_chat_id(chat_id):
@@ -517,6 +533,10 @@ class DriverManager(User):
     driver_id = models.ManyToManyField(Driver,  blank=True, verbose_name = 'Driver')
     role = models.CharField(max_length=50, choices=User.Role.choices, default=User.Role.DRIVER_MANAGER)
 
+    class Meta:
+        verbose_name ='Менеджер водія'
+        verbose_name_plural = 'Менеджер водіїв'
+
     def __str__(self):
         return f'{self.name} {self.second_name}'
 
@@ -533,7 +553,11 @@ class ServiceStationManager(User):
     car_id = models.ManyToManyField('Vehicle', blank=True)
     fleet_id = models.ManyToManyField(Fleet, blank=True)
     role = models.CharField(max_length=50, choices=User.Role.choices, default=User.Role.SERVICE_STATION_MANAGER)
-    service_station = models.OneToOneField('ServiceStation', on_delete=models.RESTRICT)
+    service_station = models.OneToOneField('ServiceStation', on_delete=models.RESTRICT, verbose_name='Сервісний центр')
+
+    class Meta:
+        verbose_name ='Менеджер сервісного центра'
+        verbose_name_plural = 'Менеджери сервісних центрів'
 
     def __str__(self):
         return self.full_name()
@@ -558,6 +582,10 @@ class SupportManager(User):
     driver_id = models.ManyToManyField(Driver,  blank=True)
     role = models.CharField(max_length=50, choices=User.Role.choices, default=User.Role.SUPPORT_MANAGER)
 
+    class Meta:
+        verbose_name ='Менеджер служби підтримки'
+        verbose_name_plural = 'Менеджери служби підтримки'
+
     @staticmethod
     def get_by_chat_id(chat_id):
         try:
@@ -569,6 +597,10 @@ class SupportManager(User):
 
 class Owner(User):
     role = models.CharField(max_length=50, choices=User.Role.choices, default=User.Role.OWNER)
+
+    class Meta:
+        verbose_name ='Власник'
+        verbose_name_plural = 'Власники'
 
     @staticmethod
     def get_by_chat_id(chat_id):
@@ -620,17 +652,21 @@ class NewUklonFleet(Fleet):
 
 
 class Vehicle(models.Model):
-    name = models.CharField(max_length=255)
-    model = models.CharField(max_length=50)
-    type = models.CharField(max_length=20)
-    licence_plate = models.CharField(max_length=24, unique=True)
+    name = models.CharField(max_length=255, verbose_name='Назва')
+    model = models.CharField(max_length=50, verbose_name='Модель')
+    type = models.CharField(max_length=20, verbose_name='Тип')
+    licence_plate = models.CharField(max_length=24, unique=True, verbose_name='Номерний знак')
     vin_code = models.CharField(max_length=17)
     gps_imei = models.CharField(max_length=100, default='')
-    car_status = models.CharField(max_length=18, null=False, default="Serviceable")
-    driver = models.ForeignKey(Driver, null=True, on_delete=models.RESTRICT)
-    created_at = models.DateTimeField(editable=False, auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    deleted_at = models.DateTimeField(null=True, blank=True)
+    car_status = models.CharField(max_length=18, null=False, default="Serviceable", verbose_name='Статус автомобіля')
+    driver = models.ForeignKey(Driver, null=True, on_delete=models.RESTRICT, verbose_name='Водій')
+    created_at = models.DateTimeField(editable=False, auto_now_add=True, verbose_name='Створено')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='Обновлено')
+    deleted_at = models.DateTimeField(null=True, blank=True, verbose_name='Видалено')
+
+    class Meta:
+        verbose_name ='Автомобіль'
+        verbose_name_plural = 'Автомобілі'
 
     def __str__(self) -> str:
         return f'{self.licence_plate}'
@@ -661,13 +697,16 @@ class Fleets_drivers_vehicles_rate(models.Model):
 
 
 class DriverRateLevels(models.Model):
-    fleet = models.ForeignKey(Fleet, on_delete=models.CASCADE)
+    fleet = models.ForeignKey(Fleet, on_delete=models.CASCADE, verbose_name='Автопарк')
     threshold_value = models.DecimalField(decimal_places=2, max_digits=15, default=0)
     rate_delta = models.DecimalField(decimal_places=2, max_digits=3, default=0)
     created_at = models.DateTimeField(editable=False, auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     deleted_at = models.DateTimeField(null=True, blank=True)
 
+    class Meta:
+        verbose_name = 'Рівень рейтингу водія'
+        verbose_name_plural = 'Рівень рейтингу водіїв'
 
 class RawGPS(models.Model):
 
@@ -921,38 +960,51 @@ class BoltTransactions(models.Model):
 
 
 class RepairReport(models.Model):
-    repair = models.CharField(max_length=255)
-    numberplate = models.CharField(max_length=12, unique=True)
-    start_of_repair = models.DateTimeField(blank=True, null=False)
-    end_of_repair = models.DateTimeField(blank=True, null=False)
-    status_of_payment_repair = models.CharField(max_length=6, default="Unpaid")  # Paid, Unpaid
-    driver = models.ForeignKey(Driver, null=True, blank=True, on_delete=models.CASCADE)
+    repair = models.CharField(max_length=255, verbose_name='Фото звіту про ремонт')
+    numberplate = models.CharField(max_length=12, unique=True, verbose_name='Номер автомобіля')
+    start_of_repair = models.DateTimeField(blank=True, null=False, verbose_name='Початок ремонту')
+    end_of_repair = models.DateTimeField(blank=True, null=False, verbose_name='Закінчення ремонту')
+    status_of_payment_repair = models.BooleanField(default=False, verbose_name='Статус оплати')  # Paid, Unpaid
+    driver = models.ForeignKey(Driver, null=True, blank=True, on_delete=models.CASCADE, verbose_name='Водій')
+
+    class Meta:
+        verbose_name='Звіт про ремонт'
+        verbose_name_plural='Звіти про ремонти'
 
     def __str__(self):
         return f'{self.numberplate}'
 
 
 class ServiceStation(models.Model):
-    name = models.CharField(max_length=120)
-    owner = models.CharField(max_length=150)
-    lat = models.DecimalField(decimal_places=4, max_digits=10, default=0)
-    lat_zone = models.CharField(max_length=1)
-    lon = models.DecimalField(decimal_places=4, max_digits=10, default=0)
-    lon_zone = models.CharField(max_length=1)
-    description = models.CharField(max_length=255)
+    name = models.CharField(max_length=120, verbose_name='Назва')
+    owner = models.CharField(max_length=150, verbose_name='Власник')
+    lat = models.DecimalField(decimal_places=4, max_digits=10, default=0, verbose_name='Широта')
+    lat_zone = models.CharField(max_length=1, verbose_name='Пояс-Широти')
+    lon = models.DecimalField(decimal_places=4, max_digits=10, default=0, verbose_name='Довгота')
+    lon_zone = models.CharField(max_length=1, verbose_name='Пояс-Довготи')
+    description = models.CharField(max_length=255, verbose_name='Опис')
+
+    class Meta:
+        verbose_name="Сервісний Центр"
+        verbose_name_plural='Сервісні центри'
 
     def __str__(self):
         return f'{self.name}'
 
 
 class Comment(models.Model):
-    comment = models.TextField()
-    chat_id = models.CharField(blank=True, max_length=9)
-    processed = models.BooleanField(default=False)
+    comment = models.TextField(verbose_name='Відгук')
+    chat_id = models.CharField(blank=True, max_length=9, verbose_name='ID в чаті')
+    processed = models.BooleanField(default=False, verbose_name='Опрацьовано')
 
-    created_at = models.DateTimeField(editable=False, auto_now=datetime.datetime.now())
-    updated_at = models.DateTimeField(auto_now=True)
-    deleted_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(editable=False, auto_now=datetime.datetime.now(), verbose_name='Створено')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='Обновлено')
+    deleted_at = models.DateTimeField(null=True, blank=True, verbose_name='Видалено')
+
+    class Meta:
+        verbose_name='Відгук'
+        verbose_name_plural='Відгуки'
+        ordering=['-created_at']
 
 
 class Order(models.Model):
@@ -971,6 +1023,19 @@ class Order(models.Model):
     driver = models.ForeignKey(Driver, null=True, on_delete=models.RESTRICT)
     created_at = models.DateTimeField(editable=False, auto_now_add=True)
 
+
+class Report_of_driver_debt(models.Model):
+    driver = models.CharField(max_length=255, verbose_name='Водій')
+    image = models.ImageField(upload_to='.', verbose_name='Фото')
+
+    created_at = models.DateTimeField(editable=False, auto_now=datetime.datetime.now(), verbose_name='Створено')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='Обновлено')
+    deleted_at = models.DateTimeField(null=True, blank=True, verbose_name='Видалено')
+
+    class Meta:
+        verbose_name = 'Звіт заборгованості водія'
+        verbose_name_plural = 'Звіти заборгованості водіїв'
+        ordering = ['driver']
 
 
 from selenium import webdriver
@@ -1075,7 +1140,6 @@ class SeleniumTools():
         options.add_argument('--allow-profiles-outside-user-dir')
         options.add_argument('--enable-profile-shortcut-manager')
         options.add_argument(f'user-data-dir={os.path.join(os.getcwd(), "_SeleniumChromeUsers", self.__class__.__name__)}')
-
 
         if headless:
             options.add_argument('--headless')
@@ -1511,11 +1575,15 @@ class Bolt(SeleniumTools):
             if self.remote:
                 self.get_last_downloaded_file_frome_remote()
 
-    
+
     def file_patern(self):
         if self.day:
             return self.day.format("DD.MM.YYYY")
-        return f"{self.current_date.strftime('%Y')}W{self.week_number()}"
+        else:
+            if int(self.week_number()) <= 9:
+                return f"{self.current_date.strftime('%Y')}W0{self.week_number()}"
+            else:
+                return f"{self.current_date.strftime('%Y')}W{self.week_number()}"
 
     def payments_order_file_name(self):
         return self.report_file_name(self.file_patern())
@@ -1748,6 +1816,7 @@ class NewUklon(SeleniumTools):
         if self.sleep:
             time.sleep(self.sleep)
         element = self.driver.find_element(By.ID,'login')
+
         element.send_keys(os.environ["UKLON_NAME"])
 
         element = self.driver.find_element(By.ID, "password")
@@ -1836,6 +1905,7 @@ class NewUklon(SeleniumTools):
         if self.sleep:
             time.sleep(self.sleep)
         items = []
+
         if self.payments_order_file_name() is not None:
             with open(self.payments_order_file_name(), encoding="utf-8") as file:
                 reader = csv.reader(file)
@@ -1863,6 +1933,7 @@ class NewUklon(SeleniumTools):
                     except IntegrityError:
                         pass
                     items.append(order)
+
 
         if not items:
             order = NewUklonPaymentsOrder(
@@ -2029,10 +2100,13 @@ def get_report(week_number = None, driver=True, sleep=5, headless=True):
                 totals[name] = totals.get(name, 0) + r.kassa()
                 salary[name] = salary.get(name, 0) + r.total_drivers_amount(float(rate.rate))
                 owner["Fleet Owner"] += r.total_owner_amount(float(rate.rate))
-   
+
+    totals = {k: v for k, v in totals.items() if v != 0.0}
     totals = {k: f'Общаяя касса {k}: %.2f\n' % v  for k, v in totals.items()}
     totals = {k: v + reports[k]  for k, v in totals.items()}
     totals = {k: v + f'Зарплата за неделю {k}: %.2f\n' % salary[k] for k, v in totals.items()}
+
+
     return f'Fleet Owner: {"%.2f" % owner["Fleet Owner"]}\n\n' + '\n'.join(totals.values())
 
 
