@@ -48,9 +48,9 @@ DRIVERS_MAP = {
             'vehicle': {'licence_plate': 'AA3410YA', 'vin_code': 'LC0CE4DC1N0090623', 'name': '2022 BYD E2'},
             'fleets_drivers_vehicles_rate':
                 [
-                    {'fleet': 'Uber', 'driver_external_id': 'd303a6c5-56f7-4ebf-a341-9cfa7c759388', 'rate': 0.5},
-                    {'fleet': 'Bolt', 'driver_external_id': '+380671887096', 'rate': 0.5},
-                    {'fleet': 'NewUklon', 'driver_external_id': '512875', 'rate': 0.5},
+                    {'fleet': 'Uber', 'driver_external_id': 'd303a6c5-56f7-4ebf-a341-9cfa7c759388', 'rate': 0.65},
+                    {'fleet': 'Bolt', 'driver_external_id': '+380671887096', 'rate': 0.65},
+                    {'fleet': 'NewUklon', 'driver_external_id': '512875', 'rate': 0.35},
                 ]
         },
         {
