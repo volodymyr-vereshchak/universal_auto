@@ -1037,6 +1037,20 @@ class Report_of_driver_debt(models.Model):
         ordering = ['driver']
 
 
+class Event(models.Model):
+    full_name_driver = models.CharField(max_length=255, verbose_name='Водій')
+    event = models.CharField(max_length=20, verbose_name='Подія')
+    chat_id = models.CharField(blank=True, max_length=9, verbose_name='Індетифікатор чата')
+    status_event = models.BooleanField(default=False, verbose_name='Працює')
+
+    created_at = models.DateTimeField(editable=False, verbose_name='Створено')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='Обновлено')
+
+    class Meta:
+        verbose_name = 'Подія'
+        verbose_name_plural = 'Події'
+
+
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.keys import Keys

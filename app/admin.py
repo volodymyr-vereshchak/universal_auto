@@ -362,3 +362,12 @@ class CommentAdmin(admin.ModelAdmin):
         (None, {'fields': ['comment', 'chat_id']}),
     ]
 
+@admin.register(Event)
+class EventAdmin(admin.ModelAdmin):
+    list_display = ('full_name_driver', 'event', 'status_event', 'created_at', 'updated_at')
+    list_filter = ('full_name_driver', 'event', 'status_event')
+    list_editable = ['status_event']
+
+    fieldsets = [
+        (None, {'fields': ['full_name_driver', 'event', 'chat_id']}),
+    ]
