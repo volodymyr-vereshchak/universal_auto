@@ -746,7 +746,7 @@ def drivers_rating(update, context):
 
 
 def report(update, context):
-    update.message.reply_text("Введіть ваш Uber OTP код з SMS:")
+    # update.message.reply_text("Введіть ваш Uber OTP код з SMS:")
     update.message.reply_text(get_report())
 
 

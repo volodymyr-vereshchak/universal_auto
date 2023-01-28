@@ -1,5 +1,6 @@
 import json
 import logging
+import os
 import re
 import time
 import datetime
@@ -25,6 +26,21 @@ class Synchronizer:
             super().__init__(driver=False, sleep=3, headless=True)
             self.driver = chrome_driver
 
+    def try_to_execute(self, func_name):
+        if not self.driver.service.is_connectable():
+            print('###################### Driver recreating... ########################')
+            self.driver = self.build_driver()
+            time.sleep(self.sleep)
+        try:
+            WebDriverWait(self.driver, 1).until(EC.presence_of_element_located((By.XPATH, '//div')))
+        except InvalidSessionIdException:
+            print('###################### Session recreating... ########################')
+            self.driver = self.build_driver()
+            time.sleep(self.sleep)
+        except TimeoutException:
+            pass
+        return getattr(self, func_name)()
+
     def get_target_element_of_page(self, url, xpath):
         try:
             WebDriverWait(self.driver, self.sleep).until(EC.presence_of_element_located((By.XPATH, xpath)))
@@ -37,7 +53,6 @@ class Synchronizer:
             except (TimeoutException, FileNotFoundError):
                 self.login()
                 self.driver.get(url)
-                time.sleep(self.sleep)
                 WebDriverWait(self.driver, self.sleep).until(EC.presence_of_element_located((By.XPATH, xpath)))
                 self.logger.info(f'Got the page using authorization {url}')
 
@@ -289,20 +304,6 @@ class BoltSynchronizer(Synchronizer, Bolt):
             url = f'{self.base_url}/v2/liveMap'
             xpath = f'//div[contains(@class, "map-overlay")]'
             self.get_target_element_of_page(url, xpath)
-            # try:
-            #     xpath = f'//div[contains(@class, "map-overlay")]'
-            #     WebDriverWait(self.driver, self.sleep).until(EC.presence_of_element_located((By.XPATH, xpath)))
-            #     self.driver.get_screenshot_as_file('bolt_map_ok.png')
-            # except TimeoutException:
-            #     try:
-            #         self.driver.get(f"{self.base_url}/v2/liveMap")
-            #         self.driver.get_screenshot_as_file('bolt_map_reloaded.png')
-            #         xpath = f'//div[contains(@class, "map-overlay")]'
-            #         WebDriverWait(self.driver, self.sleep).until(EC.presence_of_element_located((By.XPATH, xpath)))
-            #     except (TimeoutException, FileNotFoundError):
-            #         self.login()
-            #         self.driver.get(f"{self.base_url}/v2/liveMap")
-            #         self.driver.get_screenshot_as_file('bolt_map_login.png')
             return {
                 'online': self.get_driver_status_from_map('1'),
                 'width_client': self.get_driver_status_from_map('2'),
@@ -310,6 +311,14 @@ class BoltSynchronizer(Synchronizer, Bolt):
             }
         except (TimeoutException,WebDriverException) as err:
             print(err.msg)
+
+    def download_weekly_report(self):
+        if self.payments_order_file_name() not in os.listdir(os.curdir):
+            try:
+                self.download_payments_order()
+                print(f'Bolt weekly report has been downloaded')
+            except Exception as err:
+                print(err.msg)
 
 
 class UklonSynchronizer(Synchronizer, NewUklon):
@@ -456,25 +465,17 @@ class UklonSynchronizer(Synchronizer, NewUklon):
             url = f'{self.base_url}/workspace/orders'
             xpath = f'//div[@id="mat-tab-label-0-1"]'
             self.get_target_element_of_page(url, xpath)
-            # try:
-            #     xpath = f'//div[@id="mat-tab-label-0-1"]'
-            #     WebDriverWait(self.driver, self.sleep).until(EC.presence_of_element_located((By.XPATH, xpath)))
-            #     self.driver.get_screenshot_as_file('uklon_map_ok.png')
-            # except TimeoutException:
-            #     try:
-            #         self.driver.get(f"{self.base_url}/workspace/orders")
-            #         time.sleep(self.sleep)
-            #         self.driver.get_screenshot_as_file('uklon_map_reloaded.png')
-            #         xpath = f'//div[@id="mat-tab-label-0-1"]'
-            #         WebDriverWait(self.driver, self.sleep).until(EC.presence_of_element_located((By.XPATH, xpath)))
-            #     except (TimeoutException, FileNotFoundError):
-            #         self.login()
-            #         self.driver.get(f"{self.base_url}/workspace/orders")
-            #         time.sleep(self.sleep)
-            #         self.driver.get_screenshot_as_file('uklon_map_login.png')
             return self.get_driver_status_from_table()
         except WebDriverException as err:
             print(err.msg)
+
+    def download_weekly_report(self):
+        if self.payments_order_file_name() not in os.listdir(os.curdir):
+            try:
+                self.download_payments_order()
+                print(f'Uklon weekly report has been downloaded')
+            except Exception as err:
+                print(err.msg)
 
 
 class UberSynchronizer(Synchronizer, Uber):
@@ -595,3 +596,11 @@ class UberSynchronizer(Synchronizer, Uber):
             }
         except WebDriverException as err:
             print(err.msg)
+
+    def download_weekly_report(self):
+        if self.payments_order_file_name() not in os.listdir(os.curdir):
+            try:
+                self.download_payments_order()
+                print(f'Uber weekly report has been downloaded')
+            except Exception as err:
+                print(err.msg)

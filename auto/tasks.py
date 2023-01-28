@@ -18,7 +18,7 @@ UKLON_CHROME_DRIVER = None
 UBER_CHROME_DRIVER = None
 
 UPDATE_DRIVER_DATA_FREQUENCY = 60*60*1
-UPDATE_DRIVER_STATUS_FREQUENCY = 60*1
+UPDATE_DRIVER_STATUS_FREQUENCY = 60*2
 MEMCASH_LOCK_EXPIRE = 60 * 10
 MEMCASH_LOCK_AFTER_FINISHING = 10
 
@@ -86,18 +86,10 @@ def update_driver_status(self):
         with memcache_lock(self.name, self.app.oid) as acquired:
             if acquired:
 
-                try:
-                    bolt_status = BoltSynchronizer(BOLT_CHROME_DRIVER.driver).get_driver_status()
-                except InvalidSessionIdException:
-                    BOLT_CHROME_DRIVER.driver = BOLT_CHROME_DRIVER.build_remote_driver()
-                    bolt_status = BoltSynchronizer(BOLT_CHROME_DRIVER.driver).get_driver_status()
+                bolt_status = BoltSynchronizer(BOLT_CHROME_DRIVER.driver).try_to_execute('get_driver_status')
                 logger.info(f'Bolt {bolt_status}')
 
-                try:
-                    uklon_status = UklonSynchronizer(UKLON_CHROME_DRIVER.driver).get_driver_status()
-                except InvalidSessionIdException:
-                    UKLON_CHROME_DRIVER.driver = UKLON_CHROME_DRIVER.build_remote_driver()
-                    uklon_status = UklonSynchronizer(UKLON_CHROME_DRIVER.driver).get_driver_status()
+                uklon_status = UklonSynchronizer(UKLON_CHROME_DRIVER.driver).try_to_execute('get_driver_status')
                 logger.info(f'Uklon {uklon_status}')
 
                 status_online = set()
@@ -137,28 +129,11 @@ def update_driver_data(self):
     try:
         with memcache_lock(self.name, self.app.oid) as acquired:
             if acquired:
-
-                try:
-                    BoltSynchronizer(BOLT_CHROME_DRIVER.driver).synchronize()
-                except InvalidSessionIdException:
-                    BOLT_CHROME_DRIVER.driver = BOLT_CHROME_DRIVER.build_remote_driver()
-                    BoltSynchronizer(BOLT_CHROME_DRIVER.driver).synchronize()
-
-                try:
-                    UklonSynchronizer(UKLON_CHROME_DRIVER.driver).synchronize()
-                except InvalidSessionIdException:
-                    UKLON_CHROME_DRIVER.driver = UKLON_CHROME_DRIVER.build_remote_driver()
-                    UklonSynchronizer(UKLON_CHROME_DRIVER.driver).synchronize()
-
-                try:
-                    UberSynchronizer(UBER_CHROME_DRIVER.driver).synchronize()
-                except InvalidSessionIdException:
-                    UBER_CHROME_DRIVER.driver = UBER_CHROME_DRIVER.build_remote_driver()
-                    UberSynchronizer(UBER_CHROME_DRIVER.driver).synchronize()
-
+                BoltSynchronizer(BOLT_CHROME_DRIVER.driver).try_to_execute('synchronize')
+                UklonSynchronizer(UKLON_CHROME_DRIVER.driver).try_to_execute('synchronize')
+                UberSynchronizer(UBER_CHROME_DRIVER.driver).try_to_execute('synchronize')
             else:
                 logger.info('passed')
-
     except Exception as e:
         logger.info(e)
 
@@ -166,24 +141,9 @@ def update_driver_data(self):
 @app.task(bind=True)
 def download_weekly_report_force(self):
     try:
-        try:
-            BoltSynchronizer(BOLT_CHROME_DRIVER.driver).download_weekly_report()
-        except InvalidSessionIdException:
-            BOLT_CHROME_DRIVER.driver = BOLT_CHROME_DRIVER.build_remote_driver()
-            BoltSynchronizer(BOLT_CHROME_DRIVER.driver).download_weekly_report()
-
-        try:
-            UklonSynchronizer(UKLON_CHROME_DRIVER.driver).download_weekly_report()
-        except InvalidSessionIdException:
-            UKLON_CHROME_DRIVER.driver = UKLON_CHROME_DRIVER.build_remote_driver()
-            UklonSynchronizer(UKLON_CHROME_DRIVER.driver).download_weekly_report()
-
-        try:
-            UberSynchronizer(UBER_CHROME_DRIVER.driver).download_weekly_report()
-        except InvalidSessionIdException:
-            UBER_CHROME_DRIVER.driver = UBER_CHROME_DRIVER.build_remote_driver()
-            UberSynchronizer(UBER_CHROME_DRIVER.driver).download_weekly_report()
-
+        BoltSynchronizer(BOLT_CHROME_DRIVER.driver).try_to_execute('download_weekly_report')
+        UklonSynchronizer(UKLON_CHROME_DRIVER.driver).try_to_execute('download_weekly_report')
+        UberSynchronizer(UBER_CHROME_DRIVER.driver).try_to_execute('download_weekly_report')
     except Exception as e:
        logger.info(e)
 
@@ -193,13 +153,16 @@ def setup_periodic_tasks(sender, **kwargs):
     global BOLT_CHROME_DRIVER
     global UKLON_CHROME_DRIVER
     global UBER_CHROME_DRIVER
-    if BOLT_CHROME_DRIVER is None:
-        BOLT_CHROME_DRIVER = Bolt(driver=True, sleep=3, headless=(not settings.DEBUG), profile='Bolt_CeleryTasks')
-    if UKLON_CHROME_DRIVER is None:
-        UKLON_CHROME_DRIVER = NewUklon(driver=True, sleep=3, headless=(not settings.DEBUG), profile='Uklon_CeleryTasks')
-    if UBER_CHROME_DRIVER is None:
-        UBER_CHROME_DRIVER = Uber(driver=True, sleep=3, headless=(not settings.DEBUG), profile='Uber_CeleryTasks')
+    init_chrome_driver()
     sender.add_periodic_task(UPDATE_DRIVER_STATUS_FREQUENCY, update_driver_status.s())
     sender.add_periodic_task(UPDATE_DRIVER_DATA_FREQUENCY, update_driver_data.s())
-    sender.add_periodic_task(crontab(minute=0, hour=5), download_weekly_report_force.s())
+    # sender.add_periodic_task(crontab(minute=0, hour=5), download_weekly_report_force.s())
+    sender.add_periodic_task(60*60*3, download_weekly_report_force.s())
 
+def init_chrome_driver():
+    global BOLT_CHROME_DRIVER
+    global UKLON_CHROME_DRIVER
+    global UBER_CHROME_DRIVER
+    BOLT_CHROME_DRIVER = Bolt(week_number=None, driver=True, sleep=3, headless=True, profile='Bolt_CeleryTasks')
+    UKLON_CHROME_DRIVER = NewUklon(week_number=None, driver=True, sleep=3, headless=True, profile='Uklon_CeleryTasks')
+    UBER_CHROME_DRIVER = Uber(week_number=None, driver=True, sleep=3, headless=True, profile='Uber_CeleryTasks')

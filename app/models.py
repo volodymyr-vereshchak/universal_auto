@@ -2,6 +2,7 @@ import csv
 import datetime
 import glob
 import os
+import shutil
 import sys
 from django.db import models, IntegrityError
 from django.db.models import Sum, QuerySet
@@ -1126,11 +1127,11 @@ class SeleniumTools():
     #                 return fun(headless)
     #             continue
 
-    def build_driver(self, headless=False):
+    def build_driver(self, headless=True):
         options = Options()
         options = webdriver.ChromeOptions()
         options.add_experimental_option("prefs", {
-            "download.default_directory": os.getcwd(),
+            "download.default_directory": os.path.join(os.getcwd(), "LastDownloads"),
             "download.prompt_for_download": False,
             "download.directory_upgrade": True,
             "safebrowsing_for_trusted_sources_enabled": False,
@@ -1139,7 +1140,9 @@ class SeleniumTools():
         options.add_argument("--enable-file-cookies")
         options.add_argument('--allow-profiles-outside-user-dir')
         options.add_argument('--enable-profile-shortcut-manager')
-        options.add_argument(f'user-data-dir={os.path.join(os.getcwd(), "_SeleniumChromeUsers", self.__class__.__name__)}')
+        # options.add_argument(f'user-data-dir={os.path.join(os.getcwd(), "_SeleniumChromeUsers", self.__class__.__name__)}')
+        options.add_argument(f'user-data-dir={os.path.join(os.getcwd(), "_SeleniumChromeUsers", self.profile)}')
+        # options.add_argument(f'--profile-directory={self.profile}')
 
         if headless:
             options.add_argument('--headless')
@@ -1156,7 +1159,7 @@ class SeleniumTools():
         driver = webdriver.Chrome(options=options, port=9514)
         return driver
 
-    def build_remote_driver(self, headless=False):
+    def build_remote_driver(self, headless=True):
 
         options = Options()
         options.add_argument("--disable-infobars")
@@ -1226,20 +1229,36 @@ class SeleniumTools():
             pass
 
     def get_last_downloaded_file_frome_remote(self, save_as=None):
-        files = WebDriverWait(self.driver, 30, 1).until(lambda driver: self.get_downloaded_files(driver))
+        try:
+            files = WebDriverWait(self.driver, 30, 1).until(lambda driver: self.get_downloaded_files(driver))
+        except TimeoutException:
+            return
         content = self.get_file_content(files[0])
         if len(files):
             fname = os.path.basename(files[0]) if save_as is None else save_as
             with open(os.path.join(os.getcwd(), fname), 'wb') as f:
                 f.write(content)
 
+    def get_last_downloaded_file(self, save_as=None):
+        folder = os.path.join(os.getcwd(), "LastDownloads")
+        files = [os.path.join(folder, f) for f in os.listdir(folder)]  # add path to each file
+        files.sort(key=lambda x: os.path.getmtime(x), reverse=True)
+        if len(files):
+            fname = os.path.basename(files[0]) if save_as is None else save_as
+            shutil.copyfile(files[0],os.path.join(os.getcwd(), fname))
+        for filename in files:
+            if '.csv' in filename:
+                file_path = os.path.join(folder, filename)
+                os.remove(file_path)
+
     def quit(self):
         if hasattr(self, 'driver'):
             self.driver.quit()
+            self.driver = None
 
 
 class Uber(SeleniumTools):
-    def __init__(self, week_number=None, day=None, driver=True, sleep=3, headless=False, base_url="https://supplier.uber.com", remote=True, profile=None):
+    def __init__(self, week_number=None, day=None, driver=True, sleep=3, headless=False, base_url="https://supplier.uber.com", remote=False, profile=None):
         super().__init__('uber', week_number=week_number, day=day, profile=profile)
         self.sleep = sleep
         if driver:
@@ -1252,6 +1271,7 @@ class Uber(SeleniumTools):
 
     def quit(self):
         self.driver.quit()
+        self.driver = None
 
     def login_v2(self, link="https://drivers.uber.com/"):
         self.driver.get(link)
@@ -1263,7 +1283,7 @@ class Uber(SeleniumTools):
         if self.sleep:
             time.sleep(self.sleep)
 
-    def login_v3(self, link="https://drivers.uber.com/"):
+    def login_v3(self, link="https://auth.uber.com/v2/"):
         self.driver.get(link)
         self.login_form('PHONE_NUMBER_or_EMAIL_ADDRESS', 'forward-button', By.ID)
         try:
@@ -1365,6 +1385,8 @@ class Uber(SeleniumTools):
             time.sleep(self.sleep)
             if self.remote:
                 self.get_last_downloaded_file_frome_remote(f'Uber {self.file_patern()}.csv')
+            else:
+                self.get_last_downloaded_file(f'Uber {self.file_patern()}.csv')
 
         except Exception as e:
             self.logger.error(str(e))
@@ -1388,54 +1410,55 @@ class Uber(SeleniumTools):
         if self.sleep:
             time.sleep(self.sleep)
         items = []
-        try:
-            with open(self.payments_order_file_name(), encoding="utf-8") as file:
-                reader = csv.reader(file)
-                next(reader)  # Advance past the header
-                for row in reader:
-                    if row[3] == "":
-                        continue
-                    if row[3] is None:
-                        continue
-                    order = UberPaymentsOrder(
-                        report_from=self.start_of_week(),
-                        report_to=self.end_of_week(),
-                        report_file_name=self.payments_order_file_name(),
-                        driver_uuid=row[0],
-                        first_name=row[1],
-                        last_name=row[2],
-                        total_amount=row[3],
-                        total_clean_amout=row[4] or 0,
-                        returns=row[5] or 0,
-                        total_amount_cach=row[6] or 0,
-                        transfered_to_bank=row[7] or 0,
-                        tips=row[8] or 0)
-                    try:
-                        order.save()
-                    except IntegrityError:
-                        pass
-                    items.append(order)
+        if self.payments_order_file_name() is not None:
+            try:
+                with open(self.payments_order_file_name(), encoding="utf-8") as file:
+                    reader = csv.reader(file)
+                    next(reader)  # Advance past the header
+                    for row in reader:
+                        if row[3] == "":
+                            continue
+                        if row[3] is None:
+                            continue
+                        order = UberPaymentsOrder(
+                            report_from=self.start_of_week(),
+                            report_to=self.end_of_week(),
+                            report_file_name=self.payments_order_file_name(),
+                            driver_uuid=row[0],
+                            first_name=row[1],
+                            last_name=row[2],
+                            total_amount=row[3],
+                            total_clean_amout=row[4] or 0,
+                            returns=row[5] or 0,
+                            total_amount_cach=row[6] or 0,
+                            transfered_to_bank=row[7] or 0,
+                            tips=row[8] or 0)
+                        try:
+                            order.save()
+                        except IntegrityError:
+                            pass
+                        items.append(order)
 
-                if not items:
-                    order = UberPaymentsOrder(
-                        report_from=self.start_of_week(),
-                        report_to=self.end_of_week(),
-                        report_file_name=self.payments_order_file_name(),
-                        driver_uuid='00000000-0000-0000-0000-000000000000',
-                        first_name='',
-                        last_name='',
-                        total_amount=0,
-                        total_clean_amout=0,
-                        returns=0,
-                        total_amount_cach=0,
-                        transfered_to_bank=0,
-                        tips=0)
-                    try:
-                        order.save()
-                    except IntegrityError:
-                        pass
-        except FileNotFoundError:
-            pass
+                    if not items:
+                        order = UberPaymentsOrder(
+                            report_from=self.start_of_week(),
+                            report_to=self.end_of_week(),
+                            report_file_name=self.payments_order_file_name(),
+                            driver_uuid='00000000-0000-0000-0000-000000000000',
+                            first_name='',
+                            last_name='',
+                            total_amount=0,
+                            total_clean_amout=0,
+                            returns=0,
+                            total_amount_cach=0,
+                            transfered_to_bank=0,
+                            tips=0)
+                        try:
+                            order.save()
+                        except IntegrityError:
+                            pass
+            except FileNotFoundError:
+                pass
         return items
 
     def wait_opt_code(self):
@@ -1511,7 +1534,7 @@ class Uber(SeleniumTools):
             self.logger.error(str(e))
 
     def login_form(self, id, button, selector):
-        element = self.driver.find_element(By.ID, id)
+        element = WebDriverWait(self.driver, 5).until(EC.presence_of_element_located((By.ID, id)))
         element.send_keys(os.environ["UBER_NAME"])
         e = self.driver.find_element(selector, button)
         e.click() 
@@ -1520,7 +1543,7 @@ class Uber(SeleniumTools):
     @staticmethod
     def download_weekly_report(week_number=None, driver=True, sleep=5, headless=True):
         u = Uber(week_number=week_number, driver=False, sleep=0, headless=headless)
-        if u.payments_order_file_name() not in os.listdir(os.curdir):
+        if u.payments_order_file_name() not in os.listdir(os.curdir) and driver:
             u = Uber(week_number=week_number, driver=driver, sleep=sleep, headless=headless)
             # u.login_v2()
             u.download_payments_order()
@@ -1529,7 +1552,7 @@ class Uber(SeleniumTools):
 
 
 class Bolt(SeleniumTools):    
-    def __init__(self, week_number=None, day=None, driver=True, sleep=3, headless=False, base_url="https://fleets.bolt.eu", remote=True, profile=None):
+    def __init__(self, week_number=None, day=None, driver=True, sleep=3, headless=False, base_url="https://fleets.bolt.eu", remote=False, profile=None):
         super().__init__('bolt', week_number=week_number, day=day, profile=profile)
         self.sleep = sleep
         if driver:
@@ -1541,7 +1564,8 @@ class Bolt(SeleniumTools):
         self.base_url = base_url
     
     def quit(self):
-        self.driver.quit() 
+        self.driver.quit()
+        self.driver = None
 
     def login(self):
         self.driver.get(f"{self.base_url}/login")
@@ -1574,16 +1598,13 @@ class Bolt(SeleniumTools):
             time.sleep(self.sleep)
             if self.remote:
                 self.get_last_downloaded_file_frome_remote()
-
+            else:
+                self.get_last_downloaded_file()
 
     def file_patern(self):
         if self.day:
             return self.day.format("DD.MM.YYYY")
-        else:
-            if int(self.week_number()) <= 9:
-                return f"{self.current_date.strftime('%Y')}W0{self.week_number()}"
-            else:
-                return f"{self.current_date.strftime('%Y')}W{self.week_number()}"
+        return f"{self.current_date.strftime('%Y')}W{self.week_number()}"
 
     def payments_order_file_name(self):
         return self.report_file_name(self.file_patern())
@@ -1660,7 +1681,7 @@ class Bolt(SeleniumTools):
     def download_weekly_report(week_number=None, day=None,  driver=True, sleep=5, headless=True):
         """Can save weekly and daily report"""
         b = Bolt(week_number=week_number, day=day, driver=False, sleep=0, headless=headless)
-        if b.payments_order_file_name() not in os.listdir(os.curdir):
+        if b.payments_order_file_name() not in os.listdir(os.curdir) and driver:
             b = Bolt(week_number=week_number, day=day, driver=driver, sleep=sleep, headless=headless)
             # b.login()
             b.download_payments_order()
@@ -1797,7 +1818,7 @@ class Uklon(SeleniumTools):
 
 
 class NewUklon(SeleniumTools):
-    def __init__(self, week_number=None, day=None, driver=True, sleep=3, headless=False, base_url="https://fleets.uklon.com.ua", remote=True, profile=None):
+    def __init__(self, week_number=None, day=None, driver=True, sleep=3, headless=False, base_url="https://fleets.uklon.com.ua", remote=False, profile=None):
         super().__init__('nuklon', week_number=week_number, day=day, profile=profile)
         self.sleep = sleep
         if driver:
@@ -1807,9 +1828,6 @@ class NewUklon(SeleniumTools):
                 self.driver = self.build_driver(headless)
         self.remote = remote
         self.base_url = base_url
-
-    def quit(self):
-        self.driver.quit()
 
     def login(self):
         self.driver.get(self.base_url + '/auth/login')
@@ -1838,6 +1856,8 @@ class NewUklon(SeleniumTools):
         time.sleep(self.sleep)
         if self.remote:
             self.get_last_downloaded_file_frome_remote(save_as=f'Uklon {self.file_patern()}.csv')
+        else:
+            self.get_last_downloaded_file(save_as=f'Uklon {self.file_patern()}.csv')
 
     def download_payments_day_order(self):
         actions = ActionChains(self.driver)
@@ -1939,7 +1959,7 @@ class NewUklon(SeleniumTools):
             order = NewUklonPaymentsOrder(
                 report_from=self.start_of_week(),
                 report_to=self.end_of_week(),
-                report_file_name=file.name,
+                report_file_name='',
                 full_name='',
                 signal='',
                 total_rides=0,
@@ -1984,7 +2004,7 @@ class NewUklon(SeleniumTools):
     @staticmethod
     def download_weekly_report(week_number=None, driver=True, sleep=5, headless=True):
         u = NewUklon(week_number=week_number, driver=False, sleep=0, headless=headless)
-        if u.payments_order_file_name() not in os.listdir(os.curdir):
+        if u.payments_order_file_name() not in os.listdir(os.curdir) and driver:
             u = NewUklon(week_number=week_number, driver=driver, sleep=sleep, headless=headless)
             # u.login()
             u.download_payments_order()
@@ -2083,6 +2103,7 @@ class Privat24(SeleniumTools):
 
 
 def get_report(week_number = None, driver=True, sleep=5, headless=True):
+    driver = False
     owner =   {"Fleet Owner": 0}
     reports = {}
     totals =  {}

@@ -28,5 +28,5 @@ RUN python -m pip install --upgrade pip
 RUN pip install -r requirements.txt
 COPY . .
 
-EXPOSE 8080 44300 4444
+EXPOSE 8080 44300
 ENTRYPOINT honcho start 
