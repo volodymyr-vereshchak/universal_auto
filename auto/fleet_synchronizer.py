@@ -1,11 +1,15 @@
 import json
 import logging
+import os
+import re
+import time
+import datetime
 
 from selenium.webdriver.common.by import By
 from selenium.webdriver.remote.remote_connection import LOGGER
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.common import TimeoutException, WebDriverException
+from selenium.common import TimeoutException, WebDriverException, InvalidSessionIdException
 from translators.server import tss
 
 from app.models import Bolt, Driver, NewUklon, Uber, Fleets_drivers_vehicles_rate, Fleet, Vehicle, SeleniumTools
@@ -15,12 +19,27 @@ LOGGER.setLevel(logging.WARNING)
 
 class Synchronizer:
 
-    def __init__(self, chrome_driver):
+    def __init__(self, chrome_driver=None):
         if chrome_driver is None:
             super().__init__(driver=True, sleep=3, headless=True)
         else:
             super().__init__(driver=False, sleep=3, headless=True)
             self.driver = chrome_driver
+
+    def try_to_execute(self, func_name):
+        if not self.driver.service.is_connectable():
+            print('###################### Driver recreating... ########################')
+            self.driver = self.build_driver()
+            time.sleep(self.sleep)
+        try:
+            WebDriverWait(self.driver, 1).until(EC.presence_of_element_located((By.XPATH, '//div')))
+        except InvalidSessionIdException:
+            print('###################### Session recreating... ########################')
+            self.driver = self.build_driver()
+            time.sleep(self.sleep)
+        except TimeoutException:
+            pass
+        return getattr(self, func_name)()
 
     def get_target_element_of_page(self, url, xpath):
         try:
@@ -28,11 +47,14 @@ class Synchronizer:
         except TimeoutException:
             try:
                 self.driver.get(url)
+                time.sleep(self.sleep)
                 WebDriverWait(self.driver, self.sleep).until(EC.presence_of_element_located((By.XPATH, xpath)))
+                self.logger.info(f'Got the page without authorization {url}')
             except (TimeoutException, FileNotFoundError):
                 self.login()
                 self.driver.get(url)
                 WebDriverWait(self.driver, self.sleep).until(EC.presence_of_element_located((By.XPATH, xpath)))
+                self.logger.info(f'Got the page using authorization {url}')
 
     def create_driver(self, **kwargs):
         try:
@@ -189,6 +211,7 @@ class Synchronizer:
 
     def synchronize(self):
         drivers = self.get_drivers_table()
+        print(f'Received {self.__class__.__name__} drivers: {len(drivers)}')
         for driver in drivers:
             self.create_driver(**driver)
 
@@ -200,6 +223,7 @@ class BoltSynchronizer(Synchronizer, Bolt):
         url = f'{self.base_url}/company/58225/drivers'
         xpath = '//table[@class="table"]'
         self.get_target_element_of_page(url, xpath)
+        # self.driver.get_screenshot_as_file('BoltSynchronizer.png')
         i_table = 0
         while True:
             i_table += 1
@@ -248,6 +272,54 @@ class BoltSynchronizer(Synchronizer, Bolt):
                 break
         return drivers
 
+    def get_driver_status_from_map(self, search_text):
+        raw_data = []
+        try:
+            xpath = f'//div[contains(@class, "map-overlay")]/div/div[1]//a[@role="button"][{search_text}]'
+            WebDriverWait(self.driver, self.sleep).until(EC.presence_of_element_located((By.XPATH, xpath))).click()
+        except TimeoutException:
+            return raw_data
+        i = 0
+        while True:
+            i += 1
+            try:
+                xpath = f'//div[contains(@class, "map-overlay")]/div/div/div[@role="button"][{i}]/div/div/div[1]/span/span'
+                driver_name = WebDriverWait(self.driver, self.sleep).until(EC.presence_of_element_located((By.XPATH, xpath))).text
+                xpath = f'//div[contains(@class, "map-overlay")]/div/div/div[@role="button"][{i}]/div/div/div[2]/span/span'
+                driver_car = WebDriverWait(self.driver, self.sleep).until(EC.presence_of_element_located((By.XPATH, xpath))).text
+            except TimeoutException:
+                break
+            name_list = [x for x in driver_name.split(' ') if len(x) > 0]
+            name, second_name, car = '', '', ''
+            try:
+                name, second_name, car = name_list[0], name_list[1], driver_car.split(' ')[0]
+            except IndexError:
+                pass
+            raw_data.append((name, second_name))
+            raw_data.append((second_name, name))
+        return raw_data
+
+    def get_driver_status(self):
+        try:
+            url = f'{self.base_url}/v2/liveMap'
+            xpath = f'//div[contains(@class, "map-overlay")]'
+            self.get_target_element_of_page(url, xpath)
+            return {
+                'online': self.get_driver_status_from_map('1'),
+                'width_client': self.get_driver_status_from_map('2'),
+                'wait': self.get_driver_status_from_map('3')
+            }
+        except (TimeoutException,WebDriverException) as err:
+            print(err.msg)
+
+    def download_weekly_report(self):
+        if self.payments_order_file_name() not in os.listdir(os.curdir):
+            try:
+                self.download_payments_order()
+                print(f'Bolt weekly report has been downloaded')
+            except Exception as err:
+                print(err.msg)
+
 
 class UklonSynchronizer(Synchronizer, NewUklon):
 
@@ -256,6 +328,7 @@ class UklonSynchronizer(Synchronizer, NewUklon):
         url = f'{self.base_url}/workspace/drivers'
         xpath = '//upf-drivers-list[@data-cy="driver-list"]'
         self.get_target_element_of_page(url, xpath)
+        # self.driver.get_screenshot_as_file('UklonSynchronizer.png')
         driver_urls = []
         i = 0
         while True:
@@ -325,17 +398,100 @@ class UklonSynchronizer(Synchronizer, NewUklon):
             })
         return drivers
 
+    def get_driver_status_from_table(self):
+        online = []
+        width_client = []
+        try:
+            xpath = f'//div[@id="mat-tab-label-0-1"]'
+            WebDriverWait(self.driver, self.sleep).until(EC.presence_of_element_located((By.XPATH, xpath))).click()
+            xpath = f'//mat-select[@id="mat-select-4"]'
+            WebDriverWait(self.driver, self.sleep).until(EC.presence_of_element_located((By.XPATH, xpath))).click()
+            xpath = f'//mat-option[@id="mat-option-10"]'
+            WebDriverWait(self.driver, self.sleep).until(EC.presence_of_element_located((By.XPATH, xpath))).click()
+            xpath = f'//button[@data-cy="order-filter-apply-btn"]'
+            WebDriverWait(self.driver, self.sleep).until(EC.presence_of_element_located((By.XPATH, xpath))).click()
+            time.sleep(self.sleep)
+        except TimeoutException:
+            return {
+                'online': online,
+                'width_client': width_client,
+                'wait': []
+            }
+        i = 0
+        while True:
+            i += 1
+            try:
+                xpath = f'//table[@data-cy="trips-list-table"]/tbody/tr[{i}]/td[@data-cy="td-driver"]'
+                driver_name = WebDriverWait(self.driver, self.sleep).until(EC.presence_of_element_located((By.XPATH, xpath))).text
+                xpath = f'//table[@data-cy="trips-list-table"]/tbody/tr[{i}]/td[@data-cy="td-license-plate"]'
+                driver_car = WebDriverWait(self.driver, self.sleep).until(EC.presence_of_element_located((By.XPATH, xpath))).text
+                xpath = f'//table[@data-cy="trips-list-table"]/tbody/tr[{i}]/td[@data-cy="td-pickup-time"]'
+                last_action_date = WebDriverWait(self.driver, self.sleep).until(EC.presence_of_element_located((By.XPATH, xpath))).text
+                xpath = f'//table[@data-cy="trips-list-table"]/tbody/tr[{i}]/td[@data-cy="td-status"]/i'
+                status = WebDriverWait(self.driver, self.sleep).until(EC.presence_of_element_located((By.XPATH, xpath))).get_attribute('class')
+            except TimeoutException:
+                break
+            name_list = [x for x in driver_name.split(' ') if len(x) > 0]
+            name, second_name, car = '', '', ''
+            try:
+                name, second_name, car = name_list[0], name_list[1], driver_car.split(' ')[0]
+            except IndexError:
+                pass
+
+            match = re.findall(r'(\d{1,2}).(\d{2}).(\d{4}).*(\d{2}):(\d{2})', last_action_date)
+            date_time_delta = 1000000
+            if len(match) > 0:
+                date_time = datetime.datetime.strptime(
+                    f'{match[0][0]}.{match[0][1]}.{match[0][2]}-{match[0][3]}:{match[0][4]}', '%d.%m.%Y-%H:%M'
+                )
+                date_time_delta = (datetime.datetime.utcnow() - date_time).total_seconds()
+
+            if ('blue' in status or date_time_delta < 60*30) and (name, second_name) not in online:
+                online.append((name, second_name))
+                online.append((second_name, name))
+
+            if 'blue' in status and (name, second_name) not in width_client:
+                width_client.append((name, second_name))
+                width_client.append((second_name, name))
+
+        return {
+            'online': online,
+            'width_client': width_client,
+            'wait': []
+        }
+
+    def get_driver_status(self):
+        try:
+            url = f'{self.base_url}/workspace/orders'
+            xpath = f'//div[@id="mat-tab-label-0-1"]'
+            self.get_target_element_of_page(url, xpath)
+            return self.get_driver_status_from_table()
+        except WebDriverException as err:
+            print(err.msg)
+
+    def download_weekly_report(self):
+        if self.payments_order_file_name() not in os.listdir(os.curdir):
+            try:
+                self.download_payments_order()
+                print(f'Uklon weekly report has been downloaded')
+            except Exception as err:
+                print(err.msg)
+
 
 class UberSynchronizer(Synchronizer, Uber):
 
     def login(self):
-        self.login_v2()
+        # """ Don't login in UberSynchronizer cause this instance runs periodically"""
+        self.login_v3()
+        pass
 
     def get_all_vehicles(self):
         vehicles = {}
         url = f'{self.base_url}/orgs/49dffc54-e8d9-47bd-a1e5-52ce16241cb6/vehicles'
+        # url = f'{self.base_url}/orgs/2c5515cd-a4ed-4136-905f-99504677a324/vehicles'  #my
         xpath = '//div[@data-testid="paginated-table"]'
         self.get_target_element_of_page(url, xpath)
+        # self.driver.get_screenshot_as_file('UberSynchronizer.png')
         i = 0
         while True:
             i += 1
@@ -360,12 +516,16 @@ class UberSynchronizer(Synchronizer, Uber):
         return vehicles
 
     def get_drivers_table(self):
-        vehicles = self.get_all_vehicles()
-        drivers = []
-        url = f'{self.base_url}/orgs/49dffc54-e8d9-47bd-a1e5-52ce16241cb6/drivers'
-        self.driver.get(url)
-        xpath = '//div[@data-testid="paginated-table"]'
-        self.get_target_element_of_page(url, xpath)
+        try:
+            vehicles = self.get_all_vehicles()
+            drivers = []
+            url = f'{self.base_url}/orgs/49dffc54-e8d9-47bd-a1e5-52ce16241cb6/drivers'
+            # url = f'{self.base_url}/orgs/2c5515cd-a4ed-4136-905f-99504677a324/drivers'  #my
+            self.driver.get(url)
+            xpath = '//div[@data-testid="paginated-table"]'
+            self.get_target_element_of_page(url, xpath)
+        except TimeoutException:
+            return []
         i = 0
         while True:
             i += 1
@@ -417,3 +577,30 @@ class UberSynchronizer(Synchronizer, Uber):
                 'vin_code': vin_code,
             })
         return drivers
+
+    def get_driver_status_from_map(self, search_text):
+        return []
+        # Need to implement
+
+    def get_driver_status(self):
+
+        try:
+            url = f"{self.base_url}/orgs/2c5515cd-a4ed-4136-905f-99504677a324/livemap"
+            # url = f"https://supplier.uber.com/orgs/49dffc54-e8d9-47bd-a1e5-52ce16241cb6/livemap"
+            xpath = f'//div[@data-tracking-name="livemap"]'
+            self.get_target_element_of_page(url, xpath)
+            return {
+                'online': self.get_driver_status_from_map('Онлайн'),
+                'width_client': self.get_driver_status_from_map('У поїздці'),
+                'wait': self.get_driver_status_from_map('Очікування')
+            }
+        except WebDriverException as err:
+            print(err.msg)
+
+    def download_weekly_report(self):
+        if self.payments_order_file_name() not in os.listdir(os.curdir):
+            try:
+                self.download_payments_order()
+                print(f'Uber weekly report has been downloaded')
+            except Exception as err:
+                print(err.msg)

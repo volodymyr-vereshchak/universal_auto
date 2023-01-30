@@ -2,6 +2,7 @@ import csv
 import datetime
 import glob
 import os
+import shutil
 import sys
 from django.db import models, IntegrityError
 from django.db.models import Sum, QuerySet
@@ -329,11 +330,12 @@ class User(models.Model):
         OWNER = 'OWNER', 'Owner'
 
     id = models.AutoField(primary_key=True)
+
     name = models.CharField(max_length=255, blank=True, null=True, verbose_name="Ім'я")
     second_name = models.CharField(max_length=255, blank=True, null=True, verbose_name='Прізвище')
     email = models.EmailField(blank=True, max_length=254, verbose_name='Електрона пошта')
     phone_number = models.CharField(blank=True, max_length=13, verbose_name='Номер телефона')
-    chat_id = models.CharField(blank=True, max_length=9, verbose_name='Індетифікатор чата')
+    chat_id = models.CharField(blank=True, max_length=100, verbose_name='Індетифікатор чата')
     created_at = models.DateTimeField(editable=False, auto_now=datetime.datetime.now(), verbose_name='Створено')
     updated_at = models.DateTimeField(auto_now=True, verbose_name='Обновлено')
     deleted_at = models.DateTimeField(null=True, blank=True, verbose_name='Видалено')
@@ -1058,6 +1060,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver import ActionChains
+from selenium.webdriver import DesiredCapabilities
 
 import time
 import csv
@@ -1069,13 +1072,14 @@ import itertools
 import logging
 import redis
 import pendulum
+import base64
 
 from django.db import models
 from app.models import Fleet
 
 
 class SeleniumTools():
-    def __init__(self, session, week_number=None, day=None):
+    def __init__(self, session, week_number=None, day=None, profile=None):
         self.session_file_name = session
         self.day = day  # if not None then we work with daly reports
         logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.DEBUG)
@@ -1084,7 +1088,7 @@ class SeleniumTools():
             self.current_date = pendulum.parse(week_number, tz="Europe/Kiev")
         else:
             self.current_date = pendulum.now().start_of('week').subtract(days=3)
-
+        self.profile = 'Profile 1' if profile is None else profile
 
     def report_file_name(self, patern):
         filenames = os.listdir(os.curdir)
@@ -1093,7 +1097,7 @@ class SeleniumTools():
                 return file 
 
     def week_number(self):
-        return f'{int(self.start_of_week().strftime("%W"))}'
+        return f'{self.start_of_week().strftime("%W")}'
 
     def start_report_interval(self):
         """
@@ -1137,11 +1141,11 @@ class SeleniumTools():
     #                 return fun(headless)
     #             continue
 
-    def build_driver(self, headless=False):
+    def build_driver(self, headless=True):
         options = Options()
         options = webdriver.ChromeOptions()
         options.add_experimental_option("prefs", {
-            "download.default_directory": os.getcwd(),
+            "download.default_directory": os.path.join(os.getcwd(), "LastDownloads"),
             "download.prompt_for_download": False,
             "download.directory_upgrade": True,
             "safebrowsing_for_trusted_sources_enabled": False,
@@ -1150,8 +1154,9 @@ class SeleniumTools():
         options.add_argument("--enable-file-cookies")
         options.add_argument('--allow-profiles-outside-user-dir')
         options.add_argument('--enable-profile-shortcut-manager')
-        #options.add_argument(f'user-data-dir={os.getcwd()}\\_ChromeUser_{self.session_file_name.capitalize()}')
-
+        # options.add_argument(f'user-data-dir={os.path.join(os.getcwd(), "_SeleniumChromeUsers", self.__class__.__name__)}')
+        options.add_argument(f'user-data-dir={os.path.join(os.getcwd(), "_SeleniumChromeUsers", self.profile)}')
+        # options.add_argument(f'--profile-directory={self.profile}')
 
         if headless:
             options.add_argument('--headless')
@@ -1168,70 +1173,119 @@ class SeleniumTools():
         driver = webdriver.Chrome(options=options, port=9514)
         return driver
 
-    def get_driver_dict(self, **kwargs):
-        return {}
+    def build_remote_driver(self, headless=True):
 
-    def create_driver(self, **kwargs):
-        return
-        try:
-            fleet = Fleet.objects.get(name=kwargs['fleet_name'])
-        except Driver.DoesNotExist:
-            return
-        drivers = Fleets_drivers_vehicles_rate.objects.filter(fleet=fleet, driver_external_id=kwargs['driver_external_id'])
-        if len(drivers) == 0:
-            dct = self.get_driver_dict(**kwargs)
-            fleets_drivers_vehicles_rate = Fleets_drivers_vehicles_rate.objects.create(
-                fleet=fleet,
-                driver=self._get_or_create_driver(**dct),
-                vehicle=self._get_or_create_vehicle(**kwargs),
-                driver_external_id=kwargs['driver_external_id'],
-            )
-            fleets_drivers_vehicles_rate.save()
+        options = Options()
+        options.add_argument("--disable-infobars")
+        options.add_argument("--enable-file-cookies")
+        options.add_argument('--allow-profiles-outside-user-dir')
+        options.add_argument('--enable-profile-shortcut-manager')
+        options.add_argument(f'--user-data-dir=home/seluser/{self.profile}')
+        options.add_argument(f'--profile-directory={self.profile}')
+        # if headless:
+        #     options.add_argument('--headless')
+        options.add_argument('--disable-gpu')
+        options.add_argument("--no-sandbox")
+        options.add_argument("--start-maximized")
+        options.add_argument("--disable-extensions")
+        options.add_argument('--disable-dev-shm-usage')
+        # options.add_argument("user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/104.0.0.0 Safari/537.36")
 
-    def _get_or_create_vehicle(self, **kwargs):
-        licence_plate = kwargs['licence_plate']
-        if len(licence_plate) == 0:
-            licence_plate = 'Unknown car'
-        try:
-            vehicle = Vehicle.objects.get(licence_plate=licence_plate)
-        except Vehicle.MultipleObjectsReturned:
-            vehicle = Vehicle.objects.filter(licence_plate=licence_plate)[0]
-        except Vehicle.DoesNotExist:
-            vehicle = Vehicle.objects.create(name=licence_plate, model='',  type='', licence_plate=licence_plate, vin_code='')
-            vehicle.save()
-        return vehicle
-
-    def _get_or_create_driver(self, **kwargs):
-        try:
-            driver = Driver.objects.get(name=kwargs['name'], second_name=kwargs['second_name'])
-        except Driver.MultipleObjectsReturned:
-            driver = Driver.objects.filter(name=kwargs['name'], second_name=kwargs['second_name'])[0]
-        except Driver.DoesNotExist:
-            try:
-                driver = Driver.objects.get(name=kwargs['second_name'], second_name=kwargs['name'])
-            except Driver.MultipleObjectsReturned:
-                driver = Driver.objects.filter(name=kwargs['second_name'], second_name=kwargs['name'])[0]
-            except Driver.DoesNotExist:
-                driver = Driver.objects.create(
-                    name=kwargs['name'],
-                    second_name=kwargs['second_name'],
-                    phone_number=kwargs['phone_number']
-                )
-                driver.save()
-
+        driver = webdriver.Remote(
+            os.environ['SELENIUM_HUB_HOST'],
+            desired_capabilities=DesiredCapabilities.CHROME,
+            options=options
+        )
         return driver
+
+    def get_target_page_or_login(self, url, xpath, login):
+        try:
+            self.driver.get(url)
+            WebDriverWait(self.driver, self.sleep).until(EC.presence_of_element_located((By.XPATH, xpath)))
+            self.logger.info(f'Got the page without authorization {url}')
+        except TimeoutException:
+            login()
+            self.driver.get(url)
+            WebDriverWait(self.driver, self.sleep).until(EC.presence_of_element_located((By.XPATH, xpath)))
+            self.logger.info(f'Got the page using authorization {url}')
+
+    def get_downloaded_files(self, driver):
+        if not self.driver.current_url.startswith("chrome://downloads"):
+            self.driver.get("chrome://downloads/")
+
+        return self.driver.execute_script( \
+            "return  document.querySelector('downloads-manager')  "
+            " .shadowRoot.querySelector('#downloadsList')         "
+            " .items.filter(e => e.state === 'COMPLETE')          "
+            " .map(e => e.filePath || e.file_path || e.fileUrl || e.file_url); ")
+
+    def get_file_content(self, path):
+        try:
+            elem = self.driver.execute_script( \
+                "var input = window.document.createElement('INPUT'); "
+                "input.setAttribute('type', 'file'); "
+                "input.hidden = true; "
+                "input.onchange = function (e) { e.stopPropagation() }; "
+                "return window.document.documentElement.appendChild(input); ")
+            elem._execute('sendKeysToElement', {'value': [path], 'text': path})
+            result = self.driver.execute_async_script( \
+                "var input = arguments[0], callback = arguments[1]; "
+                "var reader = new FileReader(); "
+                "reader.onload = function (ev) { callback(reader.result) }; "
+                "reader.onerror = function (ex) { callback(ex.message) }; "
+                "reader.readAsDataURL(input.files[0]); "
+                "input.remove(); "
+                , elem)
+            if not result.startswith('data:'):
+                raise Exception("Failed to get file content: %s" % result)
+            return base64.b64decode(result[result.find('base64,') + 7:])
+        finally:
+            pass
+
+    def get_last_downloaded_file_frome_remote(self, save_as=None):
+        try:
+            files = WebDriverWait(self.driver, 30, 1).until(lambda driver: self.get_downloaded_files(driver))
+        except TimeoutException:
+            return
+        content = self.get_file_content(files[0])
+        if len(files):
+            fname = os.path.basename(files[0]) if save_as is None else save_as
+            with open(os.path.join(os.getcwd(), fname), 'wb') as f:
+                f.write(content)
+
+    def get_last_downloaded_file(self, save_as=None):
+        folder = os.path.join(os.getcwd(), "LastDownloads")
+        files = [os.path.join(folder, f) for f in os.listdir(folder)]  # add path to each file
+        files.sort(key=lambda x: os.path.getmtime(x), reverse=True)
+        if len(files):
+            fname = os.path.basename(files[0]) if save_as is None else save_as
+            shutil.copyfile(files[0],os.path.join(os.getcwd(), fname))
+        for filename in files:
+            if '.csv' in filename:
+                file_path = os.path.join(folder, filename)
+                os.remove(file_path)
+
+    def quit(self):
+        if hasattr(self, 'driver'):
+            self.driver.quit()
+            self.driver = None
 
 
 class Uber(SeleniumTools):
-    def __init__(self, week_number=None, day=None, driver=True, sleep=3, headless=False, base_url="https://supplier.uber.com"):
-        super().__init__('uber', week_number=week_number, day=day)
+    def __init__(self, week_number=None, day=None, driver=True, sleep=3, headless=False, base_url="https://supplier.uber.com", remote=False, profile=None):
+        super().__init__('uber', week_number=week_number, day=day, profile=profile)
         self.sleep = sleep
         if driver:
-            self.driver = self.build_driver(headless)
+            if remote:
+                self.driver = self.build_remote_driver(headless)
+            else:
+                self.driver = self.build_driver(headless)
+        self.remote = remote
         self.base_url = base_url
 
     def quit(self):
         self.driver.quit()
+        self.driver = None
 
     def login_v2(self, link="https://drivers.uber.com/"):
         self.driver.get(link)
@@ -1243,6 +1297,28 @@ class Uber(SeleniumTools):
         if self.sleep:
             time.sleep(self.sleep)
 
+    def login_v3(self, link="https://auth.uber.com/v2/"):
+        self.driver.get(link)
+        self.login_form('PHONE_NUMBER_or_EMAIL_ADDRESS', 'forward-button', By.ID)
+        try:
+            self.password_form_v3()
+        except TimeoutException:
+            try:
+                el = WebDriverWait(self.driver, 5).until(EC.presence_of_element_located((By.ID, 'alt-PASSWORD')))
+                el.click()
+                self.password_form_v3()
+            except TimeoutException:
+                self.otp_code_v2()
+        if self.sleep:
+            time.sleep(self.sleep)
+
+    def password_form_v3(self):
+        el = WebDriverWait(self.driver, 5).until(EC.presence_of_element_located((By.ID, 'PASSWORD')))
+        el.clear()
+        el.send_keys(os.environ["UBER_PASSWORD"])
+        el = WebDriverWait(self.driver, 5).until(EC.presence_of_element_located((By.ID, 'forward-button')))
+        el.click()
+
     def login(self, link = "https://auth.uber.com/login/"):
         self.driver.get(link)
         self.login_form('userInput', 'next-button-wrapper', By.CLASS_NAME)
@@ -1252,10 +1328,11 @@ class Uber(SeleniumTools):
             time.sleep(self.sleep)
     
     def generate_payments_order(self):
-        self.driver.get(f"{self.base_url}/orgs/49dffc54-e8d9-47bd-a1e5-52ce16241cb6/reports")
-        if self.sleep:
-            time.sleep(self.sleep)
-        self.driver.get_screenshot_as_file('generate_payments_order.png')
+        url = f"{self.base_url}/orgs/49dffc54-e8d9-47bd-a1e5-52ce16241cb6/reports"
+        # url = f"{self.base_url}/orgs/2c5515cd-a4ed-4136-905f-99504677a324/reports"  #my
+        xpath = '//div[@data-testid="report-type-dropdown"]/div/div'
+        self.get_target_page_or_login(url, xpath, self.login_v3)
+        # self.driver.get_screenshot_as_file('generate_payments_order.png')
         menu = '//div[@data-testid="report-type-dropdown"]/div/div'
         WebDriverWait(self.driver, 10).until(EC.presence_of_element_located((By.XPATH, menu)))
         self.driver.find_element(By.XPATH, menu).click()   
@@ -1308,7 +1385,8 @@ class Uber(SeleniumTools):
     def download_payments_order(self):
         if os.path.exists(f'{self.payments_order_file_name()}'):
             print('Report already downloaded')
-            return 
+            return
+
         self.generate_payments_order()
         download_button = '(//div[@data-testid="paginated-table"]//button)[1]'
         try:
@@ -1318,13 +1396,20 @@ class Uber(SeleniumTools):
             WebDriverWait(self.driver, 600).until_not(EC.presence_of_element_located((By.XPATH, in_progress_text)))
             expected_element = WebDriverWait(self.driver, 10).until(EC.presence_of_element_located((By.XPATH, download_button)))
             WebDriverWait(self.driver, 60).until(EC.element_to_be_clickable((By.XPATH, download_button))).click()
-            expected_element.click()
+            time.sleep(self.sleep)
+            if self.remote:
+                self.get_last_downloaded_file_frome_remote(f'Uber {self.file_patern()}.csv')
+            else:
+                self.get_last_downloaded_file(f'Uber {self.file_patern()}.csv')
 
         except Exception as e:
             self.logger.error(str(e))
             pass 
 
     def payments_order_file_name(self):
+        return self.report_file_name(self.file_patern())
+
+    def file_patern(self):
         if self.day:
             start = self.start_of_day()
             end = self.end_of_day()
@@ -1333,76 +1418,62 @@ class Uber(SeleniumTools):
             end = self.end_of_week()
         sd, sy, sm = start.strftime("%d"), start.strftime("%Y"), start.strftime("%m")
         ed, ey, em = end.strftime("%d"), end.strftime("%Y"), end.strftime("%m")
-        return f'{sy}{sm}{sd}-{ey}{em}{ed}-payments_driver-___.csv'
+        return f'{sy}{sm}{sd}-{ey}{em}{ed}-payments_driver'
 
     def save_report(self):
         if self.sleep:
             time.sleep(self.sleep)
         items = []
-        try:
-            with open(self.payments_order_file_name(), encoding="utf-8") as file:
-                reader = csv.reader(file)
-                next(reader)  # Advance past the header
-                for row in reader:
-                    if row[3] == "":
-                        continue
-                    if row[3] is None:
-                        continue
-                    order = UberPaymentsOrder(
-                        report_from=self.start_of_week(),
-                        report_to=self.end_of_week(),
-                        report_file_name=self.payments_order_file_name(),
-                        driver_uuid=row[0],
-                        first_name=row[1],
-                        last_name=row[2],
-                        total_amount=row[3],
-                        total_clean_amout=row[4] or 0,
-                        returns=row[5] or 0,
-                        total_amount_cach=row[6] or 0,
-                        transfered_to_bank=row[7] or 0,
-                        tips=row[8] or 0)
-                    try:
-                        order.save()
-                    except IntegrityError:
-                        pass
-                    items.append(order)
-                    self.create_driver(
-                        first_name=row[1],
-                        last_name=row[2],
-                        mobile_number='',
-                        fleet_name='Uber',
-                        driver_external_id=row[0],
-                        licence_plate='',
-                    )
+        if self.payments_order_file_name() is not None:
+            try:
+                with open(self.payments_order_file_name(), encoding="utf-8") as file:
+                    reader = csv.reader(file)
+                    next(reader)  # Advance past the header
+                    for row in reader:
+                        if row[3] == "":
+                            continue
+                        if row[3] is None:
+                            continue
+                        order = UberPaymentsOrder(
+                            report_from=self.start_of_week(),
+                            report_to=self.end_of_week(),
+                            report_file_name=self.payments_order_file_name(),
+                            driver_uuid=row[0],
+                            first_name=row[1],
+                            last_name=row[2],
+                            total_amount=row[3],
+                            total_clean_amout=row[4] or 0,
+                            returns=row[5] or 0,
+                            total_amount_cach=row[6] or 0,
+                            transfered_to_bank=row[7] or 0,
+                            tips=row[8] or 0)
+                        try:
+                            order.save()
+                        except IntegrityError:
+                            pass
+                        items.append(order)
 
-                if not items:
-                    order = UberPaymentsOrder(
-                        report_from=self.start_of_week(),
-                        report_to=self.end_of_week(),
-                        report_file_name=self.payments_order_file_name(),
-                        driver_uuid='00000000-0000-0000-0000-000000000000',
-                        first_name='',
-                        last_name='',
-                        total_amount=0,
-                        total_clean_amout=0,
-                        returns=0,
-                        total_amount_cach=0,
-                        transfered_to_bank=0,
-                        tips=0)
-                    try:
-                        order.save()
-                    except IntegrityError:
-                        pass
-        except FileNotFoundError:
-            pass
+                    if not items:
+                        order = UberPaymentsOrder(
+                            report_from=self.start_of_week(),
+                            report_to=self.end_of_week(),
+                            report_file_name=self.payments_order_file_name(),
+                            driver_uuid='00000000-0000-0000-0000-000000000000',
+                            first_name='',
+                            last_name='',
+                            total_amount=0,
+                            total_clean_amout=0,
+                            returns=0,
+                            total_amount_cach=0,
+                            transfered_to_bank=0,
+                            tips=0)
+                        try:
+                            order.save()
+                        except IntegrityError:
+                            pass
+            except FileNotFoundError:
+                pass
         return items
-
-    def get_driver_dict(self, **kwargs):
-        return {
-            'name': kwargs['first_name'],
-            'second_name': kwargs['last_name'],
-            'phone_number': kwargs['mobile_number'],
-        }
 
     def wait_opt_code(self):
         r = redis.Redis.from_url(os.environ["REDIS_URL"])
@@ -1464,7 +1535,7 @@ class Uber(SeleniumTools):
             WebDriverWait(self.driver, 5).until(EC.presence_of_element_located((By.ID, 'alt-PHONE-OTP')))
             el = self.driver.find_element(By.ID, 'alt-PHONE-OTP').click()
         except Exception as e:
-            self.logger.error(str(e))
+            # self.logger.error(str(e))
             pass
     
     def password_form(self, id, button, selector):
@@ -1477,7 +1548,7 @@ class Uber(SeleniumTools):
             self.logger.error(str(e))
 
     def login_form(self, id, button, selector):
-        element = self.driver.find_element(By.ID, id)
+        element = WebDriverWait(self.driver, 5).until(EC.presence_of_element_located((By.ID, id)))
         element.send_keys(os.environ["UBER_NAME"])
         e = self.driver.find_element(selector, button)
         e.click() 
@@ -1486,65 +1557,49 @@ class Uber(SeleniumTools):
     @staticmethod
     def download_weekly_report(week_number=None, driver=True, sleep=5, headless=True):
         u = Uber(week_number=week_number, driver=False, sleep=0, headless=headless)
-        if u.payments_order_file_name() not in os.listdir(os.curdir):
+        if u.payments_order_file_name() not in os.listdir(os.curdir) and driver:
             u = Uber(week_number=week_number, driver=driver, sleep=sleep, headless=headless)
-            u.login_v2()
+            # u.login_v2()
             u.download_payments_order()
             u.quit()
         return u.save_report()
 
-    def get_driver_status_from_map(self, search_text):
-        return []
-        # Need to implement
-
-    def get_driver_status(self):
-        livemap = f"{self.base_url}/orgs/2c5515cd-a4ed-4136-905f-99504677a324/livemap"
-        # livemap = f"https://supplier.uber.com/orgs/49dffc54-e8d9-47bd-a1e5-52ce16241cb6/livemap"
-        try:
-            try:
-                xpath = f'//div[@data-tracking-name="livemap"]'
-                WebDriverWait(self.driver, self.sleep).until(EC.presence_of_element_located((By.XPATH, xpath)))
-            except TimeoutException:
-                try:
-                    self.driver.get(livemap)
-                    xpath = f'//div[@data-tracking-name="livemap"]'
-                    WebDriverWait(self.driver, self.sleep).until(EC.presence_of_element_located((By.XPATH, xpath)))
-                except (TimeoutException, FileNotFoundError):
-                    self.login_v2()
-                    self.driver.get(livemap)
-            return {
-                'online': self.get_driver_status_from_map('Онлайн'),
-                'width_client': self.get_driver_status_from_map('У поїздці'),
-                'wait': self.get_driver_status_from_map('Очікування')
-            }
-        except WebDriverException as err:
-            print(err.msg)
-
 
 class Bolt(SeleniumTools):    
-    def __init__(self, week_number=None, day=None, driver=True, sleep=3, headless=False, base_url="https://fleets.bolt.eu"):
-        super().__init__('bolt', week_number=week_number, day=day)
+    def __init__(self, week_number=None, day=None, driver=True, sleep=3, headless=False, base_url="https://fleets.bolt.eu", remote=False, profile=None):
+        super().__init__('bolt', week_number=week_number, day=day, profile=profile)
         self.sleep = sleep
         if driver:
-            self.driver = self.build_driver(headless)
+            if remote:
+                self.driver = self.build_remote_driver(headless)
+            else:
+                self.driver = self.build_driver(headless)
+        self.remote = remote
         self.base_url = base_url
     
     def quit(self):
-        self.driver.quit() 
+        self.driver.quit()
+        self.driver = None
 
     def login(self):
         self.driver.get(f"{self.base_url}/login")
         if self.sleep:
             time.sleep(self.sleep)
-        element = self.driver.find_element(By.ID, 'username')
-        element.send_keys('')
+        element = WebDriverWait(self.driver, self.sleep).until(EC.presence_of_element_located((By.ID, 'username')))
+        element.clear()
         element.send_keys(os.environ["BOLT_NAME"])
-        self.driver.find_element(By.ID, "password").send_keys(os.environ["BOLT_PASSWORD"])
+        element = WebDriverWait(self.driver, self.sleep).until(EC.presence_of_element_located((By.ID, 'password')))
+        element.clear()
+        element.send_keys(os.environ["BOLT_PASSWORD"])
         self.driver.find_element(By.XPATH, '//button[@type="submit"]').click()
         if self.sleep:
             time.sleep(self.sleep)
 
     def download_payments_order(self):
+        url = f"{self.base_url}/company/58225/reports/weekly"
+        xpath = '//div/div/table'
+        self.get_target_page_or_login(url, xpath, self.login)
+
         if self.day:
             self.driver.get(f"{self.base_url}/company/58225/reports/dayly/")
             if self.sleep:
@@ -1554,15 +1609,16 @@ class Bolt(SeleniumTools):
             element_date.find_element(By.XPATH, "./../td/a").click()
         else:
             self.driver.get(f"{self.base_url}/company/58225/reports/weekly/{self.file_patern()}")
+            time.sleep(self.sleep)
+            if self.remote:
+                self.get_last_downloaded_file_frome_remote()
+            else:
+                self.get_last_downloaded_file()
 
     def file_patern(self):
         if self.day:
             return self.day.format("DD.MM.YYYY")
-        else:
-            if int(self.week_number()) <= 9:
-                return f"{self.current_date.strftime('%Y')}W0{self.week_number()}"
-            else:
-                return f"{self.current_date.strftime('%Y')}W{self.week_number()}"
+        return f"{self.current_date.strftime('%Y')}W{self.week_number()}"
 
     def payments_order_file_name(self):
         return self.report_file_name(self.file_patern())
@@ -1607,13 +1663,6 @@ class Bolt(SeleniumTools):
                     except IntegrityError:
                         pass
                     items.append(order)
-                    self.create_driver(
-                        driver_full_name=row[0][:24],
-                        mobile_number=row[1],
-                        fleet_name='Bolt',
-                        driver_external_id=row[1],
-                        licence_plate='',
-                    )
         else:
             order = BoltPaymentsOrder(
                 report_from=self.start_report_interval(),
@@ -1642,82 +1691,16 @@ class Bolt(SeleniumTools):
 
         return items
 
-    def get_driver_dict(self, **kwargs):
-        name_list = [x for x in  kwargs['driver_full_name'].split(' ') if len(x) > 0]
-        name = ''
-        second_name = ''
-        try:
-            name = name_list[0]
-            second_name = name_list[1]
-        except IndexError:
-            pass
-        return {
-            'name': name,
-            'second_name': second_name,
-            'phone_number': kwargs['mobile_number'],
-        }
-
     @staticmethod
     def download_weekly_report(week_number=None, day=None,  driver=True, sleep=5, headless=True):
         """Can save weekly and daily report"""
         b = Bolt(week_number=week_number, day=day, driver=False, sleep=0, headless=headless)
-        if b.payments_order_file_name() not in os.listdir(os.curdir):
+        if b.payments_order_file_name() not in os.listdir(os.curdir) and driver:
             b = Bolt(week_number=week_number, day=day, driver=driver, sleep=sleep, headless=headless)
-            b.login()
+            # b.login()
             b.download_payments_order()
+            b.quit()
         return b.save_report()
-
-    def get_driver_status_from_map(self, search_text):
-        raw_data = []
-        try:
-            xpath = f'//div[contains(@class, "map-overlay")]//div[text()[contains(.,"{search_text}")]]'
-            WebDriverWait(self.driver, self.sleep).until(EC.presence_of_element_located((By.XPATH, xpath))).click()
-        except TimeoutException:
-            return raw_data
-        i = 0
-        while True:
-            i += 1
-            try:
-                xpath = f'//div[contains(@class, "map-overlay")]/div/div/div[@role="button"][{i}]/div/div/div[1]/span/span'
-                driver_name = WebDriverWait(self.driver, self.sleep).until(EC.presence_of_element_located((By.XPATH, xpath))).text
-                xpath = f'//div[contains(@class, "map-overlay")]/div/div/div[@role="button"][{i}]/div/div/div[2]/span/span'
-                driver_car = WebDriverWait(self.driver, self.sleep).until(EC.presence_of_element_located((By.XPATH, xpath))).text
-            except TimeoutException:
-                break
-            name_list = [x for x in driver_name.split(' ') if len(x) > 0]
-            name, second_name, car = '', '', ''
-            try:
-                name, second_name, car = name_list[0], name_list[1], driver_car.split(' ')[0]
-            except IndexError:
-                pass
-            raw_data.append((name, second_name))
-            raw_data.append((second_name, name))
-        return raw_data
-
-    def get_driver_status(self):
-        try:
-            try:
-                xpath = f'//div[contains(@class, "map-overlay")]'
-                WebDriverWait(self.driver, self.sleep).until(EC.presence_of_element_located((By.XPATH, xpath)))
-                # self.driver.get_screenshot_as_file('bolt_map_ok.png')
-            except TimeoutException:
-                try:
-                    self.driver.get(f"{self.base_url}/v2/58225/liveMap")
-                    # time.sleep(self.sleep)
-                    # self.driver.get_screenshot_as_file('bolt_map_reloaded.png')
-                    xpath = f'//div[contains(@class, "map-overlay")]'
-                    WebDriverWait(self.driver, self.sleep).until(EC.presence_of_element_located((By.XPATH, xpath)))
-                except (TimeoutException, FileNotFoundError):
-                    self.login()
-                    # self.driver.get_screenshot_as_file('bolt_map_login.png')
-                    self.driver.get(f"{self.base_url}/v2/58225/liveMap")
-            return {
-                'online': self.get_driver_status_from_map('Онлайн'),
-                'width_client': self.get_driver_status_from_map('У поїздці'),
-                'wait': self.get_driver_status_from_map('Очікування')
-            }
-        except WebDriverException as err:
-            print(err.msg)
 
 
 class Uklon(SeleniumTools):
@@ -1786,13 +1769,6 @@ class Uklon(SeleniumTools):
                     except IntegrityError:
                         pass
                     items.append(order)
-                    self.create_driver(
-                        driver_full_name=row[0],
-                        mobile_number='',
-                        fleet_name='Uklon',
-                        driver_external_id=row[0],
-                        licence_plate=row[1],
-                    )
 
         else:
             # create an empty record to avoid reloading
@@ -1814,21 +1790,6 @@ class Uklon(SeleniumTools):
             except IntegrityError:
                 pass
         return items
-
-    def get_driver_dict(self, **kwargs):
-        name_list = [x for x in  kwargs['driver_full_name'].split(' ') if len(x) > 0]
-        name = ''
-        second_name = ''
-        try:
-            name = name_list[0]
-            second_name = name_list[1]
-        except IndexError:
-            pass
-        return {
-            'name': name,
-            'second_name': second_name,
-            'phone_number': kwargs['mobile_number'],
-        }
 
     def start_of_day_timestamp(self):
         return round(self.start_of_day().timestamp())
@@ -1871,50 +1832,46 @@ class Uklon(SeleniumTools):
 
 
 class NewUklon(SeleniumTools):
-    def __init__(self, week_number=None, day=None, driver=True, sleep=3, headless=False, base_url="https://fleets.uklon.com.ua"):
-        super().__init__('nuklon', week_number=week_number, day=day)
+    def __init__(self, week_number=None, day=None, driver=True, sleep=3, headless=False, base_url="https://fleets.uklon.com.ua", remote=False, profile=None):
+        super().__init__('nuklon', week_number=week_number, day=day, profile=profile)
         self.sleep = sleep
         if driver:
-            self.driver = self.build_driver(headless)
+            if remote:
+                self.driver = self.build_remote_driver(headless)
+            else:
+                self.driver = self.build_driver(headless)
+        self.remote = remote
         self.base_url = base_url
-
-    def quit(self):
-        self.driver.quit()
 
     def login(self):
         self.driver.get(self.base_url + '/auth/login')
         if self.sleep:
             time.sleep(self.sleep)
-        self.driver.get_screenshot_as_file(f'new_uklon1.png')
-        element = self.driver.find_element(By.ID, 'login')
-        element.send_keys(os.environ["UKLON_NAME"])
-        time.sleep(0.1)
+        element = self.driver.find_element(By.ID,'login')
 
-        self.driver.get_screenshot_as_file(f'new_uklon2.png')
+        element.send_keys(os.environ["UKLON_NAME"])
 
         element = self.driver.find_element(By.ID, "password")
         element.send_keys('')
         element.send_keys(os.environ["UKLON_PASSWORD"])
-        self.driver.get_screenshot_as_file(f'new_uklon3.png')
 
         self.driver.find_element(By.XPATH, '//button[@data-cy="login-btn"]').click()
-        self.driver.get_screenshot_as_file(f'new_uklon4.png')
         if self.sleep:
             time.sleep(self.sleep)
-        self.driver.get_screenshot_as_file(f'new_uklon5.png')
 
     def download_payments_order(self):
         url = f'{self.base_url}/workspace/orders'
-        self.driver.get(url)
-        if self.sleep:
-            time.sleep(self.sleep)
+        xpath = '//flt-group-filter[1]/flt-date-range-filter/mat-form-field/div'
+        self.get_target_page_or_login(url, xpath, self.login)
 
-        self.driver.find_element(By.XPATH, '//upf-order-reports/section[1]/flt-filter-group/form/flt-group-filter[1]/flt-date-range-filter/mat-form-field/div').click()
-        self.driver.get_screenshot_as_file(f'new_uklon6.png')
-        self.driver.find_element(By.XPATH, '//mat-option/span[text()=" Минулий тиждень "]').click()
-        self.driver.get_screenshot_as_file(f'new_uklon7.png')
-        self.driver.find_element(By.XPATH, '//span[text()="Експорт CSV"]').click()
-        self.driver.get_screenshot_as_file(f'new_uklon8.png')
+        self.driver.find_element(By.XPATH, '//flt-group-filter[1]/flt-date-range-filter/mat-form-field/div').click()
+        self.driver.find_element(By.XPATH, '//mat-option[@id="mat-option-5"]/span').click()  #Минулий тиждень
+        self.driver.find_element(By.XPATH, '//flt-filter-group/div/div/button').click()  #Експорт CSV
+        time.sleep(self.sleep)
+        if self.remote:
+            self.get_last_downloaded_file_frome_remote(save_as=f'Uklon {self.file_patern()}.csv')
+        else:
+            self.get_last_downloaded_file(save_as=f'Uklon {self.file_patern()}.csv')
 
     def download_payments_day_order(self):
         actions = ActionChains(self.driver)
@@ -1974,7 +1931,6 @@ class NewUklon(SeleniumTools):
                     comission=float((row[11] or '0').replace(',','')),
                     total_amount_without_comission=float((row[12] or '0').replace(',','')))
                 order.save()
-                print(vars(order))
                 items.append(order)
 
         return items
@@ -1983,91 +1939,60 @@ class NewUklon(SeleniumTools):
         if self.sleep:
             time.sleep(self.sleep)
         items = []
-        print(self.file_patern())
 
-        files = os.listdir(os.curdir)
-        report_file = ''
-        if files:
-            files = [os.path.join(os.curdir, file) for file in files]
-            files = [file for file in files if os.path.isfile(file) and re.search('Звіт по поїздкам', file)]
-            report_file = max(files, key=os.path.getctime)
+        if self.payments_order_file_name() is not None:
+            with open(self.payments_order_file_name(), encoding="utf-8") as file:
+                reader = csv.reader(file)
+                next(reader)
+                for row in reader:
+                    order = NewUklonPaymentsOrder(
+                        report_from=self.start_of_week(),
+                        report_to=self.end_of_week(),
+                        report_file_name=file.name,
+                        full_name=row[0],
+                        signal=row[1],
+                        total_rides=float((row[2] or '0').replace(',','')),
+                        total_distance=float((row[3] or '0').replace(',','')),
+                        total_amount_cach=float((row[4] or '0').replace(',','')),
+                        total_amount_cach_less=float((row[5] or '0').replace(',','')),
+                        total_amount_on_card=float((row[6] or '0').replace(',','')),
+                        total_amount=float((row[7] or '0').replace(',','')),
+                        tips=float((row[8] or '0').replace(',','') ),
+                        bonuses=float((row[9] or '0').replace(',','')),
+                        fares=float((row[10] or '0').replace(',','')),
+                        comission=float((row[11] or '0').replace(',','')),
+                        total_amount_without_comission=float((row[12] or '0').replace(',','')))
+                    try:
+                        order.save()
+                    except IntegrityError:
+                        pass
+                    items.append(order)
 
-        with open(report_file, encoding="utf-8") as file:
-            reader = csv.reader(file)
-            next(reader)
-            for row in reader:
-                print(row)
 
-                order = NewUklonPaymentsOrder(
-                    report_from=self.start_of_week(),
-                    report_to=self.end_of_week(),
-                    report_file_name=file.name,
-                    full_name=row[0],
-                    signal=row[1],
-                    total_rides=float((row[2] or '0').replace(',','')),
-                    total_distance=float((row[3] or '0').replace(',','')),
-                    total_amount_cach=float((row[4] or '0').replace(',','')),
-                    total_amount_cach_less=float((row[5] or '0').replace(',','')),
-                    total_amount_on_card=float((row[6] or '0').replace(',','')),
-                    total_amount=float((row[7] or '0').replace(',','')),
-                    tips=float((row[8] or '0').replace(',','') ),
-                    bonuses=float((row[9] or '0').replace(',','')),
-                    fares=float((row[10] or '0').replace(',','')),
-                    comission=float((row[11] or '0').replace(',','')),
-                    total_amount_without_comission=float((row[12] or '0').replace(',','')))
-                try:
-                    order.save()
-                except IntegrityError:
-                    pass
-                print(vars(order))
-                items.append(order)
-                self.create_driver(
-                    driver_full_name=row[0],
-                    mobile_number='',
-                    fleet_name='NewUklon',
-                    driver_external_id=row[1],
-                    licence_plate='',
-                )
-
-            if not items:
-                order = NewUklonPaymentsOrder(
-                    report_from=self.start_of_week(),
-                    report_to=self.end_of_week(),
-                    report_file_name=file.name,
-                    full_name='',
-                    signal='',
-                    total_rides=0,
-                    total_distance=0,
-                    total_amount_cach=0,
-                    total_amount_cach_less=0,
-                    total_amount_on_card=0,
-                    total_amount=0,
-                    tips=0,
-                    bonuses=0,
-                    fares=0,
-                    comission=0,
-                    total_amount_without_comission=0)
-                try:
-                    order.save()
-                except IntegrityError:
-                    pass
+        if not items:
+            order = NewUklonPaymentsOrder(
+                report_from=self.start_of_week(),
+                report_to=self.end_of_week(),
+                report_file_name='',
+                full_name='',
+                signal='',
+                total_rides=0,
+                total_distance=0,
+                total_amount_cach=0,
+                total_amount_cach_less=0,
+                total_amount_on_card=0,
+                total_amount=0,
+                tips=0,
+                bonuses=0,
+                fares=0,
+                comission=0,
+                total_amount_without_comission=0)
+            try:
+                order.save()
+            except IntegrityError:
+                pass
 
         return items
-
-    def get_driver_dict(self, **kwargs):
-        name_list = [x for x in  kwargs['driver_full_name'].split(' ') if len(x) > 0]
-        name = ''
-        second_name = ''
-        try:
-            name = name_list[1]
-            second_name = name_list[0]
-        except IndexError:
-            pass
-        return {
-            'name': name,
-            'second_name': second_name,
-            'phone_number': kwargs['mobile_number'],
-        }
 
     def start_of_week_timestamp(self):
         return round(self.start_of_week().timestamp())
@@ -2093,11 +2018,12 @@ class NewUklon(SeleniumTools):
     @staticmethod
     def download_weekly_report(week_number=None, driver=True, sleep=5, headless=True):
         u = NewUklon(week_number=week_number, driver=False, sleep=0, headless=headless)
-        if u.payments_order_file_name() not in os.listdir(os.curdir):
+        if u.payments_order_file_name() not in os.listdir(os.curdir) and driver:
             u = NewUklon(week_number=week_number, driver=driver, sleep=sleep, headless=headless)
-            u.login()
+            # u.login()
             u.download_payments_order()
-        #return u.save_report()
+            u.quit()
+        # return u.save_report()
         return u.save_report_v2()
 
     @staticmethod
@@ -2108,89 +2034,6 @@ class NewUklon(SeleniumTools):
             u.login()
             u.download_payments_day_order()
         return u.save_report()
-
-    def get_driver_status_from_table(self):
-        online = []
-        width_client = []
-        try:
-            xpath = f'//div[@id="mat-tab-label-0-1"]'
-            WebDriverWait(self.driver, self.sleep).until(EC.presence_of_element_located((By.XPATH, xpath))).click()
-            xpath = f'//mat-select[@id="mat-select-4"]'
-            WebDriverWait(self.driver, self.sleep).until(EC.presence_of_element_located((By.XPATH, xpath))).click()
-            xpath = f'//mat-option[@id="mat-option-10"]'
-            WebDriverWait(self.driver, self.sleep).until(EC.presence_of_element_located((By.XPATH, xpath))).click()
-            xpath = f'//button[@data-cy="order-filter-apply-btn"]'
-            WebDriverWait(self.driver, self.sleep).until(EC.presence_of_element_located((By.XPATH, xpath))).click()
-        except TimeoutException:
-            return {
-                'online': online,
-                'width_client': width_client,
-                'wait': []
-            }
-        i = 0
-        while True:
-            i += 1
-            try:
-                xpath = f'//table[@data-cy="trips-list-table"]/tbody/tr[{i}]/td[@data-cy="td-driver"]'
-                driver_name = WebDriverWait(self.driver, self.sleep).until(EC.presence_of_element_located((By.XPATH, xpath))).text
-                xpath = f'//table[@data-cy="trips-list-table"]/tbody/tr[{i}]/td[@data-cy="td-license-plate"]'
-                driver_car = WebDriverWait(self.driver, self.sleep).until(EC.presence_of_element_located((By.XPATH, xpath))).text
-                xpath = f'//table[@data-cy="trips-list-table"]/tbody/tr[{i}]/td[@data-cy="td-pickup-time"]'
-                last_action_date = WebDriverWait(self.driver, self.sleep).until(EC.presence_of_element_located((By.XPATH, xpath))).text
-                xpath = f'//table[@data-cy="trips-list-table"]/tbody/tr[{i}]/td[@data-cy="td-status"]'
-                status = WebDriverWait(self.driver, self.sleep).until(EC.presence_of_element_located((By.XPATH, xpath))).text
-            except TimeoutException:
-                break
-            name_list = [x for x in driver_name.split(' ') if len(x) > 0]
-            name, second_name, car = '', '', ''
-            try:
-                name, second_name, car = name_list[0], name_list[1], driver_car.split(' ')[0]
-            except IndexError:
-                pass
-
-            match = re.findall(r'(\d{1,2}).(\d{2}).(\d{4}).*(\d{2}):(\d{2})', last_action_date)
-            date_time_delta = 1000000
-            if len(match) > 0:
-                date_time = datetime.datetime.strptime(
-                    f'{match[0][0]}.{match[0][1]}.{match[0][2]}-{match[0][3]}:{match[0][4]}', '%d.%m.%Y-%H:%M'
-                )
-                date_time_delta = (datetime.datetime.now() - date_time).total_seconds()
-
-            if (status.strip() == 'Виконується' or date_time_delta < 60*30) and (name, second_name) not in online:
-                online.append((name, second_name))
-                online.append((second_name, name))
-
-            if status.strip() == 'Виконується' and (name, second_name) not in width_client:
-                width_client.append((name, second_name))
-                width_client.append((second_name, name))
-
-        return {
-            'online': online,
-            'width_client': width_client,
-            'wait': []
-        }
-
-    def get_driver_status(self):
-        try:
-            try:
-                xpath = f'//div[@id="mat-tab-label-0-1"]'
-                WebDriverWait(self.driver, self.sleep).until(EC.presence_of_element_located((By.XPATH, xpath)))
-                # self.driver.get_screenshot_as_file('uklon_map_ok.png')
-            except TimeoutException:
-                try:
-                    self.driver.get(f"{self.base_url}/workspace/orders")
-                    # time.sleep(self.sleep)
-                    # self.driver.get_screenshot_as_file('uklon_map_reloaded.png')
-                    xpath = f'//div[@id="mat-tab-label-0-1"]'
-                    WebDriverWait(self.driver, self.sleep).until(EC.presence_of_element_located((By.XPATH, xpath)))
-                except (TimeoutException, FileNotFoundError):
-                    self.login()
-                    self.driver.get(f"{self.base_url}/workspace/orders")
-                    # time.sleep(self.sleep)
-                    # self.driver.get_screenshot_as_file('uklon_map_login.png')
-            return self.get_driver_status_from_table()
-        except WebDriverException as err:
-            print(err.msg)
 
 
 class Privat24(SeleniumTools):
@@ -2274,6 +2117,7 @@ class Privat24(SeleniumTools):
 
 
 def get_report(week_number = None, driver=True, sleep=5, headless=True):
+    driver = False
     owner =   {"Fleet Owner": 0}
     reports = {}
     totals =  {}
@@ -2285,7 +2129,7 @@ def get_report(week_number = None, driver=True, sleep=5, headless=True):
             r = list((r for r in all_drivers_report if r.driver_id() == rate.driver_external_id))
             if r:
                 r = r[0]
-                print(r)
+                # print(r)
                 name = rate.driver.full_name()
                 reports[name] = reports.get(name, '') + r.report_text(name, float(rate.rate)) + '\n'
                 totals[name] = totals.get(name, 0) + r.kassa()

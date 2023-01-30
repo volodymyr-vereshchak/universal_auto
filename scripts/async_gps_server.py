@@ -50,7 +50,7 @@ class PackageHandler:
     async def process_package(self, addr, message):
         try:
             message_ = re.sub(r'\r\n', '', message)
-            logging.info(msg=f"Received from {addr}: {message_}")
+            logging.info(msg=f"Received from {addr}: {message_[:100]}...")
             handlers = {
                 'L': self._l_handler,
                 'D': self._d_handler,

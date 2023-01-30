@@ -52,7 +52,11 @@ def start(update, context):
           resize_keyboard=True,
         )
     else:
-        User.objects.create(chat_id=chat_id)
+        User.objects.create(
+            chat_id=chat_id,
+            name=update.message.from_user.first_name,
+            second_name=update.message.from_user.last_name
+        )
         reply_markup = ReplyKeyboardMarkup(
           keyboard=[keyboard],
           resize_keyboard=True,
@@ -792,7 +796,7 @@ def drivers_rating(update, context):
 
 
 def report(update, context):
-    update.message.reply_text("Введіть ваш Uber OTP код з SMS:")
+    # update.message.reply_text("Введіть ваш Uber OTP код з SMS:")
     update.message.reply_text(get_report())
 
 
