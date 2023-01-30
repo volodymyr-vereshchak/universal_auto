@@ -196,6 +196,14 @@ def set_status(update, context):
     status = update.message.text
     chat_id = update.message.chat.id
     driver = Driver.get_by_chat_id(chat_id)
+    try:
+        events = Event.objects.filter(full_name_driver=driver, status_event=False)
+        event = [i for i in events]
+        event[-1].status_event = True
+        event[-1].save()
+        update.message.reply_text(f'{driver}: Ваш - {event[-1].event} завершено')
+    except:
+        pass
     driver.driver_status = status
     driver.save()
     update.message.reply_text(f'Твій статус: <b>{status}</b>', reply_markup=ReplyKeyboardRemove(), parse_mode=ParseMode.HTML)
@@ -370,7 +378,7 @@ def driver_status(update, context):
     global STATE_DM
     chat_id = update.message.chat.id
     driver_manager = DriverManager.get_by_chat_id(chat_id)
-    if True:
+    if driver_manager is not None:
         buttons = [[KeyboardButton(Driver.ACTIVE)],
                    [KeyboardButton(Driver.WITH_CLIENT)],
                    [KeyboardButton(Driver.WAIT_FOR_CLIENT)],
@@ -396,6 +404,46 @@ def viewing_status_driver(update, context):
             report += f'{i}\n'
     update.message.reply_text(f'{report}', reply_markup=ReplyKeyboardRemove())
     STATE_DM = None
+
+
+TAKE_A_DAY_OFF = 'Взяти вихідний'
+TAKE_SICK_LEAVE = 'Взяти лікарняний'
+SIGN_UP_FOR_A_SERVICE_CENTER = 'Записатись до сервісного центру'
+REPORT_CAR_DAMAGE = 'Оповістити про пошкодження авто'
+
+
+def option(update, context):
+    chat_id = update.message.chat.id
+    driver = Driver.get_by_chat_id(chat_id)
+    keyboard = [KeyboardButton(text=f"{SIGN_UP_FOR_A_SERVICE_CENTER}"),
+                KeyboardButton(text=f"{REPORT_CAR_DAMAGE}"),
+                KeyboardButton(text=f"{TAKE_A_DAY_OFF}"),
+                KeyboardButton(text=f"{TAKE_SICK_LEAVE}")]
+    if driver is not None:
+        reply_markup = ReplyKeyboardMarkup(
+            keyboard=[keyboard],
+            resize_keyboard=True,
+            one_time_keyboard=True,
+        )
+        update.message.reply_text('Оберіть опцію: ', reply_markup=reply_markup)
+    else:
+        update.message.reply_text(f'Зареєструтесь як водій', reply_markup=ReplyKeyboardRemove())
+
+
+def take_a_day_off_or_sick_leave(update, context):
+    event = update.message.text
+    chat_id = update.message.chat.id
+    event = event.split()
+    driver = Driver.get_by_chat_id(chat_id)
+    driver.driver_status = f'{Driver.OFFLINE}'
+    driver.save()
+    Event.objects.create(
+                full_name_driver=driver,
+                event=event[1].title(),
+                chat_id=chat_id,
+                created_at=datetime.datetime.now())
+    update.message.reply_text(f'Ваш статус зміненно на <<{Driver.OFFLINE}>> та ваш <<{event[1].title()}>> розпочато',
+                                            reply_markup=ReplyKeyboardRemove())
 
 
 STATE_SSM = None
@@ -512,7 +560,7 @@ GENERATE_LINK = 'Сгенерувати лінк'
 def payments(update, context):
     chat_id = update.message.chat.id
     owner = Owner.get_by_chat_id(chat_id)
-    if True:
+    if owner is not None:
         buttons = [[KeyboardButton(f'{TRANSFER_MONEY}')],
                    [KeyboardButton(f'{GENERATE_LINK}')]]
         context.bot.send_message(chat_id=update.effective_chat.id, text='Оберіть опцію:',
@@ -649,28 +697,30 @@ def get_information(update, context):
                 f'{standart_commands}\n' \
                 'Для вашої ролі:\n\n' \
                 '/status - Змінити статус водія\n' \
-                '/status_car -Змінити статус автомобіля\n'
+                '/status_car - Змінити статус автомобіля\n' \
+                '/sending_report - Відправити звіт про оплату заборгованості\n'
         update.message.reply_text(f'{report}')
     elif driver_manager is not None:
         report = 'Стандарті команди: \n\n' \
                 f'{standart_commands}\n' \
                 'Для вашої ролі:\n\n' \
                 '/car_status - Показати всі зломлені машини\n' \
-                '/driver_status - Показати водіїв за їх статусом\n'
+                '/driver_status - Показати водіїв за їх статусом\n' \
+                '/option - Взяти вихідний/лікарняний/Сповістити про пошкодження/Записатист до СТО\n'
         update.message.reply_text(f'{report}')
     elif manager is not None:
         report = 'Стандарті команди: \n\n' \
                 f'{standart_commands}\n' \
                 'Для вашої ролі:\n\n' \
-                '/send_report - відправити звіт про ремонт\n'
+                '/send_report - Відправити звіт про ремонт\n'
         update.message.reply_text(f'{report}')
     elif owner is not None:
         report = 'Стандарті команди: \n\n' \
                 f'{standart_commands}\n' \
                 'Для вашої ролі:\n\n' \
-                '/report - загрузити та побачити недільні звіти\n' \
-                '/rating - побачити рейтинг водіїв\n' \
-                '/payment - перевести кошти або сгенерити лінк на оплату\n'
+                '/report - Загрузити та побачити недільні звіти\n' \
+                '/rating - Побачити рейтинг водіїв\n' \
+                '/payment - Перевести кошти або сгенерити лінк на оплату\n'
         update.message.reply_text(f'{report}')
     else:
         update.message.reply_text(f'{standart_commands}')
@@ -928,6 +978,14 @@ def main():
     dp.add_handler(CommandHandler("sending_report", sending_report))
     dp.add_handler(MessageHandler(Filters.text(f'{SEND_REPORT_DEBT}'), get_debt_photo))
     dp.add_handler(MessageHandler(Filters.photo, save_debt_report))
+
+    # Take a day off/Take sick leave
+    dp.add_handler(CommandHandler("option", option))
+    dp.add_handler(MessageHandler(
+        Filters.text(f'{TAKE_A_DAY_OFF}') |
+        Filters.text(f'{TAKE_SICK_LEAVE}'),
+        take_a_day_off_or_sick_leave))
+
 
     # Commands for Driver Managers
     # Returns status cars
