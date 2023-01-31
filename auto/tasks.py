@@ -156,8 +156,8 @@ def setup_periodic_tasks(sender, **kwargs):
     init_chrome_driver()
     sender.add_periodic_task(UPDATE_DRIVER_STATUS_FREQUENCY, update_driver_status.s())
     sender.add_periodic_task(UPDATE_DRIVER_DATA_FREQUENCY, update_driver_data.s())
-    # sender.add_periodic_task(crontab(minute=0, hour=5), download_weekly_report_force.s())
-    sender.add_periodic_task(60*60*3, download_weekly_report_force.s())
+    sender.add_periodic_task(crontab(minute=0, hour=5), download_weekly_report_force.s())
+    # sender.add_periodic_task(60*60*3, download_weekly_report_force.s())
 
 def init_chrome_driver():
     global BOLT_CHROME_DRIVER

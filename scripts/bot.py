@@ -16,6 +16,7 @@ from telegram import *
 from telegram.ext import *
 from app.models import *
 from app.portmone.generate_link import *
+from auto.tasks import download_weekly_report_force
 from . import bolt, uklon, uber
 from scripts.driversrating import DriversRatingMixin
 import traceback
@@ -800,6 +801,11 @@ def report(update, context):
     update.message.reply_text(get_report())
 
 
+def download_report(update, context):
+    update.message.reply_text("Weekly report download request submitted")
+    download_weekly_report_force.delay()
+
+
 def cancel(update, context):
     global STATE
     global STATE_D
@@ -921,6 +927,7 @@ def main():
 
     # Command for Owner
     dp.add_handler(CommandHandler("report", report, run_async=True))
+    dp.add_handler(CommandHandler("download_report", download_report))
     dp.add_handler(CommandHandler("rating", drivers_rating))
 
     # Transfer money
