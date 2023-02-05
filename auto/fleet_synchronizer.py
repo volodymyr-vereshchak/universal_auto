@@ -404,14 +404,15 @@ class UklonSynchronizer(Synchronizer, NewUklon):
         try:
             xpath = f'//div[@id="mat-tab-label-0-1"]'
             WebDriverWait(self.driver, self.sleep).until(EC.presence_of_element_located((By.XPATH, xpath))).click()
-            xpath = f'//mat-select[@id="mat-select-4"]'
-            WebDriverWait(self.driver, self.sleep).until(EC.presence_of_element_located((By.XPATH, xpath))).click()
-            xpath = f'//mat-option[@id="mat-option-10"]'
-            WebDriverWait(self.driver, self.sleep).until(EC.presence_of_element_located((By.XPATH, xpath))).click()
+            # xpath = f'//mat-select[@id="mat-select-4"]'
+            # WebDriverWait(self.driver, self.sleep).until(EC.presence_of_element_located((By.XPATH, xpath))).click()
+            # xpath = f'//mat-option[@id="mat-option-2"]'
+            # WebDriverWait(self.driver, self.sleep).until(EC.presence_of_element_located((By.XPATH, xpath))).click()
             xpath = f'//button[@data-cy="order-filter-apply-btn"]'
             WebDriverWait(self.driver, self.sleep).until(EC.presence_of_element_located((By.XPATH, xpath))).click()
             time.sleep(self.sleep)
-        except TimeoutException:
+        except TimeoutException as err:
+            print(err.msg)
             return {
                 'online': online,
                 'width_client': width_client,
