@@ -371,3 +371,16 @@ class EventAdmin(admin.ModelAdmin):
     fieldsets = [
         (None, {'fields': ['full_name_driver', 'event', 'chat_id']}),
     ]
+
+@admin.register(Owner)
+class OwnerAdmin(admin.ModelAdmin):
+    list_display = ('name', 'second_name', 'email', 'phone_number', 'created_at')
+    list_display_links = ('name', 'second_name')
+    list_filter = ['created_at']
+    search_fields = ('name', 'second_name')
+    ordering = ('name', 'second_name')
+    list_per_page = 25
+
+    fieldsets = [
+        (None, {'fields': ['name', 'second_name', 'email', 'phone_number', 'chat_id']}),
+    ]

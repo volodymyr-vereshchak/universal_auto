@@ -795,9 +795,23 @@ def drivers_rating(update, context):
     update.message.reply_text(text)
 
 
-def report(update, context):
+def report(context):
     # update.message.reply_text("Введіть ваш Uber OTP код з SMS:")
-    update.message.reply_text(get_report())
+    report = get_report()
+    owner, totals = report[0], report[1]
+    drivers = {f'{i.name} {i.second_name}': i.chat_id for i in Driver.objects.all()}
+
+    # sending report to owner
+    message = f'Fleet Owner: {"%.2f" % owner["Fleet Owner"]}\n\n' + '\n'.join(totals.values())
+    context.bot.send_message(chat_id=DEVELOPER_CHAT_ID, text=message)
+
+    # sending report to driver
+    for driver in drivers:
+        try:
+            message, chat_id = totals[f'{driver}'], drivers[f'{driver}']
+            context.bot.send_message(chat_id=chat_id, text=message)
+        except:
+            pass
 
 
 def cancel(update, context):
@@ -1015,6 +1029,7 @@ def main():
     dp.add_handler(MessageHandler(Filters.text('Choice week number'), get_driver_week_report))
     dp.add_handler(MessageHandler(Filters.text('Update report'), get_update_report))
 
+    updater.job_queue.run_daily(report, time=datetime.time(7, 0, 0), days=(1,))
     updater.start_polling()
     updater.idle()
 

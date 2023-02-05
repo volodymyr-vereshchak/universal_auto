@@ -2140,9 +2140,8 @@ def get_report(week_number = None, driver=True, sleep=5, headless=True):
     totals = {k: f'Общаяя касса {k}: %.2f\n' % v  for k, v in totals.items()}
     totals = {k: v + reports[k]  for k, v in totals.items()}
     totals = {k: v + f'Зарплата за неделю {k}: %.2f\n' % salary[k] for k, v in totals.items()}
-
-
-    return f'Fleet Owner: {"%.2f" % owner["Fleet Owner"]}\n\n' + '\n'.join(totals.values())
+    return owner, totals
+    #return f'Fleet Owner: {"%.2f" % owner["Fleet Owner"]}\n\n' + '\n'.join(totals.values())
 
 
 def download_and_save_daily_report(driver=True, sleep=5, headless=True, day=None):
