@@ -440,14 +440,19 @@ def take_a_day_off_or_sick_leave(update, context):
     chat_id = update.message.chat.id
     event = event.split()
     driver = Driver.get_by_chat_id(chat_id)
-    driver.driver_status = f'{Driver.OFFLINE}'
-    driver.save()
-    Event.objects.create(
+    events = Event.objects.filter(full_name_driver=driver, status_event=False)
+    list_event = [i for i in events]
+    if len(list_event) > 0:
+        update.message.reply_text(f"У вас вже відкритий <<Лікарняний>> або <<Вихідний>>.\nЩоб закрити подію скористайтесь командою /status")
+    else:
+        driver.driver_status = f'{Driver.OFFLINE}'
+        driver.save()
+        Event.objects.create(
                 full_name_driver=driver,
                 event=event[1].title(),
                 chat_id=chat_id,
                 created_at=datetime.datetime.now())
-    update.message.reply_text(f'Ваш статус зміненно на <<{Driver.OFFLINE}>> та ваш <<{event[1].title()}>> розпочато',
+        update.message.reply_text(f'Ваш статус зміненно на <<{Driver.OFFLINE}>> та ваш <<{event[1].title()}>> розпочато',
                                             reply_markup=ReplyKeyboardRemove())
 
 
@@ -725,7 +730,8 @@ def get_information(update, context):
                 'Для вашої ролі:\n\n' \
                 '/report - Загрузити та побачити недільні звіти\n' \
                 '/rating - Побачити рейтинг водіїв\n' \
-                '/payment - Перевести кошти або сгенерити лінк на оплату\n'
+                '/payment - Перевести кошти або сгенерити лінк на оплату\n' \
+                '/download_report - Загрузити тижневі звіти\n'
         update.message.reply_text(f'{report}')
     else:
         update.message.reply_text(f'{standart_commands}')
