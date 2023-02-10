@@ -1003,7 +1003,7 @@ class Comment(models.Model):
     deleted_at = models.DateTimeField(null=True, blank=True, verbose_name='Видалено')
 
     class Meta:
-        verbose_name='Відгук'
+        verbose_name = 'Відгук'
         verbose_name_plural='Відгуки'
         ordering=['-created_at']
 
@@ -1024,6 +1024,13 @@ class Order(models.Model):
     driver = models.ForeignKey(Driver, null=True, on_delete=models.RESTRICT)
     created_at = models.DateTimeField(editable=False, auto_now_add=True)
 
+    @staticmethod
+    def get_order(chat_id_client, sum, status_order):
+        try:
+            order = Order.objects.get(chat_id_client=chat_id_client, sum=sum, status_order=status_order)
+            return order
+        except Order.DoesNotExist:
+            return None
 
 class Report_of_driver_debt(models.Model):
     driver = models.CharField(max_length=255, verbose_name='Водій')

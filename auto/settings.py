@@ -84,7 +84,7 @@ WSGI_APPLICATION = 'auto.wsgi.application'
 DATABASES = {
 
     'default': {
-        'POOL_OPTIONS' : {
+        'POOL_OPTIONS': {
             'POOL_SIZE': 10,
             'MAX_OVERFLOW': 10,
             'RECYCLE': 24 * 60 * 60

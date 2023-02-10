@@ -153,31 +153,89 @@ def payment_method(update, context):
 
     reply_markup = ReplyKeyboardMarkup(
         keyboard=[keyboard],
-        resize_keyboard=True, )
+        resize_keyboard=True,
+        )
 
     update.message.reply_text('Виберіть спосіб оплати:', reply_markup=reply_markup)
 
+WAITING = 'Очікується'
 
 def order_create(update, context):
-    WAITING = 'Очікується'
+
+    keyboard = [
+        [
+            InlineKeyboardButton("\u2705 Прийняти замовлення", callback_data="Accept order")
+        ],
+
+        [
+            InlineKeyboardButton("\u274c Відхилити", callback_data="Reject order"),
+        ],
+    ]
+
+    reply_markup = InlineKeyboardMarkup(keyboard)
 
     payment_method = update.message.text
-    chat_id = update.message.chat.id
-    user = User.get_by_chat_id(chat_id)
+    context.user_data['payment_method'] = payment_method.split()[1]
+    context.user_data['chat_id'] = update.message.chat.id
+    user = User.get_by_chat_id(context.user_data['chat_id'])
+    context.user_data['phone_number'] = user.phone_number
 
-    order = Order.objects.create(
+    drivers = [i.chat_id for i in Driver.objects.all() if i.driver_status == Driver.ACTIVE]
+
+    order = f"Адреса посадки: {context.user_data['from_address']}\nМісце прибуття: {context.user_data['to_the_address']}\n" \
+            f"Спосіб оплати: {context.user_data['payment_method']}\nСума: test"
+
+    if len(drivers) != 0:
+        #for driver in drivers:
+            context.bot.send_message(chat_id=736204274, text=order, reply_markup=reply_markup)
+    else:
+        update.message.reply_text('Вибачте, але вільних водіїв незалишилось')
+
+    create_order = Order.objects.create(
         from_address=context.user_data['from_address'],
         latitude=context.user_data['latitude'],
         longitude=context.user_data['longitude'],
         to_the_address=context.user_data['to_the_address'],
-        phone_number=user.phone_number,
-        chat_id_client=chat_id,
+        phone_number=context.user_data['phone_number'],
+        chat_id_client=context.user_data['chat_id'],
         sum='',
-        payment_method=payment_method.split()[1],
+        payment_method=context.user_data['payment_method'],
         status_order=WAITING)
 
-    order.save()
-    update.message.reply_text('Ваша заявка прийнята')
+    create_order.save()
+
+
+def inline_buttons(update, context):
+    query = update.callback_query
+    query.answer()
+
+    chat_id = update.effective_chat.id
+
+    if query.data == 'Accept order':
+        order = Order.get_order(chat_id_client=context.user_data['chat_id'], sum='', status_order=WAITING)
+        if order is not None:
+            query.edit_message_text(text=f"Ви обрали: Прийняти замовлення")
+
+            #driver = Driver.get_by_chat_id(chat_id=73620427)
+            #order.driver = Driver.objects.get(chat_id=73620427) for develop
+            driver = Driver.get_by_chat_id(chat_id=chat_id)
+            order.driver = Driver.objects.get(chat_id=chat_id)
+            order.status_order = 'Виконується'
+            order.save()
+            driver.driver_status = Driver.WAIT_FOR_CLIENT
+            driver.save()
+
+            vehicle = Vehicle.objects.get(driver=driver.id)
+
+            report_for_client = f'Ваш водій: {driver}\nНазва: {vehicle.name}\nМодель: {vehicle.model}\n' \
+                                f'Номер машини: {vehicle}\nПрибуде через: test'
+
+            context.bot.send_message(chat_id=chat_id, text=f'Водій ваш статус зміненно на <<{Driver.WAIT_FOR_CLIENT}>>')
+            context.bot.send_message(chat_id=context.user_data['chat_id'], text=report_for_client)
+        else:
+            query.edit_message_text(text='Замовлення вже виконує інший водій')
+    elif query.data == 'Reject order':
+        query.edit_message_text(text=f"Ви <<Відмовились від замовлення>>")
 
 
 # Changing status of driver
@@ -185,7 +243,7 @@ def status(update, context):
     chat_id = update.message.chat.id
     driver = Driver.get_by_chat_id(chat_id)
     if driver is not None:
-        buttons = [ [KeyboardButton(Driver.ACTIVE)],
+        buttons = [[KeyboardButton(Driver.ACTIVE)],
                     [KeyboardButton(Driver.WITH_CLIENT)],
                     [KeyboardButton(Driver.WAIT_FOR_CLIENT)],
                     [KeyboardButton(Driver.OFFLINE)]
@@ -1024,9 +1082,11 @@ def main():
     # Viewing status driver
     dp.add_handler(CommandHandler("driver_status", driver_status))
 
+
     # Commands for Service Station Manager
     # Sending report on repair
     dp.add_handler(CommandHandler("send_report", numberplate_car))
+    dp.add_handler(CallbackQueryHandler(inline_buttons))
 
     # System commands
     dp.add_handler(CommandHandler("cancel", cancel))
