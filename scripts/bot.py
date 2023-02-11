@@ -186,8 +186,9 @@ def order_create(update, context):
             f"Спосіб оплати: {context.user_data['payment_method']}\nСума: test"
 
     if len(drivers) != 0:
-        #for driver in drivers:
-            context.bot.send_message(chat_id=736204274, text=order, reply_markup=reply_markup)
+        for driver in drivers:
+            context.bot.send_message(chat_id=driver, text=order, reply_markup=reply_markup)
+            #context.bot.send_message(chat_id=736204274, text=order, reply_markup=reply_markup)
     else:
         update.message.reply_text('Вибачте, але вільних водіїв незалишилось')
 
