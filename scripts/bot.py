@@ -871,6 +871,14 @@ def report(update, context):
     message = f'Fleet Owner: {"%.2f" % owner["Fleet Owner"]}\n\n' + '\n'.join(totals.values())
     context.bot.send_message(chat_id=DEVELOPER_CHAT_ID, text=message)
 
+    # sending report to driver
+    for driver in drivers:
+        try:
+            message, chat_id = totals[f'{driver}'], drivers[f'{driver}']
+            context.bot.send_message(chat_id=chat_id, text=message)
+        except:
+            pass
+
 
 def auto_report_for_driver_and_owner(context):
     report = get_report()
