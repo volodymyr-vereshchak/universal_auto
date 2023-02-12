@@ -84,13 +84,8 @@ WSGI_APPLICATION = 'auto.wsgi.application'
 DATABASES = {
 
     'default': {
-        'POOL_OPTIONS' : {
-            'POOL_SIZE': 10,
-            'MAX_OVERFLOW': 10,
-            'RECYCLE': 24 * 60 * 60
-        },
 
-        'ENGINE': 'dj_db_conn_pool.backends.postgresql',
+        'ENGINE': 'django.db.backends.postgresql_psycopg2',
 
         'NAME': os.environ["POSTGRES_DB"],
 

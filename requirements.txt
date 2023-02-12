@@ -16,4 +16,3 @@ celery
 folium
 python-gettext
 translators
-django-db-connection-pool
