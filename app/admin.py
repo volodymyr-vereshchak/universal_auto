@@ -384,3 +384,7 @@ class OwnerAdmin(admin.ModelAdmin):
     fieldsets = [
         (None, {'fields': ['name', 'second_name', 'email', 'phone_number', 'chat_id']}),
     ]
+
+@admin.register(Order)
+class OrderAdmin(admin.ModelAdmin):
+    list_display = [f.name for f in Order._meta.fields]
