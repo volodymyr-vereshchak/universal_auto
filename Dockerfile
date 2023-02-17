@@ -1,32 +1,23 @@
-ARG PYTHON_VERSION=3.9.10
+FROM selenium/standalone-chrome
+ENV PYTHONDONTWRITEBYTECODE 1
+ENV PYTHONUNBUFFERED 1
+RUN sudo apt-get update && sudo apt-get install -y \
+  postgresql-contrib \
+  redis-tools \ 
+  python3-pip \
+  python3-venv \
+  python3-dev \
+  python3-setuptools \
+  python3-wheel \
+  unzip \
+  nginx
+COPY ./nginx/default.conf /etc/nginx/conf.d/default.conf
+RUN sudo ln -sf /dev/stdout /var/log/nginx/access.log && sudo ln -sf /dev/stderr /var/log/nginx/error.log
 
-FROM python:${PYTHON_VERSION}
-
-RUN wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add -
-RUN sh -c 'echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google-chrome.list'
-
-RUN apt-get update && apt-get install -y \
-    postgresql-contrib \
-    redis-tools \
-    python3-pip \
-    python3-venv \
-    python3-dev \
-    python3-setuptools \
-    python3-wheel \
-    gettext \
-    google-chrome-stable \
-    unzip
-
-RUN wget -O /tmp/chromedriver.zip http://chromedriver.storage.googleapis.com/`curl -sS chromedriver.storage.googleapis.com/LATEST_RELEASE`/chromedriver_linux64.zip
-RUN unzip /tmp/chromedriver.zip chromedriver -d /usr/local/bin/
-ENV DISPLAY=:99
-
-RUN mkdir -p /app
+RUN sudo mkdir -p /app
 WORKDIR /app
 COPY requirements.txt .
-RUN python -m pip install --upgrade pip
-RUN pip install -r requirements.txt
+RUN sudo pip install -r requirements.txt
 COPY . .
-
 EXPOSE 8080 44300
-ENTRYPOINT honcho start 
+CMD ["honcho", "start"]

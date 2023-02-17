@@ -30,15 +30,15 @@ services:
       PORTMONE_PASSWORD:
       PORTMONE_PAYEE_ID:
       REDIS_URL: redis://redis
-      DB_HOST: postgres
-      POSTGRES_DB: "universal_auto_dev"
-      POSTGRES_USER: "universal_auto_dev"
-      POSTGRES_PASSWORD: "pass"
+      DATABASE_URL: "postgres://universal_auto_dev:pass@postgres:5432/universal_auto_dev"
       SECRET_KEY:
       UDP_IP: 0.0.0.0
       CELERY_BROKER_URL: redis://redis
       CELERY_RESULT_BACKEND: redis://redis
       SELENIUM_HUB_HOST: http://chrome:4444/wd/hub
+      DEBUG: "False"
+      ALLOWED_HOSTS: "http://*.127.0.0.1 http://localhost"
+      CSRF_TRUSTED_ORIGINS: "127.0.0.1 168.220.93.200 localhost"
 
   redis:
     container_name: universal_auto_redis

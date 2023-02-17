@@ -1,8 +1,10 @@
 import time
-import zoneinfo
 from contextlib import contextmanager
 from datetime import datetime
-
+try:
+    import zoneinfo
+except ImportError:
+    from backports import zoneinfo
 from celery.schedules import crontab
 from celery.utils.log import get_task_logger
 from django.conf import settings

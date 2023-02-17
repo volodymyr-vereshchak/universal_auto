@@ -1161,10 +1161,8 @@ class SeleniumTools():
         options.add_argument("--enable-file-cookies")
         options.add_argument('--allow-profiles-outside-user-dir')
         options.add_argument('--enable-profile-shortcut-manager')
-        # options.add_argument(f'user-data-dir={os.path.join(os.getcwd(), "_SeleniumChromeUsers", self.__class__.__name__)}')
         options.add_argument(f'user-data-dir={os.path.join(os.getcwd(), "_SeleniumChromeUsers", self.profile)}')
-        # options.add_argument(f'--profile-directory={self.profile}')
-
+        
         if headless:
             options.add_argument('--headless=new')
             options.add_argument('--disable-gpu')
@@ -1174,7 +1172,6 @@ class SeleniumTools():
             options.add_argument("--start-maximized")
             options.add_argument("--disable-extensions")
             options.add_argument('--disable-dev-shm-usage')
-            # options.add_argument('--disable-software-rasterizer')
             options.add_argument("user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/104.0.0.0 Safari/537.36")
 
         driver = webdriver.Chrome(options=options, port=9514)

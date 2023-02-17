@@ -8,7 +8,8 @@ pendulum
 python-telegram-bot==13.13
 honcho
 redis
-psycopg2
+psycopg2-binary
+dj-database-url
 pytest==7.1.3
 pytest-django==4.5.2
 django-polymorphic
@@ -16,3 +17,5 @@ celery
 folium
 python-gettext
 translators
+gunicorn
+backports.zoneinfo
