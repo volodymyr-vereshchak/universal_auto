@@ -6,7 +6,7 @@ kill_timeout = 5
 processes = []
 
 [env]
-  PORT = "8080"
+  PORT = "80"
   ECHO_PORT = "44300"
 
 [experimental]
@@ -29,7 +29,7 @@ processes = []
 
 [[services]]
   http_checks = []
-  internal_port = 8080
+  internal_port = 80
   processes = ["app"]
   protocol = "tcp"
   script_checks = []
@@ -57,5 +57,3 @@ processes = []
   guest_path = "/app/public"
   url_prefix = "/static/"
 
-[deploy]
-  release_command = "python manage.py migrate --noinput"
