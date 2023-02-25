@@ -7,6 +7,7 @@ import sys
 from django.db import models, IntegrityError
 from django.db.models import Sum, QuerySet
 from django.db.models.base import ModelBase
+from django.core.validators import MaxValueValidator
 from polymorphic.models import PolymorphicModel
 from selenium.common import TimeoutException, WebDriverException
 
@@ -692,6 +693,15 @@ class Fleets_drivers_vehicles_rate(models.Model):
     deleted_at = models.DateTimeField(null=True, blank=True)
     pay_cash = models.BooleanField(default=False)
     withdraw_money = models.BooleanField(default=False)
+    # bonus = models.DecimalField(decimal_places=2, max_digits=3, default=0)
+    network = models.DecimalField(decimal_places=2, max_digits=3, default=0)
+    network_driver = models.ForeignKey(Driver, default=None, null=True, blank=True, on_delete=models.SET_NULL, related_name='network_drivers')
+    
+    def bonus(self, kassa, base = 5000):
+        dif = kassa - base
+        if dif > 0:
+            return min(5, dif * 10 // base) / 100
+        return 0
 
     def __str__(self) -> str:
         return ''
@@ -2124,6 +2134,7 @@ def get_report(week_number = None, driver=True, sleep=5, headless=True):
     driver = False
     owner =   {"Fleet Owner": 0}
     reports = {}
+    network = {}
     totals =  {}
     salary =  {}
     fleets =  Fleet.objects.filter(deleted_at=None)
@@ -2133,17 +2144,21 @@ def get_report(week_number = None, driver=True, sleep=5, headless=True):
             r = list((r for r in all_drivers_report if r.driver_id() == rate.driver_external_id))
             if r:
                 r = r[0]
-                # print(r)
                 name = rate.driver.full_name()
-                reports[name] = reports.get(name, '') + r.report_text(name, float(rate.rate)) + '\n'
+                net_drivers = Fleets_drivers_vehicles_rate.objects.filter(fleet_id=fleet.id, deleted_at=None, network_driver=rate.driver)
+                network[name] = 0
+                for net_driver in net_drivers:
+                    network[name] += sum(float(rate.network) * r.kassa() for r in all_drivers_report if r.driver_id() == net_driver.driver_external_id)
+                reports[name] = reports.get(name, '') + r.report_text(name, float(rate.rate) + rate.bonus(r.kassa())) + '\n'
                 totals[name] = totals.get(name, 0) + r.kassa()
                 salary[name] = salary.get(name, 0) + r.total_drivers_amount(float(rate.rate))
                 owner["Fleet Owner"] += r.total_owner_amount(float(rate.rate))
 
     totals = {k: v for k, v in totals.items() if v != 0.0}
-    totals = {k: f'Общаяя касса {k}: %.2f\n' % v for k, v in totals.items()}
-    totals = {k: v + reports[k] for k, v in totals.items()}
-    totals = {k: v + f'Зарплата за тиждень {k}: %.2f\n' % salary[k] for k, v in totals.items()}
+    totals = {k: f'Загальна каса {k}: %.2f\n' % v for k, v in totals.items()}
+    totals = {k: v + reports[k] for k, v in totals.items()} 
+    totals = {k: v + f'Мережевий бонус {k}: %.2f\n' % network[k] for k, v in totals.items()}
+    totals = {k: v + f'Зарплата за тиждень {k}: %.2f\n' % (salary[k] + network[k]) for k, v in totals.items()}
 
     return owner, totals
 

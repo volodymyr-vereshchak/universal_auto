@@ -112,11 +112,15 @@ class Fleets_drivers_vehicles_rateInline(admin.TabularInline):
     model = Fleets_drivers_vehicles_rate
     extra = 0
     verbose_name = 'Fleets Drivers Vehicles Rate'
-    verbose_name_plural = 'Fleets Drivers Vehicles Rate'
+    verbose_name_plural = 'Fleets Drivers Vehicles Rate'    
 
     fieldsets = [
-        (None, {'fields': ['fleet', 'driver', 'vehicle', 'driver_external_id', 'rate']}),
+        (None, {'fields': ['fleet', 'driver', 'vehicle', 'driver_external_id', 'rate', 'network', 'network_driver']}),
     ]
+
+
+class Fleets_drivers_vehicles_driver_rateInline(Fleets_drivers_vehicles_rateInline):
+    fk_name = 'driver'
 
 
 @admin.register(Fleet)
@@ -147,7 +151,7 @@ class DriverAdmin(admin.ModelAdmin):
     ]
 
     inlines = [
-        Fleets_drivers_vehicles_rateInline,
+        Fleets_drivers_vehicles_driver_rateInline,
         DriverManagerInline,
         SupportManagerDriverInline,
     ]
