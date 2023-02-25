@@ -7,7 +7,6 @@ import sys
 from django.db import models, IntegrityError
 from django.db.models import Sum, QuerySet
 from django.db.models.base import ModelBase
-from django.core.validators import MaxValueValidator
 from polymorphic.models import PolymorphicModel
 from selenium.common import TimeoutException, WebDriverException
 

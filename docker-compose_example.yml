@@ -17,7 +17,7 @@ services:
       - .:/app
 
     environment:
-      TELEGRAM_TOKEN: 
+      TELEGRAM_TOKEN: <add Your telegram token here>
       UBER_NAME: 
       UBER_PASSWORD: 
       BOLT_NAME: 
